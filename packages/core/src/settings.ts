@@ -81,7 +81,8 @@ export const settingsSchema = z.object({
     shape: z.enum(['outline', 'circle', 'square']),
     border: mm(1.5, 10),
     capHeight: mm(0.5, 4),
-    fitGap: mm(0.1, 0.6),
+    /** Clearance between the cap and the well wall (per user reference, R22). */
+    fitGap: mm(0.2, 1.5),
     switches: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   }).strict(),
 }).strict();
@@ -107,7 +108,7 @@ export const DEFAULTS: Settings = {
   rotation: [0, 0, 0],
   export: { format: '3mf', slicer: 'bambu', mono: false, monoColour: '#e8e4d8' },
   make: 'model',
-  clicker: { shape: 'outline', border: 3, capHeight: 2, fitGap: 0.3, switches: 1 },
+  clicker: { shape: 'outline', border: 3, capHeight: 2, fitGap: 0.5, switches: 1 },
 };
 
 /** The `HeightMode` that `applyHeightMode` expects, from the settings. */

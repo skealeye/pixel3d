@@ -34,6 +34,11 @@ export interface Model {
   warnings: string[];
   /** Filament-change heights, mm; filled by later stages. */
   pauseZ: number[];
+  /**
+   * Clicker only: how to assemble the as-printed parts. Move every `cap` part by (capShift, restZ) to seat it on the
+   * switch at rest in the body's frame, or by (capShift, pressedZ) fully pressed. `rimZ` is the body's rim height.
+   */
+  clicker?: { capShift: [number, number]; restZ: number; pressedZ: number; rimZ: number };
 }
 
 /** Gap between the two halves, mm. */

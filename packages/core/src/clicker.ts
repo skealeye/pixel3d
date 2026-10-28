@@ -8,42 +8,44 @@ import type { Model, Part } from './mesh';
 
 type Manifold = InstanceType<ManifoldToplevel['Manifold']>;
 type CrossSection = InstanceType<ManifoldToplevel['CrossSection']>;
+type Keep = <T extends { delete(): void }>(o: T) => T;
 
 /**
- * Nominal Cherry MX numbers (spec §4.6b), mm.
- *
- * Checked against the Cherry MX1A switch datasheet values as quoted by the ai03 keyboard design wiki
- * ("Switch Dimensions and Physical Specifications", wiki.ai03.com/books/case-and-plate-design): plate cutout
- * 14.0 x 14.0 (datasheet 14 +/-0.05, corners r <= 0.3), plate thickness 1.5 +/-0.1, key pitch 19.05 (0.75 in),
- * plate top to PCB top 5.0. The rest are the well-known MX datasheet / keycap figures: 11.6 above the plate top
- * (stem tip at rest); plate top to PCB 5.0, so about 3.5 of housing + 3.3 pins below the plate bottom (about 6.8),
- * within the 8.5 of clearance; total travel 4.0
- * (actuation 2.0), keycap stem 5.5 round with a + socket 4.1 x 1.3 (the switch's cross is about 4.0 x 1.17,
- * so this socket carries the clearance), engagement about 3.6-4.0 deep.
- * These are nominal: the fit-test export (`fitTest`) lets the user tune them on their own printer.
+ * Cherry MX clicker numbers, mm, per user reference partsref.obj / Skull.obj (ruling R22; analysis in
+ * .superpowers/sdd/2026-10-28-pixel3d/clicker-reference.md). These are the boolean cutters the user prints with
+ * (MakerWorld 1388810 "Negative modifiers to make clicker fidget toys", re-measured) and a finished clicker that
+ * prints and clicks. Where they differ from the nominal Cherry datasheet (14.0 plate cutout in a 1.5 plate), the
+ * reference wins: the switch is a press fit in a straight shaft and rests on a step, with no plate.
+ * Only `above` (stem tip 11.6 above the plate top / seat, at rest), `travel` (4.0) and `pitch` (19.05) are the
+ * Cherry datasheet values (ai03 wiki "Switch Dimensions and Physical Specifications").
  */
 export const MX = {
-  /** Square plate cutout the switch clips into. */
-  cut: 14,
-  /** Square clearance column for the switch housing, above and below the plate. */
-  column: 15.6,
-  /** Plate thickness the clips grip. */
-  plate: 1.5,
-  /** Clearance below the plate for the housing and pins. */
-  below: 8.5,
-  /** Body floor under the clearance. */
+  /** Press-fit shaft for the lower housing and pins, X x Y (Y, the clip axis, is the wider). */
+  shaft: [14.1, 14.56] as [number, number],
+  /** Shaft depth below the seat: 5.0 housing + 3.3 pins + 0.08. */
+  depth: 8.38,
+  /** Body floor under the blind shaft. */
   floor: 1.2,
-  /** Switch stem tip above the plate top, at rest. */
+  /** Rounded-square clearance column round the top housing, above the seat. */
+  column: 19.0,
+  /** Its corner radius and height. */
+  columnR: 3,
+  columnH: 3.0,
+  /** Rounded-square lead-in from the column up to the well floor. */
+  leadIn: 20.0,
+  leadInR: 4,
+  /** Switch stem tip above the seat (the plate-top equivalent), at rest. Cherry datasheet. */
   above: 11.6,
-  /** Cap stem diameter. */
-  stemD: 5.5,
+  /** Cap stem diameter, flush with the cap's underside. */
+  stemD: 5.8,
   /** Cross socket arms, long x wide. */
-  cross: [4.1, 1.3] as [number, number],
-  /** Cross socket depth (how far the switch stem goes into the cap stem). */
-  engage: 3.8,
-  /** Cap stem and skirt length below the cap backing. */
-  stemLen: 4.5,
-  /** Full key travel. */
+  cross: [4.27, 1.22] as [number, number],
+  /** Cross socket and pocket depth into the cap. */
+  engage: 3.35,
+  /** The cap's pocket round the stem: a rounded square, wide at the mouth (cap underside), narrow at its ceiling. */
+  pocket: [14.5, 14.0] as [number, number],
+  pocketR: 4.1,
+  /** Full key travel. Cherry datasheet. */
   travel: 4,
   /** Keyboard key pitch, for 2-3 switches. */
   pitch: 19.05,
@@ -51,29 +53,34 @@ export const MX = {
 
 /** Gap between the cap and the body as printed, mm. */
 const APART = 8;
-/** Narrowest skirt wall, mm (a pixel wide when pixels are bigger). */
-const SKIRT_MIN = 1.2;
 const SEGMENTS = 64;
-/** Extra well depth below full travel, so the switch, not the skirt, is the hard stop (cap first-layer squish). */
+/** Extra well depth below full travel, so the switch, not the cap, is the hard stop (cap first-layer squish). */
 export const TRAVEL_MARGIN = 0.4;
-/** Wall above the plate on a fit-test socket coupon, mm: enough to check the housing seats through the column. */
-const COUPON_ABOVE = 3;
+/** Solid cap above the pocket ceiling, mm. */
+export const CAP_ROOF = 1.2;
+/** The square the art must cover over each switch: the pocket mouth plus a 1.5 mm wall each side. */
+export const MIN_ART = MX.pocket[0] + 2 * 1.5;
+
+/** The cap's backing thickness: the base height, but never less than the pocket plus its roof. */
+export const capThickness = (s: Settings): number => Math.max(s.base.enabled ? s.base.height : 0, MX.engage + CAP_ROOF);
 
 /**
  * Heights in the body's frame (Z 0 = its underside on the bed) for a cap whose backing is `capT` thick,
  * with the cap seated on the switch at rest.
  */
-export function clickerLevels(s: Settings, capT: number) {
-  const plateBottom = MX.floor + MX.below;
-  const plateTop = plateBottom + MX.plate;
-  const stemTop = plateTop + MX.above;
-  /** The cap's backing underside, assembled at rest: the switch stem fills the socket. */
-  const capUnder = stemTop - MX.engage + MX.stemLen;
-  /** Room for the stems and skirt to travel the full 4 mm, plus a margin. */
-  const wellFloor = capUnder - MX.stemLen - MX.travel - TRAVEL_MARGIN;
-  /** The cap's backing stands `capHeight` above the rim at rest. */
+export function clickerLevels(s: Settings, capT: number = capThickness(s)) {
+  const shaftBottom = MX.floor;
+  /** The step the switch's top housing rests on (the plate-top equivalent). */
+  const seat = shaftBottom + MX.depth;
+  const columnTop = seat + MX.columnH;
+  const stemTop = seat + MX.above;
+  /** The cap's underside, assembled at rest: the switch stem tip at the socket ceiling. */
+  const capUnder = stemTop - MX.engage;
+  /** Room for the cap to travel the full 4 mm, plus a margin. */
+  const wellFloor = capUnder - MX.travel - TRAVEL_MARGIN;
+  /** The cap's top of backing stands `capHeight` above the rim at rest. */
   const rimTop = capUnder + capT - s.clicker.capHeight;
-  return { plateBottom, plateTop, stemTop, capUnder, wellFloor, rimTop };
+  return { shaftBottom, seat, columnTop, stemTop, capUnder, wellFloor, rimTop };
 }
 
 /** Switch centres in the art's mm frame: one in the middle, or 2-3 at keyboard pitch along the long side. */
@@ -87,7 +94,7 @@ function switchSpots(w: number, h: number, n: number): [number, number][] {
 
 const warningsOf = (w: number, h: number, n: number, uncovered: number): string[] => {
   const out: string[] = [];
-  const min = MX.column + 2;
+  const min = MIN_ART;
   if (Math.min(w, h) < min) out.push(`The art is smaller than the switch. Make it at least ${min} mm across so the cap covers it.`);
   const need = Math.round(((n - 1) * MX.pitch + min) * 10) / 10;
   if (n > 1 && Math.max(w, h) < need) out.push(`${n} switches need art at least ${need} mm along its long side.`);
@@ -105,7 +112,9 @@ function countPieces(wasm: ManifoldToplevel, ms: Manifold[]): number {
   return n;
 }
 
-function toModel(objects: { object: Part['object']; solids: { name: string; hex: string; m: Manifold }[] }[], pieces: number, warnings: string[]): Model {
+type Objects = { object: Part['object']; solids: { name: string; hex: string; m: Manifold }[] }[];
+
+function toModel(objects: Objects, pieces: number, warnings: string[], clicker?: Model['clicker']): Model {
   const bb = bounds(objects.flatMap((o) => o.solids.map((x) => x.m)));
   const parts: Part[] = [];
   for (const o of objects) for (const x of o.solids) {
@@ -119,26 +128,56 @@ function toModel(objects: { object: Part['object']; solids: { name: string; hex:
     pieces,
     warnings,
     pauseZ: [],
+    ...(clicker ? { clicker } : {}),
   };
 }
 
-/** A cap stem, `z0` to `z0 + stemLen`, at (x, y), with the cross socket open at the bottom (`down`) or top. */
-function stem(wasm: ManifoldToplevel, x: number, y: number, z0: number, down: boolean, keep: <T extends { delete(): void }>(o: T) => T): Manifold {
-  const { Manifold, CrossSection } = wasm;
-  const [a, b] = MX.cross;
-  const body = keep(keep(Manifold.cylinder(MX.stemLen, MX.stemD / 2, MX.stemD / 2, SEGMENTS)).translate([x, y, z0]));
-  const plus = keep(CrossSection.union([keep(CrossSection.square([a, b], true)), keep(CrossSection.square([b, a], true))]));
-  // the socket pokes 0.1 out of the open end so the cut never leaves a skin
-  const sz = down ? z0 - 0.1 : z0 + MX.stemLen - MX.engage;
-  const socket = keep(keep(plus.extrude(MX.engage + 0.1)).translate([x, y, sz]));
-  return keep(body.subtract(socket));
+/** A rounded rectangle centred on the origin. */
+function rounded(wasm: ManifoldToplevel, w: number, h: number, r: number, keep: Keep): CrossSection {
+  const { CrossSection } = wasm;
+  return keep(keep(CrossSection.square([w - 2 * r, h - 2 * r], true)).offset(r, 'Round', 2, SEGMENTS));
 }
 
 /**
- * The keycap clicker of spec §4.6b: a `cap` (the art on its backing, standing on one stem per switch and a skirt)
- * and a `body` (the footprint with a well shaped like the cap plus the fit gap, and an MX socket per switch).
- * Both are laid out as printed: the body on the bed, the cap art side up beside it on +X.
- * Keychain, magnets, sides, inside and rotation are not used on a clicker.
+ * What one switch cuts from the cap's underside (Z 0 up) at (x, y): the tapered rounded-square pocket round a
+ * 5.8 stem, plus the cross socket in the stem, all `engage` deep. The cutter pokes 0.1 below Z 0 so no skin is left.
+ */
+function capCutter(wasm: ManifoldToplevel, x: number, y: number, keep: Keep): Manifold {
+  const { Manifold, CrossSection } = wasm;
+  const [mouth, ceiling] = MX.pocket;
+  const h = MX.engage + 0.1;
+  // mouth size at Z -0.1, tapering to `ceiling` at Z engage
+  const at = (z: number) => mouth + (ceiling - mouth) * (z / MX.engage);
+  const w0 = at(-0.1);
+  const pocket = keep(keep(rounded(wasm, w0, w0, MX.pocketR, keep).extrude(h, 0, 0, [ceiling / w0, ceiling / w0])).translate([x, y, -0.1]));
+  const stem = keep(keep(Manifold.cylinder(h + 0.2, MX.stemD / 2, MX.stemD / 2, SEGMENTS)).translate([x, y, -0.2]));
+  const [a, b] = MX.cross;
+  const plus = keep(CrossSection.union([keep(CrossSection.square([a, b], true)), keep(CrossSection.square([b, a], true))]));
+  const socket = keep(keep(plus.extrude(h)).translate([x, y, -0.1]));
+  return keep(Manifold.union([keep(pocket.subtract(stem)), socket]));
+}
+
+/**
+ * What one switch cuts from the body at (x, y): the blind press-fit shaft from `shaftBottom` to the seat,
+ * the 19.0 column 3.0 tall above the seat, and the 20.0 lead-in from there to `top`.
+ */
+function seatCutter(wasm: ManifoldToplevel, x: number, y: number, shaft: [number, number], shaftBottom: number, top: number, keep: Keep): Manifold {
+  const { Manifold } = wasm;
+  const seat = shaftBottom + MX.depth, columnTop = seat + MX.columnH;
+  const prism = (cs: CrossSection, za: number, zb: number) => keep(keep(cs.extrude(zb - za)).translate([x, y, za]));
+  return keep(Manifold.union([
+    keep(keep(Manifold.cube([shaft[0], shaft[1], MX.depth + 0.01], true)).translate([x, y, shaftBottom + (MX.depth + 0.01) / 2])),
+    prism(rounded(wasm, MX.column, MX.column, MX.columnR, keep), seat, columnTop),
+    prism(rounded(wasm, MX.leadIn, MX.leadIn, MX.leadInR, keep), columnTop, top),
+  ]));
+}
+
+/**
+ * The keycap clicker of spec §4.6b (per user reference, R22): a `cap` (the art on a solid backing whose flat
+ * underside holds, per switch, the pocket, stem and cross socket) and a `body` (the footprint with a well shaped
+ * like the cap plus the fit gap, and per switch the press-fit shaft, column and lead-in).
+ * Both are laid out as printed, flat side down: the body on its underside, the cap underside down beside it on +X.
+ * `model.clicker` says how to assemble them. Keychain, magnets, sides, inside and rotation are not used on a clicker.
  */
 export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
   const wasm = await initManifold();
@@ -150,7 +189,7 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
   const c = s.clicker;
 
   const trash: { delete(): void }[] = [];
-  const keep = <T extends { delete(): void }>(o: T): T => { trash.push(o); return o; };
+  const keep: Keep = (o) => { trash.push(o); return o; };
   try {
     // regions as cross-sections in mm, the opaque box at the origin
     const region = (pick: (v: number) => boolean): CrossSection | null => {
@@ -162,8 +201,8 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
       return keep(keep(cs.translate([-box.x0, -box.y0])).scale([px.x, px.y]));
     };
     const outline = region((v) => v >= 0)!;
-    // the outline with its interior holes filled (outer loops only): the cap's backing, skirt and the body's well
-    // follow it, so a transparent hole in the art never splits the cap or leaves body plastic over a switch
+    // the outline with its interior holes filled (outer loops only): the cap's backing and the body's well follow
+    // it, so a transparent hole in the art never splits the cap or leaves body plastic over a switch
     const outers = outline.toPolygons().filter((poly) => {
       let a = 0;
       for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) a += poly[j]![0] * poly[i]![1] - poly[i]![0] * poly[j]![1];
@@ -172,56 +211,34 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
     const filled = keep(CrossSection.ofPolygons(outers, 'NonZero'));
     const colours = g.palette.map((_, i) => region((v) => v === i));
     const spots = switchSpots(W, H, c.switches);
+    const coverAt = (x: number, y: number) => keep(keep(CrossSection.square([MIN_ART, MIN_ART], true)).translate([x, y]));
+    const uncovered = spots.filter(([x, y]) => keep(coverAt(x, y).subtract(filled)).area() > 1e-3).length;
 
-    // ---- cap, in its own frame: stems and skirt 0..stemLen, the backing and art above
-    const bt = s.base.enabled ? s.base.height : 0;
-    const used = g.palette.filter((_, i) => colours[i]);
-    const capT = bt > 0 ? bt : Math.min(...used.map((p) => p.height));
-    const z0 = MX.stemLen;
-    const capSolids: { name: string; hex: string; m: Manifold }[] = [];
-    const skirtW = Math.max(SKIRT_MIN, Math.min(px.x, px.y));
-    const clear = MX.column + 2;
-    const clearAt = (x: number, y: number) => keep(keep(CrossSection.square([clear, clear], true)).translate([x, y]));
-    let skirtCs = keep(filled.subtract(keep(filled.offset(-skirtW, 'Miter'))));
-    for (const [x, y] of spots) skirtCs = keep(skirtCs.subtract(clearAt(x, y)));
-    const uncovered = spots.filter(([x, y]) => keep(clearAt(x, y).subtract(filled)).area() > 1e-3).length;
-    // small art can leave no skirt at all; an empty extrusion would void the union
-    const under = spots.map(([x, y]) => stem(wasm, x, y, 0, true, keep));
-    if (skirtCs.area() > 1e-6) under.push(keep(skirtCs.extrude(MX.stemLen)));
-    if (s.base.enabled) under.push(keep(keep(filled.extrude(bt)).translate([0, 0, z0])));
-    else {
-      // no base: the art's holes are backed in the base colour, as thick as the thinnest colour
-      const holes = keep(filled.subtract(outline));
-      if (holes.area() > 1e-6) under.push(keep(keep(holes.extrude(capT)).translate([0, 0, z0])));
-    }
-    capSolids.push({ name: 'base', hex: s.base.colour, m: keep(Manifold.union(under)) });
+    // ---- cap, printed underside down: a solid backing (base colour) minus the pockets, the art on top
+    const capT = capThickness(s);
+    const backing = keep(filled.extrude(capT));
+    const capCuts = keep(Manifold.union(spots.map(([x, y]) => capCutter(wasm, x, y, keep))));
+    const capSolids: { name: string; hex: string; m: Manifold }[] = [{ name: 'base', hex: s.base.colour, m: keep(backing.subtract(capCuts)) }];
     g.palette.forEach((p, i) => {
       const cs = colours[i];
-      if (cs) capSolids.push({ name: p.hex, hex: p.hex, m: keep(keep(cs.extrude(p.height)).translate([0, 0, z0 + bt])) });
+      if (cs) capSolids.push({ name: p.hex, hex: p.hex, m: keep(keep(cs.extrude(p.height)).translate([0, 0, capT])) });
     });
 
-    // ---- body: footprint minus the well, and per switch the clearance column, the plate socket and the column above
+    // ---- body, printed underside down: footprint minus the well and each switch's seat
     const L = clickerLevels(s, capT);
     let foot: CrossSection;
     if (c.shape === 'outline') {
       foot = keep(filled.offset(c.border, 'Miter'));
     } else if (c.shape === 'circle') {
       let r = 0;
-      for (const poly of outline.toPolygons()) for (const [x, y] of poly) r = Math.max(r, Math.hypot(x - W / 2, y - H / 2));
+      for (const poly of filled.toPolygons()) for (const [x, y] of poly) r = Math.max(r, Math.hypot(x - W / 2, y - H / 2));
       foot = keep(keep(CrossSection.circle(r + c.border, 2 * SEGMENTS)).translate([W / 2, H / 2]));
     } else {
       const w = W + 2 * c.border, h = H + 2 * c.border, r = Math.min(4, w / 4, h / 4);
-      foot = keep(keep(keep(CrossSection.square([w - 2 * r, h - 2 * r], true)).offset(r, 'Round', 2, SEGMENTS)).translate([W / 2, H / 2]));
+      foot = keep(rounded(wasm, w, h, r, keep).translate([W / 2, H / 2]));
     }
-    const block = (side: number, x: number, y: number, za: number, zb: number) =>
-      keep(keep(Manifold.cube([side, side, zb - za], true)).translate([x, y, (za + zb) / 2]));
-    const col = MX.column + 2 * c.fitGap;
     const cuts: Manifold[] = [keep(keep(keep(filled.offset(c.fitGap, 'Miter')).extrude(L.rimTop + 1 - L.wellFloor)).translate([0, 0, L.wellFloor]))];
-    for (const [x, y] of spots) {
-      cuts.push(block(col, x, y, MX.floor, L.plateBottom));
-      cuts.push(block(MX.cut, x, y, L.plateBottom - 0.5, L.plateTop + 0.5));
-      cuts.push(block(col, x, y, L.plateTop, L.wellFloor));
-    }
+    for (const [x, y] of spots) cuts.push(seatCutter(wasm, x, y, MX.shaft, L.shaftBottom, L.wellFloor + 0.01, keep));
     const body = keep(keep(foot.extrude(L.rimTop)).subtract(keep(Manifold.union(cuts))));
 
     // ---- lay out as printed: the cap beside the body on +X
@@ -235,50 +252,49 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
       [{ object: 'cap', solids: capSolids }, { object: 'body', solids: [{ name: 'base', hex: s.base.colour, m: body }] }],
       pieces,
       warningsOf(W, H, c.switches, uncovered),
+      { capShift: [-dx, 0], restZ: L.capUnder, pressedZ: L.capUnder - MX.travel, rimZ: L.rimTop },
     );
   } finally {
     for (const o of trash) o.delete();
   }
 }
 
-/** The fit-test socket coupons' clearance steps, tightest first: fit gap - 0.1, fit gap, fit gap + 0.1 (never below 0). */
-export function fitTestGaps(s: Settings): number[] {
-  const g = s.clicker.fitGap;
-  return [g - 0.1, g, g + 0.1].map((x) => Math.round(Math.max(0, x) * 100) / 100);
-}
+/** The fit-test shaft coupons' size steps, mm added to both shaft sides, tightest first. */
+export const FIT_STEPS = [-0.1, 0, 0.1];
+
+const signed = (d: number) => `${d < 0 ? '-' : '+'}${Math.abs(d).toFixed(2)}`;
 
 /**
- * A small fit-test print (spec §4.6b): a `stem` coupon (a cap stem with the cross socket on a small pad, socket up)
- * and three socket coupons, `socket_<gap>`, one per `fitTestGaps` step. Each is the body's switch seat: the
- * clearance column (15.6 + 2 x gap) below the plate, open underneath, the 1.5 mm plate with the 14.0 socket,
- * and a 3 mm wall of the same column above the plate. They are laid out tightest to loosest along +X, and each
- * carries 1, 2 or 3 notches on the top of its front (-Y) wall, so the printed coupons can be told apart.
- * Print them, clip a switch into each, push the stem on, and pick the fit gap whose coupon seats the switch.
+ * A small fit-test print (spec §4.6b, per user reference): a `stem` coupon (a small cap backing with the pocket,
+ * stem and cross socket, printed underside down like the cap) and three shaft coupons, `socket_<step>` for each
+ * `FIT_STEPS` step (`socket_-0.10`, `socket_+0.00`, `socket_+0.10`). Each shaft coupon is the body's switch seat:
+ * the press-fit shaft (14.1 x 14.56 plus the step) over a floor, the 19.0 column and the 20.0 lead-in, in a 2 mm
+ * wall. They are laid out tightest to loosest along +X, and each carries 1, 2 or 3 notches on the top of its front
+ * (-Y) wall, so the printed coupons can be told apart.
  */
 export async function fitTest(s: Settings): Promise<Model> {
   const wasm = await initManifold();
   const { Manifold } = wasm;
   const trash: { delete(): void }[] = [];
-  const keep = <T extends { delete(): void }>(o: T): T => { trash.push(o); return o; };
+  const keep: Keep = (o) => { trash.push(o); return o; };
   try {
-    const wall = 2, h = MX.below + MX.plate + COUPON_ABOVE;
+    const wall = 2;
     const box = (w: number, d: number, x: number, y: number, za: number, zb: number) =>
       keep(keep(Manifold.cube([w, d, zb - za], true)).translate([x, y, (za + zb) / 2]));
-    const objects: { object: Part['object']; solids: { name: string; hex: string; m: Manifold }[] }[] = [];
-    const pad = 10, padT = 2;
-    objects.push({ object: 'stem', solids: [{ name: 'base', hex: s.base.colour, m: keep(Manifold.union([box(pad, pad, pad / 2, 0, 0, padT), stem(wasm, pad / 2, 0, padT, false, keep)])) }] });
+    const objects: Objects = [];
+    const pad = MIN_ART, capT = MX.engage + CAP_ROOF;
+    const stemCoupon = keep(box(pad, pad, pad / 2, 0, 0, capT).subtract(capCutter(wasm, pad / 2, 0, keep)));
+    objects.push({ object: 'stem', solids: [{ name: 'base', hex: s.base.colour, m: stemCoupon }] });
+    const side = MX.leadIn + 2 * wall;
+    const top = MX.floor + MX.depth + MX.columnH + 1;
     let x0 = pad + APART;
-    fitTestGaps(s).forEach((gap, k) => {
-      const col = MX.column + 2 * gap, side = col + 2 * wall, cx = x0 + side / 2;
-      const cuts = [
-        box(col, col, cx, 0, -1, MX.below),
-        box(MX.cut, MX.cut, cx, 0, MX.below - 0.5, MX.below + MX.plate + 0.5),
-        box(col, col, cx, 0, MX.below + MX.plate, h + 1),
-      ];
+    FIT_STEPS.forEach((d, k) => {
+      const cx = x0 + side / 2;
+      const cuts = [seatCutter(wasm, cx, 0, [MX.shaft[0] + d, MX.shaft[1] + d], MX.floor, top + 1, keep)];
       // k + 1 notches, 1 mm wide and deep, in the top of the front wall
-      for (let i = 0; i <= k; i++) cuts.push(box(1, wall + 2, cx + (i - k / 2) * 2.5, -side / 2, h - 1, h + 1));
-      const m = keep(box(side, side, cx, 0, 0, h).subtract(keep(Manifold.union(cuts))));
-      objects.push({ object: `socket_${gap.toFixed(2)}`, solids: [{ name: 'base', hex: s.base.colour, m }] });
+      for (let i = 0; i <= k; i++) cuts.push(box(1, wall + 2, cx + (i - k / 2) * 2.5, -side / 2, top - 1, top + 1));
+      const m = keep(box(side, side, cx, 0, 0, top).subtract(keep(Manifold.union(cuts))));
+      objects.push({ object: `socket_${signed(d)}`, solids: [{ name: 'base', hex: s.base.colour, m }] });
       x0 += side + APART;
     });
     return toModel(objects, 1, []);

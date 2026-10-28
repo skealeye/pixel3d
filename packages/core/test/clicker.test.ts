@@ -1,13 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { strFromU8, unzipSync } from 'fflate';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { buildClicker, buildModel, clickerLevels, convert, decodeImage, DEFAULTS, detectScale, downsampleNearest, fitTest, fitTestGaps, MX, to3MF, toGrid, toSTL, TRAVEL_MARGIN } from '../src/index';
+import {
+  buildClicker, buildModel, CAP_ROOF, capThickness, clickerLevels, convert, decodeImage, DEFAULTS, detectScale, downsampleNearest,
+  FIT_STEPS, fitTest, MIN_ART, MX, settingsSchema, to3MF, toGrid, toSTL, TRAVEL_MARGIN,
+} from '../src/index';
 import type { Grid, Model, Part, Settings } from '../src/index';
 import { initManifold } from '../src/manifold';
 import { assertManifold } from './util/assertManifold';
 
 type Mesh = Part['mesh'];
-type Box3 = { min: [number, number, number]; max: [number, number, number] };
+type Vec3 = [number, number, number];
+type Box3 = { min: Vec3; max: Vec3 };
 
 const load = async (name: string): Promise<Grid> => {
   const img = await decodeImage(new Uint8Array(readFileSync(new URL(`./fixtures/${name}`, import.meta.url))));
@@ -29,7 +33,7 @@ const holed = (n: number, clear: (x: number, y: number) => boolean): Grid => {
 };
 
 const boxOf = (parts: Part[]): Box3 => {
-  const min: [number, number, number] = [Infinity, Infinity, Infinity], max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+  const min: Vec3 = [Infinity, Infinity, Infinity], max: Vec3 = [-Infinity, -Infinity, -Infinity];
   for (const p of parts) {
     const v = p.mesh.vertProperties;
     for (let i = 0; i < v.length; i += 3) for (let a = 0; a < 3; a++) { min[a] = Math.min(min[a]!, v[i + a]!); max[a] = Math.max(max[a]!, v[i + a]!); }
@@ -37,26 +41,61 @@ const boxOf = (parts: Part[]): Box3 => {
   return { min, max };
 };
 const of = (m: Model, object: Part['object']) => m.parts.filter((p) => p.object === object);
+const centre = (b: Box3) => [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2] as const;
 
-/** Volume of the parts' union inside an axis-aligned box, mm³. */
-const volumeIn = async (parts: Part[], lo: [number, number, number], hi: [number, number, number]) => {
+/** The parts' union as one Manifold (caller deletes), optionally moved. */
+const solidOf = async (parts: Part[], move: Vec3 = [0, 0, 0]) => {
   const { Manifold, Mesh } = await initManifold();
   const ms = parts.map((p: { mesh: Mesh }) => new Manifold(new Mesh({ numProp: 3, ...p.mesh })));
   const u = Manifold.union(ms);
-  const cube = Manifold.cube([hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]]).translate(lo);
+  const out = u.translate(move);
+  for (const o of [...ms, u]) o.delete();
+  return out;
+};
+/** Volume of the parts' union inside an axis-aligned box, mm³. */
+const volumeIn = async (parts: Part[], lo: Vec3, hi: Vec3) => {
+  const { Manifold } = await initManifold();
+  const u = await solidOf(parts);
+  const c0 = Manifold.cube([hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]]), cube = c0.translate(lo);
   const cut = u.intersect(cube);
-  try { return cut.volume(); } finally { for (const o of [...ms, u, cube, cut]) o.delete(); }
+  try { return cut.volume(); } finally { for (const o of [u, c0, cube, cut]) o.delete(); }
 };
 /** A box centred on (x, y), w x d across, from z0 to z1. */
 const around = (x: number, y: number, w: number, d: number, z0: number, z1: number) =>
-  [[x - w / 2, y - d / 2, z0], [x + w / 2, y + d / 2, z1]] as [[number, number, number], [number, number, number]];
+  [[x - w / 2, y - d / 2, z0], [x + w / 2, y + d / 2, z1]] as [Vec3, Vec3];
+
+/**
+ * The slice of the parts at height z, inside a `win` x `win` window centred on (x, y) (a circle of diameter `win`
+ * when `round`): its empty part (`void`) or its solid part, as width, depth and area.
+ */
+const sliceAt = async (parts: Part[], z: number, x: number, y: number, win: number, want: 'void' | 'solid', round = false) => {
+  const { CrossSection } = await initManifold();
+  const u = await solidOf(parts);
+  const sl = u.slice(z);
+  const w0 = round ? CrossSection.circle(win / 2, 128) : CrossSection.square([win, win], true), w = w0.translate([x, y]);
+  const r = want === 'void' ? w.subtract(sl) : w.intersect(sl);
+  try {
+    const b = r.bounds();
+    return { w: b.max[0]! - b.min[0]!, d: b.max[1]! - b.min[1]!, area: r.area(), empty: r.isEmpty() };
+  } finally { for (const o of [u, sl, w0, w, r]) o.delete(); }
+};
 
 let potion: Grid;
 beforeAll(async () => { potion = await load('potion.png'); await initManifold(); });
 
 describe('MX', () => {
-  it('holds the nominal Cherry MX numbers of spec §4.6b', () => {
-    expect(MX).toEqual({ cut: 14, column: 15.6, plate: 1.5, below: 8.5, floor: 1.2, above: 11.6, stemD: 5.5, cross: [4.1, 1.3], engage: 3.8, stemLen: 4.5, travel: 4, pitch: 19.05 });
+  it('holds the numbers of the user reference (R22)', () => {
+    expect(MX).toEqual({
+      shaft: [14.1, 14.56], depth: 8.38, floor: 1.2, column: 19.0, columnR: 3, columnH: 3.0, leadIn: 20.0, leadInR: 4,
+      above: 11.6, stemD: 5.8, cross: [4.27, 1.22], engage: 3.35, pocket: [14.5, 14.0], pocketR: 4.1, travel: 4, pitch: 19.05,
+    });
+    expect(MIN_ART).toBeCloseTo(17.5, 6);
+  });
+
+  it('fitGap is the cap-to-well clearance: default 0.5, 0.2 to 1.5', () => {
+    expect(DEFAULTS.clicker.fitGap).toBe(0.5);
+    const at = (fitGap: number) => settingsSchema.safeParse({ ...DEFAULTS, clicker: { ...DEFAULTS.clicker, fitGap } }).success;
+    expect([at(0.1), at(0.2), at(1.5), at(1.6)]).toEqual([false, true, true, false]);
   });
 });
 
@@ -67,14 +106,13 @@ describe('buildClicker', () => {
         const s = settings((s) => { s.clicker.shape = shape; s.clicker.switches = n; s.size.width = 64; });
         const t0 = performance.now();
         const m = await buildClicker(potion, s);
-        const ms = performance.now() - t0;
-        expect(ms).toBeLessThan(2000);
+        expect(performance.now() - t0).toBeLessThan(2000);
         expect([...new Set(m.parts.map((p) => p.object))]).toEqual(['cap', 'body']);
         for (const p of m.parts) await assertManifold(p);
         expect(m.pieces).toBe(1);
-        // the body is the base colour, one part
         expect(of(m, 'body').map((p) => [p.name, p.hex])).toEqual([['base', DEFAULTS.base.colour]]);
-        // printed apart on the bed: nothing below Z 0, cap beside the body
+        expect(of(m, 'cap')[0]!.name).toBe('base');
+        // printed apart, flat sides down: nothing below Z 0, cap beside the body
         const all = boxOf(m.parts), cap = boxOf(of(m, 'cap')), body = boxOf(of(m, 'body'));
         expect(all.min[2]).toBeCloseTo(0, 4);
         expect(cap.min[2]).toBeCloseTo(0, 4);
@@ -82,6 +120,7 @@ describe('buildClicker', () => {
         expect(cap.min[0]).toBeGreaterThan(body.max[0]);
         expect(m.size.x).toBeCloseTo(all.max[0] - all.min[0], 3);
         expect(m.size.z).toBeCloseTo(all.max[2], 3);
+        expect(m.clicker).toBeDefined();
       });
     }
   }
@@ -91,101 +130,151 @@ describe('buildClicker', () => {
     expect([...new Set(m.parts.map((p) => p.object))]).toEqual(['cap', 'body']);
   });
 
-  it('the body has a 14.0 x 14.0 opening at the plate height, the column below it and a floor', async () => {
-    const s = settings(() => { /* 40 mm square art */ });
+  it('the body seat: a blind 14.1 x 14.56 shaft 8.38 deep over a floor, a 19.0 column 3.0 tall, a 20.0 lead-in to the well floor', async () => {
+    const s = settings(() => {});
     const m = await buildClicker(square(32), s);
-    const body = of(m, 'body'), b = boxOf(body);
-    const cx = (b.min[0] + b.max[0]) / 2, cy = (b.min[1] + b.max[1]) / 2;
-    const L = clickerLevels(s, 2);
-    expect(L.plateTop - L.plateBottom).toBeCloseTo(MX.plate, 6);
-    // the plate: nothing inside 14.0 x 14.0, plastic just outside it
-    expect(await volumeIn(body, ...around(cx, cy, 14, 14, L.plateBottom, L.plateTop))).toBeCloseTo(0, 3);
-    expect(await volumeIn(body, ...around(cx, cy, 14.4, 14.4, L.plateBottom, L.plateTop))).toBeCloseTo((14.4 ** 2 - 14 ** 2) * MX.plate, 1);
-    // a 15.6 + 2 x fit gap square column of clearance below and above the plate, over a 1.2 mm floor
-    const col = MX.column + 2 * s.clicker.fitGap;
-    expect(col).toBeCloseTo(16.2, 6);
-    expect(await volumeIn(body, ...around(cx, cy, col, col, MX.floor, L.plateBottom))).toBeCloseTo(0, 3);
-    expect(await volumeIn(body, ...around(cx, cy, col, col, L.plateTop, L.wellFloor))).toBeCloseTo(0, 3);
-    expect(await volumeIn(body, ...around(cx, cy, col + 0.4, col + 0.4, L.plateTop, L.wellFloor)))
-      .toBeCloseTo(((col + 0.4) ** 2 - col ** 2) * (L.wellFloor - L.plateTop), 1);
+    const body = of(m, 'body');
+    const [cx, cy] = centre(boxOf(body));
+    const L = clickerLevels(s);
+    const [sx, sy] = MX.shaft;
+    expect(L.seat - L.shaftBottom).toBeCloseTo(MX.depth, 6);
+    // the shaft is clear, with plastic right round it (no plate: it is all shaft wall)
+    expect(await volumeIn(body, ...around(cx, cy, sx, sy, L.shaftBottom, L.seat))).toBeCloseTo(0, 3);
+    expect(await volumeIn(body, ...around(cx, cy, sx + 0.4, sy + 0.4, L.shaftBottom, L.seat))).toBeCloseTo(((sx + 0.4) * (sy + 0.4) - sx * sy) * MX.depth, 1);
     expect(await volumeIn(body, ...around(cx, cy, 10, 10, 0, MX.floor))).toBeCloseTo(100 * MX.floor, 2);
+    // the 19.0 column and the 20.0 lead-in (probed along their straight sides, clear of the rounded corners)
+    expect(await volumeIn(body, ...around(cx, cy, 19, 12, L.seat, L.columnTop))).toBeCloseTo(0, 3);
+    expect(await volumeIn(body, ...around(cx, cy, 19.4, 12, L.seat + 0.1, L.columnTop - 0.1))).toBeCloseTo(0.4 * 12 * (MX.columnH - 0.2), 2);
+    expect(await volumeIn(body, ...around(cx, cy, 20, 12, L.columnTop, L.wellFloor))).toBeCloseTo(0, 3);
+    expect(await volumeIn(body, ...around(cx, cy, 20.4, 12, L.columnTop + 0.1, L.wellFloor - 0.1))).toBeCloseTo(0.4 * 12 * (L.wellFloor - L.columnTop - 0.2), 2);
   });
 
-  it('two and three switches sit at keyboard pitch along the long side, each with its own socket', async () => {
+  it('two and three switches sit at keyboard pitch along the long side, each with its own shaft', async () => {
     const s = settings((s) => { s.clicker.switches = 3; s.size.keepAspect = false; s.size.width = 64; s.size.height = 24; });
     const m = await buildClicker(square(32), s);
-    const body = of(m, 'body'), b = boxOf(body);
-    const cx = (b.min[0] + b.max[0]) / 2, cy = (b.min[1] + b.max[1]) / 2;
-    const L = clickerLevels(s, 2);
+    const body = of(m, 'body');
+    const [cx, cy] = centre(boxOf(body));
+    const L = clickerLevels(s);
     for (const dx of [-MX.pitch, 0, MX.pitch]) {
-      expect(await volumeIn(body, ...around(cx + dx, cy, 14, 14, L.plateBottom, L.plateTop))).toBeCloseTo(0, 3);
+      expect(await volumeIn(body, ...around(cx + dx, cy, MX.shaft[0], MX.shaft[1], L.shaftBottom, L.seat))).toBeCloseTo(0, 3);
     }
-    // between sockets, the plate is solid
-    expect(await volumeIn(body, ...around(cx + MX.pitch / 2, cy, 2, 2, L.plateBottom, L.plateTop))).toBeCloseTo(4 * MX.plate, 3);
+    // between shafts, the shaft wall is solid
+    expect(await volumeIn(body, ...around(cx + MX.pitch / 2, cy, 2, 2, L.shaftBottom, L.seat))).toBeCloseTo(4 * MX.depth, 3);
   });
 
-  it('cap stems have the MX cross socket, 3.8 mm deep, under a solid stem top', async () => {
-    const m = await buildClicker(square(32), settings(() => {}));
+  it('the cap is solid underneath apart from the pocket round a 5.8 stem with the cross socket, 3.35 deep', async () => {
+    const s = settings(() => {});
+    const m = await buildClicker(square(32), s);
     const cap = of(m, 'cap'), b = boxOf(cap);
-    const cx = (b.min[0] + b.max[0]) / 2, cy = (b.min[1] + b.max[1]) / 2;
-    const [w, h] = MX.cross;
-    // both arms are open from the stem's tip up to the engage depth
-    expect(await volumeIn(cap, ...around(cx, cy, w, h, 0, MX.engage))).toBeCloseTo(0, 3);
-    expect(await volumeIn(cap, ...around(cx, cy, h, w, 0, MX.engage))).toBeCloseTo(0, 3);
-    // the socket is exactly that size: plastic right beside the arms
-    expect(await volumeIn(cap, ...around(cx, cy, w + 0.4, h, 0.1, MX.engage - 0.1))).toBeGreaterThan(0);
-    expect(await volumeIn(cap, ...around(cx, cy, h + 0.4, h + 0.4, 0, MX.engage))).toBeGreaterThan(0);
-    // the stem is solid above the socket, and round 5.5 mm
-    expect(await volumeIn(cap, ...around(cx, cy, 1, 1, MX.engage + 0.1, MX.stemLen - 0.1))).toBeCloseTo(0.5, 3);
-    const ring = await volumeIn(cap, ...around(cx, cy, 8, 8, 0, MX.stemLen));
-    expect(ring).toBeCloseTo(Math.PI * (MX.stemD / 2) ** 2 * MX.stemLen - 2 * w * h * MX.engage + h * h * MX.engage, 0);
+    const [cx, cy] = centre(b);
+    const [a, w] = MX.cross;
+    // solid flat underside outside the pocket: a corner and a strip beside the pocket
+    expect(await volumeIn(cap, [b.min[0], b.min[1], 0], [b.min[0] + 2, b.min[1] + 2, MX.engage])).toBeCloseTo(4 * MX.engage, 3);
+    expect(await volumeIn(cap, ...around(cx + 9, cy, 1, 1, 0, MX.engage))).toBeCloseTo(MX.engage, 3);
+    // the pocket ring is empty, between the stem and the 14.0 ceiling
+    expect(await volumeIn(cap, ...around(cx + 5, cy, 1, 1, 0, MX.engage))).toBeCloseTo(0, 3);
+    // the cross is open both ways, the stem solid beside it, and the roof solid above
+    expect(await volumeIn(cap, ...around(cx, cy, a, w, 0, MX.engage))).toBeCloseTo(0, 3);
+    expect(await volumeIn(cap, ...around(cx, cy, w, a, 0, MX.engage))).toBeCloseTo(0, 3);
+    expect(await volumeIn(cap, ...around(cx + 1.5, cy + 1.5, 0.5, 0.5, 0, MX.engage))).toBeCloseTo(0.25 * MX.engage, 3);
+    const capT = capThickness(s);
+    expect(capT).toBeCloseTo(MX.engage + CAP_ROOF, 6);
+    expect(await volumeIn(cap, ...around(cx, cy, 16, 16, MX.engage, capT))).toBeCloseTo(256 * CAP_ROOF, 1);
+    // the art sits on the backing
+    expect(b.max[2]).toBeCloseTo(capT + 1, 4);
   });
 
-  it('the cap has a skirt round its edge as tall as the stems, clear of the switch', async () => {
-    const m = await buildClicker(square(32), settings(() => {}));
-    const cap = of(m, 'cap'), b = boxOf(cap);
-    // the corner of the cap stands on the skirt
-    expect(await volumeIn(cap, [b.min[0], b.min[1], 0], [b.min[0] + 1, b.min[1] + 1, MX.stemLen])).toBeCloseTo(MX.stemLen, 3);
-    // nothing but the stem within the switch's clearance
-    const cx = (b.min[0] + b.max[0]) / 2, cy = (b.min[1] + b.max[1]) / 2;
-    const clear = MX.column + 2;
-    const v = await volumeIn(cap, ...around(cx, cy, clear, clear, 0, MX.stemLen));
-    expect(v).toBeCloseTo(await volumeIn(cap, ...around(cx, cy, 8, 8, 0, MX.stemLen)), 3);
+  it('matches the reference cross-sections (partsref.obj / Skull.obj) within 0.05 mm', async () => {
+    const s = settings(() => {});
+    const m = await buildClicker(square(32), s);
+    const cap = of(m, 'cap'), body = of(m, 'body');
+    const [kx, ky] = centre(boxOf(cap)), [bx, by] = centre(boxOf(body));
+    const L = clickerLevels(s);
+    const near = (ours: number, ref: number) => expect(Math.abs(ours - ref), `ours ${ours.toFixed(3)} vs ref ${ref}`).toBeLessThanOrEqual(0.05);
+    // cap pocket: 14.518 x 14.499 at the mouth, 13.998 x 13.978 at the ceiling (3.362 / 3.35 deep)
+    const mouth = await sliceAt(cap, 0.01, kx, ky, 17, 'void');
+    near(mouth.w, 14.518); near(mouth.d, 14.499);
+    const ceil = await sliceAt(cap, MX.engage - 0.01, kx, ky, 17, 'void');
+    near(ceil.w, 13.998); near(ceil.d, 13.978);
+    expect((await sliceAt(cap, MX.engage + 0.02, kx, ky, 17, 'void')).empty).toBe(true);
+    near(MX.engage, 3.35);
+    // stem 5.787 x 5.790
+    const stem = await sliceAt(cap, 1, kx, ky, 6.6, 'solid');
+    near(stem.w, 5.787); near(stem.d, 5.790);
+    // cross 4.272 / 4.267 long, 1.220 wide
+    const cross = await sliceAt(cap, 1, kx, ky, 5.6, 'void', true);
+    near(cross.w, 4.272); near(cross.d, 4.267);
+    near(cross.w - Math.sqrt(cross.w ** 2 - cross.area), 1.22);
+    // body: shaft 14.106 x 14.560, 8.383 deep; column 19.005 x 19.010, 3.0 tall; lead-in 20.000 x 19.996
+    const shaft = await sliceAt(body, L.seat - 1, bx, by, 17, 'void');
+    near(shaft.w, 14.106); near(shaft.d, 14.56);
+    near(L.seat - L.shaftBottom, 8.383);
+    expect((await sliceAt(body, L.shaftBottom - 0.02, bx, by, 17, 'void')).empty).toBe(true);
+    const column = await sliceAt(body, L.seat + 1.5, bx, by, 19.8, 'void');
+    near(column.w, 19.005); near(column.d, 19.01);
+    near(L.columnTop - L.seat, 3.0);
+    const lead = await sliceAt(body, (L.columnTop + L.wellFloor) / 2, bx, by, 20.8, 'void');
+    near(lead.w, 20.0); near(lead.d, 19.996);
   });
 
   for (const [label, patch] of [
-    ['base, cap height 2', () => {}],
+    ['base 2, cap height 2', () => {}],
     ['no base, cap height 4', (s: Settings) => { s.base.enabled = false; s.clicker.capHeight = 4; }],
-    ['base 5, cap height 0.5', (s: Settings) => { s.base.height = 5; s.clicker.capHeight = 0.5; }],
+    ['base 6, cap height 0.5, fit gap 1.5', (s: Settings) => { s.base.height = 6; s.clicker.capHeight = 0.5; s.clicker.fitGap = 1.5; }],
   ] as const) {
-    it(`the well leaves at least 4 mm of travel and the cap stands proud (${label})`, async () => {
+    it(`the well leaves 4 mm of travel plus the margin and the cap stands proud (${label})`, async () => {
       const s = settings(patch);
       const m = await buildClicker(square(32), s);
-      const capT = s.base.enabled ? s.base.height : 1;
+      const capT = capThickness(s);
       const L = clickerLevels(s, capT);
-      // assembled at rest, the cap's lowest point (stems, skirt) is 4 mm or more above the well floor
-      expect(L.capUnder - MX.stemLen - L.wellFloor).toBeCloseTo(MX.travel + TRAVEL_MARGIN, 6);
-      expect(TRAVEL_MARGIN).toBeCloseTo(0.4, 6);
-      // the cap's backing stands `capHeight` above the rim at rest
+      expect(L.capUnder - L.wellFloor).toBeCloseTo(MX.travel + TRAVEL_MARGIN, 6);
       expect(L.capUnder + capT - L.rimTop).toBeCloseTo(s.clicker.capHeight, 6);
-      // the stems hold the switch's stem: socket top at the switch stem top
-      expect(L.capUnder - MX.stemLen + MX.engage).toBeCloseTo(L.plateTop + MX.above, 6);
-      // the body really is open over the art from the well floor up, and solid just below it (off the switch)
+      // the socket ceiling sits on the switch stem tip
+      expect(L.capUnder + MX.engage).toBeCloseTo(L.seat + MX.above, 6);
+      expect(m.clicker!.restZ).toBeCloseTo(L.capUnder, 6);
+      expect(m.clicker!.pressedZ).toBeCloseTo(L.capUnder - MX.travel, 6);
+      expect(m.clicker!.rimZ).toBeCloseTo(L.rimTop, 6);
       const body = of(m, 'body'), b = boxOf(body);
       expect(b.max[2]).toBeCloseTo(L.rimTop, 4);
-      const cx = (b.min[0] + b.max[0]) / 2, cy = (b.min[1] + b.max[1]) / 2;
+      const [cx, cy] = centre(b);
+      // open over the art from the well floor up, solid just below it (outside the lead-in)
       expect(await volumeIn(body, ...around(cx, cy, 40, 40, L.wellFloor, L.rimTop))).toBeCloseTo(0, 2);
-      const corner: [number, number, number] = [cx - 19, cy - 19, L.wellFloor - 1];
-      expect(await volumeIn(body, corner, [cx - 17, cy - 17, L.wellFloor])).toBeCloseTo(4, 3);
-      // the well is the art plus the fit gap: the rim starts just outside it
-      expect(await volumeIn(body, ...around(cx, cy, 40 + 2 * s.clicker.fitGap, 40 + 2 * s.clicker.fitGap, L.wellFloor, L.rimTop))).toBeCloseTo(0, 2);
-      expect(await volumeIn(body, ...around(cx, cy, 40 + 2 * s.clicker.fitGap + 0.2, 40 + 2 * s.clicker.fitGap + 0.2, L.wellFloor + 0.1, L.rimTop))).toBeGreaterThan(0);
+      expect(await volumeIn(body, [cx - 19, cy - 19, L.wellFloor - 1], [cx - 17, cy - 17, L.wellFloor])).toBeCloseTo(4, 3);
+      // the well is the art plus the fit gap
+      const g = s.clicker.fitGap;
+      expect(await volumeIn(body, ...around(cx, cy, 40 + 2 * g, 40 + 2 * g, L.wellFloor, L.rimTop))).toBeCloseTo(0, 2);
+      expect(await volumeIn(body, ...around(cx, cy, 40 + 2 * g + 0.2, 40 + 2 * g + 0.2, L.wellFloor + 0.1, L.rimTop))).toBeGreaterThan(0);
     });
   }
 
-  it('art under 17.6 mm gives a warning; 40 mm art does not', async () => {
+  it('assembled with model.clicker, the cap clears the body at rest and fully pressed, over each shaft', async () => {
+    const s = settings((s) => { s.clicker.switches = 3; s.size.keepAspect = false; s.size.width = 64; s.size.height = 24; });
+    const m = await buildClicker(square(32), s);
+    const a = m.clicker!;
+    const cap = of(m, 'cap'), body = of(m, 'body');
+    const B = await solidOf(body);
+    for (const z of [a.restZ, a.pressedZ]) {
+      const C = await solidOf(cap, [a.capShift[0], a.capShift[1], z]);
+      const hit = C.intersect(B);
+      expect(hit.volume()).toBeCloseTo(0, 4);
+      for (const o of [C, hit]) o.delete();
+    }
+    B.delete();
+    // each cap stem's cross socket, moved by capShift, sits over a body shaft
+    const L = clickerLevels(s);
+    const [kx, ky] = centre(boxOf(cap));
+    for (const k of [-1, 0, 1]) {
+      const x = kx + k * MX.pitch;
+      expect(await volumeIn(cap, ...around(x, ky, MX.cross[0], MX.cross[1], 0, MX.engage))).toBeCloseTo(0, 3);
+      const bx = x + a.capShift[0], by = ky + a.capShift[1];
+      expect(await volumeIn(body, ...around(bx, by, MX.shaft[0], MX.shaft[1], L.shaftBottom, L.seat))).toBeCloseTo(0, 3);
+      expect(await volumeIn(body, ...around(bx, by, MX.shaft[0] + 0.4, MX.shaft[1] + 0.4, L.shaftBottom, L.seat))).toBeGreaterThan(1);
+    }
+  });
+
+  it('art under 17.5 mm gives a warning; 40 mm art does not', async () => {
     const small = await buildClicker(square(16), settings((s) => { s.size.width = 15; }));
-    expect(small.warnings.join(' ')).toMatch(/17\.6 mm/);
+    expect(small.warnings.join(' ')).toMatch(/17\.5 mm/);
     for (const p of small.parts) await assertManifold(p);
     const ok = await buildClicker(square(32), settings(() => {}));
     expect(ok.warnings).toEqual([]);
@@ -204,7 +293,7 @@ describe('buildClicker', () => {
     expect(busy.parts.map((p) => [p.object, p.name, p.mesh.triVerts.length])).toEqual(plain.parts.map((p) => [p.object, p.name, p.mesh.triVerts.length]));
   });
 
-  it('the 3MF has two objects; toSTL gives name_cap and name_body, each one body', async () => {
+  it('the 3MF has two objects; toSTL gives name_cap and name_body', async () => {
     const m = await buildClicker(potion, settings(() => {}));
     const zip = unzipSync(await to3MF(m, { slicer: 'generic', mono: false, name: 'potion' }));
     const xml = strFromU8(zip['3D/3dmodel.model']!);
@@ -228,41 +317,18 @@ describe('art with holes and narrow art', () => {
         for (const p of m.parts) await assertManifold(p);
         expect(m.pieces).toBe(1);
         expect(m.warnings).toEqual([]);
-        const body = of(m, 'body'), b = boxOf(body);
-        const cx = (b.min[0] + b.max[0]) / 2, cy = (b.min[1] + b.max[1]) / 2;
-        const L = clickerLevels(s, base ? s.base.height : 1);
-        // no pillar or roof: the well is the hole-filled outline, so nothing stands over the switch
+        const body = of(m, 'body');
+        const [cx, cy] = centre(boxOf(body));
+        const L = clickerLevels(s);
         expect(await volumeIn(body, ...around(cx, cy, 40, 40, L.wellFloor, L.rimTop))).toBeCloseTo(0, 2);
       });
     }
   }
 
   it("art too narrow over the switch (a notch to the centre) warns that it doesn't cover the switch", async () => {
-    // 40 mm square with a 4 px (5 mm) notch from the top edge down to the centre: not a hole, so not filled
     const m = await buildClicker(holed(32, (x, y) => x >= 14 && x < 18 && y < 17), settings(() => {}));
     expect(m.warnings.join(' ')).toMatch(/doesn't fully cover the switch/);
     for (const p of m.parts) await assertManifold(p);
-  });
-});
-
-describe('cap and body line up', () => {
-  it('each cap stem, moved back by the layout offset, sits over a 14.0 body socket', async () => {
-    const s = settings((s) => { s.clicker.switches = 3; s.size.keepAspect = false; s.size.width = 64; s.size.height = 24; });
-    const m = await buildClicker(square(32), s);
-    const cap = of(m, 'cap'), body = of(m, 'body'), cb = boxOf(cap), bb = boxOf(body);
-    // outline shape on square art: the body is the art grown by the border, the cap is the art
-    const dx = cb.min[0] - (bb.min[0] + s.clicker.border);
-    const L = clickerLevels(s, s.base.height);
-    const cy = (cb.min[1] + cb.max[1]) / 2;
-    for (const k of [-1, 0, 1]) {
-      const x = (cb.min[0] + cb.max[0]) / 2 + k * MX.pitch;
-      // a stem with an open cross socket here on the cap...
-      expect(await volumeIn(cap, ...around(x, cy, MX.cross[0], MX.cross[1], 0, MX.engage))).toBeCloseTo(0, 3);
-      expect(await volumeIn(cap, ...around(x, cy, 8, 8, 0, MX.stemLen))).toBeGreaterThan(50);
-      // ...over an open 14.0 socket, ringed by plate, at the same XY on the body
-      expect(await volumeIn(body, ...around(x - dx, cy, 14, 14, L.plateBottom, L.plateTop))).toBeCloseTo(0, 3);
-      expect(await volumeIn(body, ...around(x - dx, cy, 14.4, 14.4, L.plateBottom, L.plateTop))).toBeCloseTo((14.4 ** 2 - 14 ** 2) * MX.plate, 1);
-    }
   });
 });
 
@@ -278,42 +344,42 @@ describe('convert', () => {
 });
 
 describe('fitTest', () => {
-  it('a stem coupon and three small socket coupons at fit gap -0.1, 0, +0.1, tightest first', async () => {
-    const s = settings((s) => { s.clicker.fitGap = 0.3; });
-    expect(fitTestGaps(s)).toEqual([0.2, 0.3, 0.4]);
-    expect(fitTestGaps(settings((s) => { s.clicker.fitGap = 0.1; }))).toEqual([0, 0.1, 0.2]);
+  it('a stem coupon and three small shaft coupons at shaft size -0.1, 0, +0.1, tightest first, notched 1-3', async () => {
+    const s = settings(() => {});
+    expect(FIT_STEPS).toEqual([-0.1, 0, 0.1]);
     const m = await fitTest(s);
     const objects = [...new Set(m.parts.map((p) => p.object))];
-    expect(objects).toEqual(['stem', 'socket_0.20', 'socket_0.30', 'socket_0.40']);
+    expect(objects).toEqual(['stem', 'socket_-0.10', 'socket_+0.00', 'socket_+0.10']);
     for (const p of m.parts) await assertManifold(p);
     let lastX = -Infinity;
     for (const o of objects) {
       const b = boxOf(of(m, o));
       expect(b.min[2]).toBeCloseTo(0, 4);
       for (let a = 0; a < 3; a++) expect(b.max[a]! - b.min[a]!).toBeLessThan(25);
-      // laid out left to right in order, apart
       expect(b.min[0]).toBeGreaterThan(lastX);
       lastX = b.max[0];
     }
-    const stem = of(m, 'stem'), tb = boxOf(stem);
-    const tx = (tb.min[0] + tb.max[0]) / 2, ty = (tb.min[1] + tb.max[1]) / 2;
-    expect(await volumeIn(stem, ...around(tx, ty, MX.cross[0], MX.cross[1], tb.max[2] - MX.engage, tb.max[2]))).toBeCloseTo(0, 3);
-    expect(await volumeIn(stem, ...around(tx, ty, MX.cross[1], MX.cross[0], tb.max[2] - MX.engage, tb.max[2]))).toBeCloseTo(0, 3);
-    const plateBottom = MX.below, plateTop = MX.below + MX.plate;
-    for (const [k, gap] of [0.2, 0.3, 0.4].entries()) {
-      const sock = of(m, `socket_${gap.toFixed(2)}`), sb = boxOf(sock);
-      const sx = (sb.min[0] + sb.max[0]) / 2, sy = (sb.min[1] + sb.max[1] - 0) / 2;
-      const col = MX.column + 2 * gap;
-      // the coupon is the column plus 2 mm walls; a wall stands above the plate
-      expect(sb.max[0] - sb.min[0]).toBeCloseTo(col + 4, 4);
-      expect(sb.max[2]).toBeGreaterThan(plateTop + 2);
-      // the 14.0 socket through the plate, the column clear below and above it, walls round the column above
-      expect(await volumeIn(sock, ...around(sx, sy, 14, 14, plateBottom, plateTop))).toBeCloseTo(0, 3);
-      expect(await volumeIn(sock, ...around(sx, sy, 14.4, 14.4, plateBottom, plateTop))).toBeCloseTo((14.4 ** 2 - 14 ** 2) * MX.plate, 1);
-      expect(await volumeIn(sock, ...around(sx, sy, col, col, 0, plateBottom))).toBeCloseTo(0, 3);
-      expect(await volumeIn(sock, ...around(sx, sy, col, col, plateTop, sb.max[2]))).toBeCloseTo(0, 3);
-      expect(await volumeIn(sock, ...around(sx, sy, col + 0.4, col + 0.4, plateTop, plateTop + 1))).toBeCloseTo((col + 0.4) ** 2 - col ** 2, 1);
-      // k + 1 notches in the top of the front wall: count gaps along a 0.5 mm strip there
+    // the stem coupon is the cap's underside: pocket, stem and cross, printed underside down
+    const stem = of(m, 'stem');
+    const [tx, ty] = centre(boxOf(stem));
+    expect(await volumeIn(stem, ...around(tx, ty, MX.cross[0], MX.cross[1], 0, MX.engage))).toBeCloseTo(0, 3);
+    expect(await volumeIn(stem, ...around(tx, ty, MX.cross[1], MX.cross[0], 0, MX.engage))).toBeCloseTo(0, 3);
+    expect(await volumeIn(stem, ...around(tx + 5, ty, 1, 1, 0, MX.engage))).toBeCloseTo(0, 3);
+    const mouth = await sliceAt(stem, 0.01, tx, ty, 16, 'void');
+    expect(mouth.w).toBeCloseTo(MX.pocket[0], 1);
+    const seat = MX.floor + MX.depth;
+    for (const [k, d] of FIT_STEPS.entries()) {
+      const name = `socket_${d < 0 ? '-' : '+'}${Math.abs(d).toFixed(2)}` as Part['object'];
+      const sock = of(m, name), sb = boxOf(sock);
+      const [sx, sy] = centre(sb);
+      // the shaft at this step, over a floor, then the 19.0 column
+      const shaft = await sliceAt(sock, seat - 1, sx, sy, 17, 'void');
+      expect(shaft.w).toBeCloseTo(MX.shaft[0] + d, 3);
+      expect(shaft.d).toBeCloseTo(MX.shaft[1] + d, 3);
+      expect(await volumeIn(sock, ...around(sx, sy, 10, 10, 0, MX.floor))).toBeCloseTo(100 * MX.floor, 2);
+      const column = await sliceAt(sock, seat + 1.5, sx, sy, 19.8, 'void');
+      expect(column.w).toBeCloseTo(MX.column, 3);
+      // k + 1 notches in the top of the front wall: count the gaps along a strip there
       const front = sb.min[1] + 1;
       let notches = 0, inNotch = false;
       for (let x = sb.min[0] + 0.25; x < sb.max[0]; x += 0.25) {
@@ -324,6 +390,6 @@ describe('fitTest', () => {
       expect(notches).toBe(k + 1);
     }
     const stl = await toSTL(m, { mono: false, name: 'fit' });
-    expect(stl.map((f) => f.name)).toEqual(['fit_stem.stl', 'fit_socket_0.20.stl', 'fit_socket_0.30.stl', 'fit_socket_0.40.stl']);
+    expect(stl.map((f) => f.name)).toEqual(['fit_stem.stl', 'fit_socket_-0.10.stl', 'fit_socket_+0.00.stl', 'fit_socket_+0.10.stl']);
   });
 });
