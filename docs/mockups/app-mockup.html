@@ -405,7 +405,7 @@
   <span id="fcount"></span>
   <span class="spacer"></span>
   <span>Mockup, nothing is saved</span>
-  <span>v0.1.1</span>
+  <span>v0.1.2</span>
 </footer>
 
 <dialog id="batch">
@@ -824,19 +824,6 @@ const ghostMag = new THREE.MeshBasicMaterial({ color: '#e0715c', transparent: tr
 let SC = { sx: 1, sy: 1 };
 let drag = null;
 
-function pixelLoopCells(e) {
-  // square ring of whole pixels, built outward from the chosen edge; the hole is kept centred by matching parity
-  const s = (SC.sx + SC.sy) / 2;
-  let n = Math.max(3, Math.round(S.loopOut / s)), m = Math.min(Math.max(1, Math.round(S.loopIn / s)), n - 2);
-  if ((n - m) % 2) { if (m > 1) m -= 1; else n += 1; }
-  const a = (n - m) / 2, tx = -e.ny, ty = e.nx, cells = [];
-  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-    if (i >= a && i < a + m && j >= a && j < a + m) continue;
-    const o = i - Math.floor(n / 2);
-    cells.push([e.cx + e.nx * (j + 1) + tx * o, e.cy + e.ny * (j + 1) + ty * o]);
-  }
-  return cells;
-}
 // cutters are true shapes (mm, unmirrored) removed from the pixels with a boolean cut, not snapped to the pixel grid
 function holeCutter() {
   if (S.key !== 'hole') return null;
@@ -908,15 +895,19 @@ function body({ mirror = false, baseT, top = true, under = false, topVary = true
   const loopHex = S.base ? S.baseColor : S.loopColor;
   if (S.key === 'loop') {
     const e = edgeAtAngle(S.loopAngle);
+    // both styles use the exact hole and outside sizes in mm, centred half a wall out from the edge
+    const ro = S.loopOut / 2, ri = S.loopIn / 2, R = (ro + ri) / 2, r = (ro - ri) / 2;
+    let ring;
     if (S.loopStyle === 'pixel') {
-      for (const [x, y] of pixelLoopCells(e)) add(loopHex, x, y, 0, t, []);
+      // square frame: four straight bars, so it scales smoothly and the hole always stays centred
+      const w = ro - ri, bars = [[0, ro - w / 2, 2 * ro, w], [0, -ro + w / 2, 2 * ro, w], [ro - w / 2, 0, w, 2 * ri], [-ro + w / 2, 0, w, 2 * ri]];
+      ring = new THREE.Mesh(mergeGeometries(bars.map(([x, y, bw, bh]) => new THREE.BoxGeometry(bw, bh, t).translate(x, y, 0))), mat(mono() ? S.monoColor : loopHex));
     } else {
-      const ro = S.loopOut / 2, ri = S.loopIn / 2, R = (ro + ri) / 2, r = (ro - ri) / 2;
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(R, r, 16, 48), mat(mono() ? S.monoColor : loopHex));
+      ring = new THREE.Mesh(new THREE.TorusGeometry(R, r, 16, 48), mat(mono() ? S.monoColor : loopHex));
       ring.scale.z = t / (2 * r);
-      ring.position.set(mu(e.u) * SC.sx + (mirror ? -e.nx : e.nx) * R, e.v * SC.sy + e.ny * R, t / 2);
-      g.add(ring);
     }
+    ring.position.set(mu(e.u) * SC.sx + (mirror ? -e.nx : e.nx) * R, e.v * SC.sy + e.ny * R, t / 2);
+    g.add(ring);
   }
   const M = new THREE.Matrix4(), q = new THREE.Quaternion();
   for (const [hex, list] of segs) {
