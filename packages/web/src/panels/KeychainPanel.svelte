@@ -20,7 +20,9 @@
   const clicker = $derived(app.settings.make === 'clicker');
   const ownColor = $derived(!clicker && !app.settings.base.enabled && !app.settings.export.mono);
   const hint = $derived(clicker
-    ? (key.type === 'hole' ? "A clicker can't have a hole: it would cut into the switch. Pick Loop to add one to the body." : 'The loop sticks out from the body at the bed, in the base color.')
+    ? (key.type === 'hole' ? "A clicker can't have a hole: it would cut into the switch. Pick Loop to add one to the body."
+      : app.settings.clicker.loopAt === 'center' ? 'The loop sticks out halfway up the body, in the base color. It needs supports under it when printed.'
+      : 'The loop sticks out from the body at the bed, in the base color.')
     : key.type === 'hole'
     ? 'Drag the gold marker on the model to move the hole. It cuts through every layer.'
     : app.settings.base.enabled ? 'The loop uses the base color.' : 'Move the slider to slide the loop around the edge.');
@@ -47,6 +49,15 @@
         <button data-v="round" class:on={key.loop.style === 'round'} onclick={() => key.loop.style !== 'round' && setting(() => (key.loop.style = 'round'))}>Rounded loop</button>
         <button data-v="pixel" class:on={key.loop.style === 'pixel'} onclick={() => key.loop.style !== 'pixel' && setting(() => (key.loop.style = 'pixel'))}>Pixel loop</button>
       </div>
+      {#if clicker}
+        <!-- not in the mockup (user request 2026-10-28): where the loop joins the clicker body's side -->
+        <div class="row"><span class="lbl">Height</span></div>
+        <div class="seg" data-key="loopAt">
+          {#each [['bottom', 'Bottom'], ['center', 'Center']] as const as [v, label] (v)}
+            <button data-v={v} class:on={app.settings.clicker.loopAt === v} onclick={() => app.settings.clicker.loopAt !== v && setting(() => (app.settings.clicker.loopAt = v))}>{label}</button>
+          {/each}
+        </div>
+      {/if}
       <Slider id="loopAngle" label="Position" min={0} max={359} step={1} value={key.loop.angle} unit="°" format={(v) => String(Math.round(v))} {...angle} />
       <Slider id="loopIn" label="Hole" min={2} max={10} step={0.5} value={key.loop.inner} unit="mm" format={f1} {...inner} />
       <Slider id="loopOut" label="Outside" min={4} max={16} step={0.5} value={key.loop.outer} unit="mm" format={f1} {...outer} />

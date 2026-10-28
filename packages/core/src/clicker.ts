@@ -290,11 +290,13 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
         .translate([(x0 + x1) / 2, (y0 + y1) / 2, (za + zb) / 2]));
       cuts.push(slot(MX.column, L.seat, L.columnTop + 0.01), slot(MX.leadIn, L.columnTop, L.wellFloor + 0.01));
     }
-    // the keychain loop sticks out from the body's side at the bed, as thick as the base, before the cuts so it never
-    // fills the well
+    // the keychain loop sticks out from the body's side, at the bed or halfway up, as thick as the base; added before
+    // the cuts so it never fills the well
     const solid = keep(foot.extrude(L.rimTop));
+    const loopT = Math.min(s.base.height, L.rimTop);
     const keyLoop = s.keychain.type === 'loop' && s.keychain.loop.outer > s.keychain.loop.inner
-      ? keep(loopSolid(wasm, footEdge(foot, s.keychain.loop.angle), s, Math.min(s.base.height, L.rimTop), MM_FRAME)) : null;
+      ? keep(keep(loopSolid(wasm, footEdge(foot, s.keychain.loop.angle), s, loopT, MM_FRAME)).translate([0, 0, c.loopAt === 'center' ? (L.rimTop - loopT) / 2 : 0]))
+      : null;
     const body = keep((keyLoop ? keep(solid.add(keyLoop)) : solid).subtract(keep(Manifold.union(cuts))));
 
     // ---- lay out as printed: the cap beside the body on +X

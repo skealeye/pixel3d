@@ -20,7 +20,7 @@ type Box = { min: Vec3; max: Vec3 };
 interface Clicker { view: 'assembled' | 'apart'; at: number; rest: number; cap: Box; body: Box; ghosts: number }
 interface Settings {
   make: 'model' | 'clicker';
-  clicker: { shape: string; border: number; capHeight: number; fitGap: number; switches: number };
+  clicker: { shape: string; border: number; capHeight: number; fitGap: number; switches: number; loopAt: string };
   rotation: [number, number, number];
 }
 interface Snap { settings: Settings; undo: number }
@@ -87,8 +87,16 @@ test.describe('keycap clicker', () => {
     await expect(page.locator('#loopColor')).toHaveCount(0);
     // at 0° the loop sticks out upward (+Y): from the bottle's shoulder, past the top of its cork
     await expect.poll(async () => (await clicker(page))!.body.max[1] - before.max[1]).toBeGreaterThan(2);
+    // Height: Bottom (default) or Center, one undo step; a flat model has no Height choice
+    await expect(seg(page, 'loopAt', 'bottom')).toHaveClass(/\bon\b/);
+    const u0 = (await snap(page)).undo;
+    await seg(page, 'loopAt', 'center').click();
+    expect((await snap(page)).undo).toBe(u0 + 1);
+    expect((await settings(page)).clicker.loopAt).toBe('center');
+    await expect(page.locator('#keyHint')).toHaveText('The loop sticks out halfway up the body, in the base color. It needs supports under it when printed.');
     await seg(page, 'make', 'model').click();
     await expect(seg(page, 'key', 'hole')).toBeEnabled();
+    await expect(page.locator('.seg[data-key=loopAt]')).toHaveCount(0);
   });
 
   test('clicker settings: mockup controls, spec ranges, one undo step each; Make is undoable', async ({ page }) => {
@@ -116,7 +124,7 @@ test.describe('keycap clicker', () => {
     await page.locator('#clkBorder').fill('20');
     await page.locator('#clkBorder').press('Enter');
     const s = await snap(page);
-    expect(s.settings.clicker).toEqual({ shape: 'circle', border: 10, capHeight: 2, fitGap: 0.8, switches: 2, backing: 'base' });
+    expect(s.settings.clicker).toEqual({ shape: 'circle', border: 10, capHeight: 2, fitGap: 0.8, switches: 2, backing: 'base', loopAt: 'bottom' });
     expect(s.undo).toBe(u0 + 5);
     await expect(page.locator('#clkHint')).toContainText('Needs 2 MX-style switches. Press each switch into the body from above until it sits on the step, then push the cap on.');
     await expect(page.locator('#clkHint')).toContainText('even with Base off');

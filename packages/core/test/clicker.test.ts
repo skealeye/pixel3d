@@ -363,6 +363,29 @@ describe('buildClicker', () => {
     });
   }
 
+  it('a keychain loop at Center sits halfway up the body; Bottom sits on the bed', async () => {
+    const at = (loopAt: 'bottom' | 'center') => buildClicker(potion, settings((s) => { s.keychain.type = 'loop'; s.clicker.loopAt = loopAt; }));
+    const bottom = await at('bottom'), center = await at('center');
+    const L = clickerLevels(settings(() => {}));
+    const t = Math.min(DEFAULTS.base.height, L.rimTop);
+    // the loop is the only body plastic above the plain body's top edge (+Y), so its z range shows there
+    const plain = await buildClicker(potion, settings(() => {}));
+    const top = plain.parts.find((p) => p.object === 'body')!;
+    const yTop = (() => { const v = top.mesh.vertProperties; let m = -Infinity; for (let i = 1; i < v.length; i += 3) m = Math.max(m, v[i]!); return m; })();
+    const zIn = async (m: Model) => {
+      const b = m.parts.filter((p) => p.object === 'body');
+      const lo = await volumeIn(b, [-500, yTop + 0.5, -1], [500, 500, t / 2]), hi = await volumeIn(b, [-500, yTop + 0.5, (L.rimTop - t) / 2 + t / 2], [500, 500, L.rimTop]);
+      return { lo, hi };
+    };
+    const zb = await zIn(bottom), zc = await zIn(center);
+    expect(zb.lo).toBeGreaterThan(1);
+    expect(zb.hi).toBeCloseTo(0, 3);
+    expect(zc.lo).toBeCloseTo(0, 3);
+    expect(zc.hi).toBeGreaterThan(1);
+    for (const p of center.parts) await assertManifold(p);
+    expect(center.pieceCounts).toEqual({ cap: 1, body: 1 });
+  });
+
   it('the 3MF has two objects; toSTL gives name_cap and name_body', async () => {
     const m = await buildClicker(potion, settings(() => {}));
     const zip = unzipSync(await to3MF(m, { slicer: 'generic', mono: false, name: 'potion' }));
