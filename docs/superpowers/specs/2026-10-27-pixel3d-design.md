@@ -1,6 +1,6 @@
 # pixel3d — Design
 
-Date: 2026-10-27 · Status: draft, awaiting approval · App version starts at 0.1.0
+Date: 2026-10-27 · Status: approved 2026-10-28 (keycap clicker §4.6b has open bugs the user will raise) · Mockup v0.1.x; app starts at 0.2.0
 
 ## 1. Intent
 
