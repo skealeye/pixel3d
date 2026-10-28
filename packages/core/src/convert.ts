@@ -132,10 +132,11 @@ export async function convert(bytes: Uint8Array, preset: Preset, name: string): 
     report.warnings.push(...warnings);
 
     // colour rules match the reduced palette and win over the height mode, so they go on after it
-    const { edits, applied } = colourRuleEdits(preset.colourRules, reduced);
+    const { edits, applied, unmatched } = colourRuleEdits(preset.colourRules, reduced);
     const { grid, dropped } = applyEdits(applyHeightMode(reduced, heightModeOf(settings)), edits);
     const gone = new Set(dropped);
     edits.forEach((e, i) => (gone.has(e) ? report.dropped : report.applied).push(applied[i]!));
+    for (const r of unmatched) report.warnings.push(`Colour rule ${r.match} matched no colour.`);
     report.palette = grid.palette.map(({ hex, height }) => ({ hex, height }));
     report.grid = { w: grid.w, h: grid.h };
 

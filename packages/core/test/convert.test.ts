@@ -141,6 +141,17 @@ describe('convert: report', () => {
     expect(report.palette.map((c) => c.hex)).toContain('#123456');
   });
 
+  it('warns once per colour rule that matched no colour', async () => {
+    const { palette } = await inspect(fixture('potion.png'));
+    const hex = palette[0]!.hex;
+    const { report } = await convert(fixture('potion.png'), preset({}, [
+      { match: '#00ff01', tolPct: 0, height: 3 },
+      { match: hex, tolPct: 0, height: 3 },
+    ]), 'p');
+    expect(report.error).toBeUndefined();
+    expect(report.warnings).toEqual(['Colour rule #00ff01 matched no colour.']);
+  });
+
   it('warns about separate pieces', async () => {
     const r = '#cc2222';
     const { files, report } = await convert(png([[null, null, null, null, null], [null, r, null, r, null], [null, null, null, null, null]], 4), preset(), 'two');

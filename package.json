@@ -1,18 +1,20 @@
 {
   "name": "pixel3d",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -p packages/core --noEmit",
+    "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/cli --noEmit",
     "fixtures": "tsx packages/core/test/fixtures/make-fixtures.ts",
-    "sample-3mf": "tsx packages/core/scripts/sample-3mf.ts"
+    "sample-3mf": "tsx packages/core/scripts/sample-3mf.ts",
+    "build:cli": "esbuild packages/cli/src/main.ts --bundle --platform=node --format=esm --tsconfig=tsconfig.base.json --external:manifold-3d --external:@jsquash/webp --banner:js=\"#!/usr/bin/env node\" --outfile=packages/cli/dist/px3d.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/omggif": "^1.0.5",
     "@types/upng-js": "^2.1.5",
+    "esbuild": "^0.28.2",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
@@ -25,5 +27,8 @@
     "omggif": "^1.0.10",
     "upng-js": "^2.1.0",
     "zod": "^4.6.7"
+  },
+  "bin": {
+    "px3d": "packages/cli/dist/px3d.mjs"
   }
 }

@@ -75,14 +75,17 @@ export function presetSettings(p: Preset): Settings {
   return merge(DEFAULTS, p.settings);
 }
 
-/** Colour rules as edits for `g`'s (reduced) palette, with one readable `applied` line per edit (same index). */
-export function colourRuleEdits(rules: ColourRule[], g: Grid): { edits: Edit[]; applied: string[] } {
+/** Colour rules as edits for `g`'s (reduced) palette, with one readable `applied` line per edit (same index); `unmatched` lists rules that matched no colour. */
+export function colourRuleEdits(rules: ColourRule[], g: Grid): { edits: Edit[]; applied: string[]; unmatched: ColourRule[] } {
   const edits: Edit[] = [];
   const applied: string[] = [];
+  const unmatched: ColourRule[] = [];
   for (const rule of rules) {
     const tol2 = ((rule.tolPct / 100) * MAX_RGB_DIST) ** 2;
+    let hit = false;
     for (const { hex } of g.palette) {
       if (hexDist2(hex, rule.match) > tol2) continue;
+      hit = true;
       if (rule.delete) {
         edits.push({ kind: 'delete', hex });
         applied.push(`${hex} → delete`);
@@ -97,8 +100,9 @@ export function colourRuleEdits(rules: ColourRule[], g: Grid): { edits: Edit[]; 
         applied.push(`${hex} → recolour ${rule.recolour}`);
       }
     }
+    if (!hit) unmatched.push(rule);
   }
-  return { edits, applied };
+  return { edits, applied, unmatched };
 }
 
 /**
