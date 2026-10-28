@@ -19,3 +19,8 @@ export type { HeightMode } from './heights';
 export { pieces, cornerTouches } from './pieces';
 
 export const VERSION: string = pkg.version;
+
+export { DEFAULTS, settingsSchema, heightModeOf } from './settings';
+export type { Settings, Anchor } from './settings';
+export { parsePreset, resolvePreset, placeRelative, presetFromState, PresetError } from './preset';
+export type { Preset, ColourRule } from './preset';

@@ -1,6 +1,6 @@
 {
   "name": "pixel3d",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -20,6 +20,7 @@
     "@jsquash/webp": "^1.4.0",
     "jpeg-js": "^0.4.4",
     "omggif": "^1.0.10",
-    "upng-js": "^2.1.0"
+    "upng-js": "^2.1.0",
+    "zod": "^4.6.7"
   }
 }
