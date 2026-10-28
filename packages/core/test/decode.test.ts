@@ -45,6 +45,6 @@ describe('decodeImage', () => {
   });
 
   it('reads VERSION from the root package.json', () => {
-    expect(VERSION).toBe('0.2.1');
+    expect(VERSION).toBe('0.2.2');
   });
 });

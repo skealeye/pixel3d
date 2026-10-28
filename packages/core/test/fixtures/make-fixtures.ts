@@ -69,6 +69,12 @@ png('eye-on-white.png', raster(40, 24, 4, 4, 0, 0, (cx, cy) => {
   return ch === 'D' ? [60, 40, 120, 255] : WHITE;
 }));
 
+// antialiased: 40x30 white with a dark rectangle ringed by blended greys (soft edge: 1px of 150, then 1px of 225)
+png('antialiased.png', raster(40, 30, 1, 1, 0, 0, (x, y) => {
+  const edge = Math.max(Math.abs(x - 19.5) - 10, Math.abs(y - 14.5) - 6);
+  return edge < 0 ? [60, 40, 120, 255] : edge < 1 ? [150, 140, 170, 255] : edge < 2 ? [225, 222, 235, 255] : WHITE;
+}));
+
 // corner-touch: 8x6 at 4x; art in all four corners of the frame, on white
 png('corner-touch.png', raster(32, 24, 4, 4, 0, 0, (cx, cy) => {
   const x = cx - 1, y = cy - 1;
