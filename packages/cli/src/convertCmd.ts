@@ -1,5 +1,5 @@
 import { existsSync, statSync } from 'node:fs';
-import { glob, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { glob, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { convert, parsePreset, PresetError } from '@pixel3d/core';
@@ -11,18 +11,29 @@ const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp']);
 /** A usage or preset problem: printed as-is, exit code 2. */
 class UsageError extends Error {}
 
+/** statSync that treats an unreadable or vanished path as "neither a file nor a directory". */
+const kind = (p: string): 'file' | 'dir' | 'none' => {
+  try {
+    const st = statSync(p);
+    return st.isDirectory() ? 'dir' : st.isFile() ? 'file' : 'none';
+  } catch {
+    return 'none';
+  }
+};
+
 /** Files, directories (non-recursive, images only) and globs, as a sorted list without duplicates. */
 async function resolveInputs(args: string[]): Promise<string[]> {
   const found = new Set<string>();
   for (const a of args) {
-    if (existsSync(a) && statSync(a).isDirectory()) {
-      for (const f of await readdir(a)) if (IMAGE_EXT.has(extname(f).toLowerCase()) && statSync(join(a, f)).isFile()) found.add(join(a, f));
+    if (kind(a) === 'dir') {
+      for (const f of await readdir(a)) if (IMAGE_EXT.has(extname(f).toLowerCase()) && kind(join(a, f)) === 'file') found.add(join(a, f));
     } else if (existsSync(a)) {
       found.add(a);
     } else if (/[*?[\]{}]/.test(a)) {
+      // PowerShell passes dir\*.png literally; glob() wants forward slashes
       let any = false;
-      for await (const f of glob(a)) {
-        if (statSync(f).isFile()) { found.add(f); any = true; }
+      for await (const f of glob(a.replaceAll('\\', '/'))) {
+        if (kind(f) === 'file') { found.add(f); any = true; }
       }
       if (!any) throw new UsageError(`No files match ${a}`);
     } else {
@@ -69,6 +80,7 @@ async function loadPreset(file: string | undefined, sets: string[], format: stri
 
 const mm = (n: number) => n.toFixed(1);
 
+/** A failed-image report. Core has no empty-report constructor, so this mirrors the shape of `Report` in core's convert.ts. */
 function failed(name: string, error: string, detail?: string): Report {
   return { name, palette: [], applied: [], dropped: [], size: { x: 0, y: 0, z: 0 }, pieces: 0, warnings: [], files: [], grid: { w: 0, h: 0 }, error, ...(detail ? { detail } : {}) };
 }
@@ -99,38 +111,58 @@ export async function convertCmd(argv: string[]): Promise<number> {
     const preset = await loadPreset(presetFile, parsed.values.set ?? [], format);
     const inputs = await resolveInputs(parsed.positionals);
     if (!inputs.length) throw new UsageError('No images found (looking for .png .jpg .jpeg .gif .webp).');
-    await mkdir(out, { recursive: true });
+    try {
+      await mkdir(out, { recursive: true });
+    } catch (e) {
+      throw new UsageError(`Cannot use --out ${out}: ${(e as Error).message}`);
+    }
 
     const reports: Report[] = [];
     const used = new Set<string>();
     let failures = 0;
-    for (const input of inputs) {
-      const file = basename(input);
-      // two inputs with the same stem (a/x.png, b/x.png) must not overwrite each other's outputs
-      const base = basename(input, extname(input));
-      let stem = base;
-      for (let i = 2; used.has(stem.toLowerCase()); i++) stem = `${base}-${i}`;
-      used.add(stem.toLowerCase());
+    try {
+      for (const input of inputs) {
+        const file = basename(input);
+        // two inputs with the same stem (a/x.png, b/x.png) must not overwrite each other's outputs
+        const base = basename(input, extname(input));
+        let stem = base;
+        for (let i = 2; used.has(stem.toLowerCase()); i++) stem = `${base}-${i}`;
+        used.add(stem.toLowerCase());
 
-      let result;
-      try {
-        result = await convert(new Uint8Array(await readFile(input)), preset, stem);
-      } catch (e) {
-        result = { files: [], report: failed(stem, 'The file could not be read.', (e as Error).message) };
+        let result;
+        try {
+          result = await convert(new Uint8Array(await readFile(input)), preset, stem);
+        } catch (e) {
+          result = { files: [], report: failed(stem, 'The file could not be read.', (e as Error).message) };
+        }
+        let { report } = result;
+        if (!report.error) {
+          const written: string[] = [];
+          try {
+            for (const f of result.files) {
+              written.push(join(out, f.name));
+              await writeFile(join(out, f.name), f.bytes);
+            }
+          } catch (e) {
+            // one image's write failure must not stop the batch: drop its partial outputs and report it
+            await Promise.all(written.map((w) => rm(w, { force: true }).catch(() => undefined)));
+            const failedFile = basename(written[written.length - 1]!);
+            report = failed(report.name, `Could not write ${failedFile}: ${(e as Error).message}`, (e as Error).stack?.split('\n').slice(0, 6).join('\n'));
+          }
+        }
+        reports.push(report);
+        if (report.error) {
+          failures++;
+          console.error(`✗ ${file}: ${report.error}`);
+        } else {
+          const { x, y, z } = report.size;
+          console.error(`✓ ${file} → ${report.files.join(', ')} (${mm(x)} × ${mm(y)} × ${mm(z)} mm)`);
+        }
+        for (const w of report.warnings) console.error(`    warning: ${w}`);
       }
-      const { files, report } = result;
-      reports.push(report);
-      if (report.error) {
-        failures++;
-        console.error(`✗ ${file}: ${report.error}`);
-      } else {
-        for (const f of files) await writeFile(join(out, f.name), f.bytes);
-        const { x, y, z } = report.size;
-        console.error(`✓ ${file} → ${report.files.join(', ')} (${mm(x)} × ${mm(y)} × ${mm(z)} mm)`);
-      }
-      for (const w of report.warnings) console.error(`    warning: ${w}`);
+    } finally {
+      await writeFile(join(out, 'report.json'), JSON.stringify(reports, null, 2) + '\n');
     }
-    await writeFile(join(out, 'report.json'), JSON.stringify(reports, null, 2) + '\n');
     return failures ? 1 : 0;
   } catch (e) {
     if (e instanceof UsageError) {
