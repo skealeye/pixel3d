@@ -70,15 +70,16 @@ function merge<T>(base: T, over: unknown): T {
   return over as T;
 }
 
-/**
- * Merge a preset over DEFAULTS and turn colour rules into edits for `g`'s (reduced) palette.
- * Rules override general rules: apply `edits` after the height mode.
- */
-export function resolvePreset(p: Preset, g: Grid): { settings: Settings; edits: Edit[]; applied: string[] } {
-  const settings = merge(DEFAULTS, p.settings);
+/** A preset merged over DEFAULTS. */
+export function presetSettings(p: Preset): Settings {
+  return merge(DEFAULTS, p.settings);
+}
+
+/** Colour rules as edits for `g`'s (reduced) palette, with one readable `applied` line per edit (same index). */
+export function colourRuleEdits(rules: ColourRule[], g: Grid): { edits: Edit[]; applied: string[] } {
   const edits: Edit[] = [];
   const applied: string[] = [];
-  for (const rule of p.colourRules) {
+  for (const rule of rules) {
     const tol2 = ((rule.tolPct / 100) * MAX_RGB_DIST) ** 2;
     for (const { hex } of g.palette) {
       if (hexDist2(hex, rule.match) > tol2) continue;
@@ -97,7 +98,15 @@ export function resolvePreset(p: Preset, g: Grid): { settings: Settings; edits: 
       }
     }
   }
-  return { settings, edits, applied };
+  return { edits, applied };
+}
+
+/**
+ * Merge a preset over DEFAULTS and turn colour rules into edits for `g`'s (reduced) palette.
+ * Rules override general rules: apply `edits` after the height mode.
+ */
+export function resolvePreset(p: Preset, g: Grid): { settings: Settings; edits: Edit[]; applied: string[] } {
+  return { settings: presetSettings(p), ...colourRuleEdits(p.colourRules, g) };
 }
 
 /**

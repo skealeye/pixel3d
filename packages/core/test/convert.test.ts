@@ -3,7 +3,7 @@ import { strFromU8, unzipSync } from 'fflate';
 import { GifWriter } from 'omggif';
 import UPNG from 'upng-js';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { convert, initManifold, inspect, parsePreset } from '../src/index';
+import { convert, ConvertError, initManifold, inspect, parsePreset, safeName } from '../src/index';
 import type { Preset } from '../src/index';
 import { mulberry32 } from '../src/pixelate';
 import { assertManifold } from './util/assertManifold';
@@ -165,7 +165,66 @@ describe('convert: report', () => {
     expect(report.error).toBeUndefined();
     expect(report.palette.length).toBeGreaterThan(0);
     expect(report.palette.length).toBeLessThanOrEqual(4);
+    expect(report.grid).toEqual({ w: 16, h: 16 }); // 200×200 photo, 16 across
   });
+
+  /**
+   * A photo-like image (a gradient, so far more than 64 colours) on a solid #282828 background, with a solid band
+   * of `edge` along the top of the art touching the background. Art: x 50–149, band y 30–59, gradient y 60–149.
+   */
+  const photoOnBg = (edge: [number, number, number]) => {
+    const w = 200, h = 200, data = new Uint8Array(w * h * 4);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const inArt = x >= 50 && x < 150;
+      const c = inArt && y >= 30 && y < 60 ? edge : inArt && y >= 60 && y < 150 ? [120 + x - 50, 100 + y - 60, 200] : [40, 40, 40];
+      data.set([c[0]!, c[1]!, c[2]!, 255], (y * w + x) * 4);
+    }
+    return new Uint8Array(UPNG.encode([data.buffer], w, h, 0));
+  };
+  // 20 across: 10 source px per cell, so the art is 10 cells wide and 9 (gradient) or 12 (with band) tall
+  const across20 = preset({ pixelate: { across: 20 } });
+
+  it('pixelating clears the background at full resolution with tolerance 40: an edge colour ~30 away goes', async () => {
+    const { report } = await convert(photoOnBg([57, 57, 57]), across20, 'p'); // 29.4 RGB from #282828
+    expect(report.error).toBeUndefined();
+    expect(report.grid).toEqual({ w: 20, h: 20 });
+    expect(report.size.y).toBeCloseTo(40 * 9 / 10, 3);
+  });
+
+  it('... and an edge colour ~50 away stays', async () => {
+    const { report } = await convert(photoOnBg([69, 69, 69]), across20, 'p'); // 50.2 RGB from #282828
+    expect(report.error).toBeUndefined();
+    expect(report.grid).toEqual({ w: 20, h: 20 });
+    expect(report.size.y).toBeCloseTo(40 * 12 / 10, 3);
+  });
+
+  /** 600×600 that otherwise looks like pixel art: 8 colours in seeded 3–11 px blocks (no common scale), corners transparent. */
+  const big = () => {
+    const rnd = mulberry32(11), n = 600;
+    const cols = ['#aa2222', '#22aa22', '#2222aa', '#aaaa22', '#22aaaa', '#aa22aa', '#eeeeee', '#333333'];
+    const cuts = () => { const c = [0]; while (c[c.length - 1]! < n) c.push(c[c.length - 1]! + 3 + Math.floor(rnd() * 9)); return c; };
+    const xs = cuts(), ys = cuts();
+    const rows = fill(n, n, null);
+    for (let j = 0; j + 1 < ys.length; j++) for (let i = 0; i + 1 < xs.length; i++) {
+      const c = cols[Math.floor(rnd() * cols.length)]!;
+      for (let y = ys[j]!; y < Math.min(n, ys[j + 1]!); y++) for (let x = xs[i]!; x < Math.min(n, xs[i + 1]!); x++) rows[y]![x] = c;
+    }
+    rows[0]![0] = rows[0]![n - 1] = rows[n - 1]![0] = rows[n - 1]![n - 1] = null;
+    return png(rows);
+  };
+
+  for (const enabled of [false, 'auto'] as const) {
+    it(`an image over 512 px is pixelated (pixelate.enabled ${enabled}) with a warning`, async () => {
+      const bytes = big();
+      const info = await inspect(bytes);
+      expect(info).toMatchObject({ width: 600, height: 600, looksLikePixelArt: false });
+      expect(info.colourCount).toBe(8);
+      const { report } = await convert(bytes, preset({ pixelate: { enabled, across: 24 } }), 'big');
+      expect(report.error).toBeUndefined();
+      expect(report.warnings).toContain('The image is larger than 512 px, so it was pixelated.');
+      expect(Math.max(report.grid.w, report.grid.h)).toBeLessThanOrEqual(24);
+    }, 30_000);
+  }
 });
 
 describe('convert: degenerate images (Review Focus 1)', () => {
@@ -194,6 +253,9 @@ describe('convert: degenerate images (Review Focus 1)', () => {
       expect(report.files).toEqual([]);
       expect(report.error).toMatch(msg);
       expect(report.error).toMatch(/^[A-Z].*\.$/);
+      // only an unreadable file carries the underlying error
+      if (/could not be read/.test(report.error!)) expect(report.detail).toMatch(/\S/);
+      else expect(report.detail).toBeUndefined();
     });
   }
 
@@ -203,6 +265,27 @@ describe('convert: degenerate images (Review Focus 1)', () => {
     expect(report.error).toBeUndefined();
     expect(files).toHaveLength(1);
     expect(report.palette.map((c) => c.hex)).toEqual([g]);
+  });
+});
+
+describe('safeName', () => {
+  it('strips separators, trailing dots and spaces; avoids Windows device names; caps at 100', () => {
+    expect(safeName('a/b\c:d*e?f"g<h>i|j')).toBe('abcdefghij');
+    expect(safeName('  name. . ')).toBe('name');
+    expect(safeName('...')).toBe('model');
+    expect(safeName('CON')).toBe('CON_');
+    expect(safeName('nul.txt')).toBe('nul_.txt');
+    expect(safeName('com1')).toBe('com1_');
+    expect(safeName('LPT9')).toBe('LPT9_');
+    expect(safeName('console')).toBe('console');
+    expect(safeName('com10')).toBe('com10');
+    expect(safeName('x'.repeat(150))).toBe('x'.repeat(100));
+  });
+
+  it('a non-string name cannot make convert throw', async () => {
+    const { report } = await convert(fixture('potion.png'), preset(), 42 as unknown as string);
+    expect(report.error).toBeUndefined();
+    expect(report.name).toBe('42');
   });
 });
 
@@ -216,8 +299,17 @@ describe('inspect', () => {
     expect(r.palette.every((c) => /^#[0-9a-f]{6}$/.test(c.hex))).toBe(true);
   });
 
-  it('flags a photo as not pixel art', async () => {
-    expect((await inspect(fixture('gradient-photo.png'))).looksLikePixelArt).toBe(false);
+  it('flags a photo as not pixel art and lists only its 64 most frequent colours', async () => {
+    const r = await inspect(fixture('gradient-photo.png'));
+    expect(r.looksLikePixelArt).toBe(false);
+    expect(r.palette).toHaveLength(64);
+    expect(r.colourCount).toBeGreaterThan(64);
+  });
+
+  it('unreadable bytes reject with a plain ConvertError', async () => {
+    const p = inspect(new Uint8Array([1, 2, 3, 4]));
+    await expect(p).rejects.toBeInstanceOf(ConvertError);
+    await expect(p).rejects.toThrow('The file could not be read as an image (PNG, JPEG, GIF or WebP).');
   });
 });
 

@@ -22,7 +22,7 @@ export const VERSION: string = pkg.version;
 
 export { DEFAULTS, settingsSchema, heightModeOf } from './settings';
 export type { Settings, Anchor } from './settings';
-export { parsePreset, resolvePreset, placeRelative, presetFromState, PresetError } from './preset';
+export { parsePreset, resolvePreset, presetSettings, colourRuleEdits, placeRelative, presetFromState, PresetError } from './preset';
 export type { Preset, ColourRule } from './preset';
 export { buildModel } from './mesh';
 export type { Model, Part } from './mesh';
@@ -33,5 +33,5 @@ export { toSTL } from './export/stl';
 export { to3MF } from './export/threemf';
 export type { ThreeMFOptions, Slicer } from './export/threemf';
 export type { ManifoldToplevel } from './manifold';
-export { convert, inspect, safeName } from './convert';
+export { convert, inspect, safeName, ConvertError } from './convert';
 export type { Report, ConvertResult, InspectResult } from './convert';

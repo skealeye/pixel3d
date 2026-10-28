@@ -7,7 +7,7 @@ import type { Grid } from './grid';
 import { reducePalette, toGrid } from './palette';
 import { applyEdits } from './edits';
 import { applyHeightMode } from './heights';
-import { type Preset, resolvePreset } from './preset';
+import { type Preset, colourRuleEdits, presetSettings } from './preset';
 import { type Settings, DEFAULTS, heightModeOf } from './settings';
 import { buildModel } from './mesh';
 import { toSTL } from './export/stl';
@@ -28,8 +28,12 @@ export interface Report {
   warnings: string[];
   /** Output file names, in `files` order. */
   files: string[];
+  /** Final grid size in cells, transparent cells included (pixelated: `across` wide). */
+  grid: { w: number; h: number };
   /** A plain sentence when nothing could be made; `files` is then empty. */
   error?: string;
+  /** Unexpected failures and unreadable files only: the underlying error's message and first stack lines. */
+  detail?: string;
 }
 
 export interface ConvertResult { files: { name: string; bytes: Uint8Array }[]; report: Report }
@@ -42,22 +46,41 @@ const PIXELATE_BG_TOL_PCT = (40 / 441.7) * 100;
 const EXACT_COLOURS = 64;
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(n)));
-const EMPTY_GRID: Grid = { w: 0, h: 0, cells: new Int16Array(0), palette: [] };
+/** Colours `inspect` lists, most frequent first. */
+const INSPECT_COLOURS = 64;
+const MAX_NAME = 100;
 
-/** A plain message for the user, as opposed to an unexpected failure. */
-class ConvertError extends Error {}
+/** A plain sentence for the user, as opposed to an unexpected failure. `cause`, when set, becomes `Report.detail`. */
+export class ConvertError extends Error {
+  override readonly cause?: unknown;
+  constructor(message: string, cause?: unknown) {
+    super(message);
+    this.name = 'ConvertError';
+    this.cause = cause;
+  }
+}
 
-/** A file name safe on every OS: no path separators or `:*?"<>|`, trimmed; `model` when nothing is left. */
+/** An error's message and the first lines of its stack. */
+function detailOf(e: unknown): string {
+  if (!(e instanceof Error)) return String(e);
+  return (e.stack ?? `${e.name}: ${e.message}`).split('\n').slice(0, 6).join('\n');
+}
+
+/**
+ * A file name safe on every OS: no path separators, `:*?"<>|` or control characters; trimmed, no trailing dots
+ * or spaces, at most 100 characters; Windows device names (`CON`, `COM1`…) get a `_`; `model` when nothing is left.
+ */
 export function safeName(name: string): string {
-  const s = name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').trim();
-  return s || 'model';
+  const s = String(name).replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').trim().slice(0, MAX_NAME).replace(/[. ]+$/, '');
+  if (!s) return 'model';
+  return s.replace(/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?=\.|$)/i, '$1_');
 }
 
 async function decode(bytes: Uint8Array): Promise<Img> {
   try {
     return await decodeImage(bytes);
-  } catch {
-    throw new ConvertError('The file could not be read as an image (PNG, JPEG, GIF or WebP).');
+  } catch (e) {
+    throw new ConvertError('The file could not be read as an image (PNG, JPEG, GIF or WebP).', e);
   }
 }
 
@@ -76,7 +99,7 @@ async function toReducedGrid(bytes: Uint8Array, s: Settings): Promise<{ grid: Gr
   const scale = detectScale(img);
   const tooBig = Math.max(Math.round(img.width / scale.sx), Math.round(img.height / scale.sy)) > CAP;
   let doPixelate = s.pixelate.enabled === 'auto' ? !looksLikePixelArt(img, scale) : s.pixelate.enabled;
-  if (!doPixelate && tooBig) {
+  if (tooBig) {
     doPixelate = true;
     warnings.push(`The image is larger than ${CAP} px, so it was pixelated.`);
   }
@@ -99,19 +122,22 @@ async function toReducedGrid(bytes: Uint8Array, s: Settings): Promise<{ grid: Gr
  * Never throws: any failure comes back as `report.error` with no files.
  */
 export async function convert(bytes: Uint8Array, preset: Preset, name: string): Promise<ConvertResult> {
-  const base = safeName(name);
-  const report: Report = { name: base, palette: [], applied: [], dropped: [], size: { x: 0, y: 0, z: 0 }, pieces: 0, warnings: [], files: [] };
+  const report: Report = {
+    name: 'model', palette: [], applied: [], dropped: [], size: { x: 0, y: 0, z: 0 }, pieces: 0, warnings: [], files: [], grid: { w: 0, h: 0 },
+  };
   try {
-    const { settings } = resolvePreset(preset, EMPTY_GRID);
+    const base = (report.name = safeName(name));
+    const settings = presetSettings(preset);
     const { grid: reduced, warnings } = await toReducedGrid(bytes, settings);
     report.warnings.push(...warnings);
 
     // colour rules match the reduced palette and win over the height mode, so they go on after it
-    const { edits, applied } = resolvePreset(preset, reduced);
+    const { edits, applied } = colourRuleEdits(preset.colourRules, reduced);
     const { grid, dropped } = applyEdits(applyHeightMode(reduced, heightModeOf(settings)), edits);
     const gone = new Set(dropped);
     edits.forEach((e, i) => (gone.has(e) ? report.dropped : report.applied).push(applied[i]!));
     report.palette = grid.palette.map(({ hex, height }) => ({ hex, height }));
+    report.grid = { w: grid.w, h: grid.h };
 
     const model = await buildModel(grid, settings);
     if (!model.parts.length) throw new ConvertError('The image is empty once the background is removed.');
@@ -127,8 +153,11 @@ export async function convert(bytes: Uint8Array, preset: Preset, name: string): 
     report.files = files.map((f) => f.name);
     return { files, report };
   } catch (e) {
-    const msg = e instanceof ConvertError ? e.message : `The conversion failed: ${e instanceof Error ? e.message : String(e)}`;
-    return { files: [], report: { ...report, files: [], error: /[.!?]$/.test(msg) ? msg : `${msg}.` } };
+    const known = e instanceof ConvertError;
+    const msg = known ? e.message : `The conversion failed: ${e instanceof Error ? e.message : String(e)}`;
+    const error = /[.!?]$/.test(msg) ? msg : `${msg}.`;
+    const cause = known ? e.cause : e;
+    return { files: [], report: { ...report, files: [], error, ...(cause !== undefined ? { detail: detailOf(cause) } : {}) } };
   }
 }
 
@@ -136,13 +165,19 @@ export interface InspectResult {
   width: number;
   height: number;
   scale: Scale;
+  /** The 64 most frequent colours, most frequent first. */
   palette: { hex: string; count: number }[];
+  /** Distinct opaque colours in all. */
+  colourCount: number;
   looksLikePixelArt: boolean;
 }
 
-/** The native-resolution grid (after scale detection and default background removal): size, scale and exact colours by count. */
+/**
+ * The native-resolution grid (after scale detection and default background removal): size, scale and colours by count.
+ * Throws a `ConvertError` with a plain sentence when the bytes are not a readable image.
+ */
 export async function inspect(bytes: Uint8Array): Promise<InspectResult> {
-  const img = await decodeImage(bytes);
+  const img = await decode(bytes);
   const scale = detectScale(img);
   const art = removeBackground(downsampleNearest(img, scale), DEFAULTS.background).img;
   const counts = new Map<string, number>();
@@ -156,7 +191,8 @@ export async function inspect(bytes: Uint8Array): Promise<InspectResult> {
     width: art.width,
     height: art.height,
     scale,
-    palette: [...counts].sort((a, b) => b[1] - a[1]).map(([hex, count]) => ({ hex, count })),
+    palette: [...counts].sort((a, b) => b[1] - a[1]).slice(0, INSPECT_COLOURS).map(([hex, count]) => ({ hex, count })),
+    colourCount: counts.size,
     looksLikePixelArt: looksLikePixelArt(img, scale),
   };
 }
