@@ -7,7 +7,7 @@ Turns pixel art into 3D-print models (3MF or STL): one raised block per pixel, o
 Build the CLI once with `npm install && npm run build:cli` (output: `packages/cli/dist/px3d.mjs`).
 
 ```
-px3d convert <files|globs|dirs...> --out <dir> [--preset p.json] [--format stl|3mf] [--set key=value ...]
+px3d convert <files|globs|dirs...> --out|-o <dir> [--preset p.json] [--format stl|3mf] [--set key=value ...]
 px3d serve [--port 7300] [--host 127.0.0.1] [--debug]   # HTTP API for scripts
 px3d mcp                                                 # MCP server for Claude, over stdio
 px3d --version

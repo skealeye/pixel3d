@@ -2,9 +2,12 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { Model } from '@pixel3d/core';
 import { previewMeshes, type Preview } from './previewMesh';
+import { handleMeshes, type Handle } from './handles';
 
-export interface GridOptions { on: boolean; colour: string; opacity: number }
+/** `step`: one grid square, mm (10 mm, or half an inch). */
+export interface GridOptions { on: boolean; colour: string; opacity: number; step?: number }
 type Size = { x: number; y: number; z: number };
+type Vec3 = [number, number, number];
 
 /** Cut faces of solid material show gold: with the near half clipped away, any back face we can see is the inside. */
 const capHook = (sh: { fragmentShader: string }) => {
@@ -15,13 +18,18 @@ const capHook = (sh: { fragmentShader: string }) => {
 };
 
 /**
- * The 3D view (ported from the mockup): Z up, a build plate with a 10 mm grid, orbit controls, Cut view.
+ * The 3D view (ported from the mockup): Z up, a build plate with a grid, orbit controls, Cut view.
  * Renders on demand, and straight after every resize so the canvas never shows a stretched or cleared frame.
+ *
+ * The meshes sit in `pivot` in core's unrotated model frame; the pivot turns them to the export orientation (as the
+ * mockup does) and `holder` centres the result with its lowest point on the bed. The drag handles sit in the pivot
+ * too but are left out of the size and placement, so moving one never moves the model.
  */
 export class Viewport {
   /** Frames drawn so far (for the e2e checks). */
   renders = 0;
   shown: 'none' | 'preview' | 'model' = 'none';
+  /** Size of what is shown, mm, after rotation. */
   size: Size | null = null;
 
   private renderer: THREE.WebGLRenderer;
@@ -29,10 +37,19 @@ export class Viewport {
   private camera = new THREE.PerspectiveCamera(38, 1, 1, 2000);
   private controls: OrbitControls;
   private holder = new THREE.Group();
+  private pivot = new THREE.Group();
+  private handleGroup = new THREE.Group();
+  /** The model or preview meshes (never the handles). */
+  private meshes: THREE.Object3D[] = [];
+  private handleList: Handle[] = [];
+  /** While a handle is dragged the model stays exactly where it is. */
+  private hold = false;
+  private rotation: Vec3 = [0, 0, 0];
+  private ray = new THREE.Raycaster();
   private mats = new Map<string, THREE.MeshStandardMaterial>();
   private cutPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private cut = false;
-  private gridOpts: GridOptions = { on: true, colour: '#8a7446', opacity: 0.7 };
+  private gridOpts: GridOptions = { on: true, colour: '#8a7446', opacity: 0.7, step: 10 };
   private gridHelper: THREE.GridHelper | null = null;
   private ro: ResizeObserver;
   private dirty = true;
@@ -57,6 +74,8 @@ export class Viewport {
     this.scene.add(sun, fill);
     const plate = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: '#3b3324', roughness: 0.95 }));
     plate.position.z = -0.05;
+    this.pivot.add(this.handleGroup);
+    this.holder.add(this.pivot);
     this.scene.add(plate, this.holder);
     this.makeGrid();
 
@@ -76,21 +95,23 @@ export class Viewport {
       geo.setAttribute('position', new THREE.BufferAttribute(p.mesh.vertProperties, 3));
       geo.setIndex(new THREE.BufferAttribute(p.mesh.triVerts, 1));
       geo.computeVertexNormals();
-      return new THREE.Mesh(geo, this.material(p.hex));
+      const m = new THREE.Mesh(geo, this.material(p.hex));
+      m.userData.object = p.object;
+      return m;
     });
-    this.show(meshes, model.size, opts.row);
+    this.show(meshes, opts.row);
     this.shown = model.parts.length ? 'model' : 'none';
   }
 
   /** The fast preview (previewMesh.ts), shown until the core model replaces it. */
   setPreview(p: Preview | null) {
     if (!p) return this.clear();
-    this.show(previewMeshes(p, (hex) => this.material(hex)), p.size, p.px.y);
+    this.show(previewMeshes(p, (hex) => this.material(hex)), p.px.y);
     this.shown = 'preview';
   }
 
   clear() {
-    this.show([], null);
+    this.show([]);
     this.shown = 'none';
   }
 
@@ -104,6 +125,85 @@ export class Viewport {
     this.gridOpts = { ...opts };
     this.makeGrid();
     this.dirty = true;
+  }
+
+  /** One grid square, mm. */
+  get gridStep() { return this.gridOpts.step ?? 10; }
+
+  /** The export orientation in quarter turns: about X, then Y, then Z (as core rotates). */
+  setRotation(r: Vec3) {
+    if (r.every((v, i) => v === this.rotation[i])) return;
+    this.rotation = [r[0], r[1], r[2]];
+    this.pivot.rotation.set((r[0] * Math.PI) / 2, (r[1] * Math.PI) / 2, (r[2] * Math.PI) / 2, 'ZYX');
+    this.place();
+  }
+
+  /** The hole and magnet markers, in the model frame. */
+  setHandles(list: Handle[]) {
+    this.handleList = list;
+    this.drawHandles();
+  }
+
+  /** Keep the model still and orbiting off while a handle is dragged; releasing places the model again. */
+  setHold(on: boolean) {
+    this.hold = on;
+    this.controls.enabled = !on;
+    if (!on) this.place();
+  }
+
+  /** Orbiting on or off (off while placing a magnet, so the click doesn't turn the view). */
+  setOrbit(on: boolean) { this.controls.enabled = on; }
+
+  setCursor(c: string) { this.canvas.style.cursor = c; }
+
+  /** The model surface under a page point: where it is in the model frame and which object it belongs to. */
+  pick(clientX: number, clientY: number): { x: number; y: number; object: string } | null {
+    this.aim(clientX, clientY);
+    const hit = this.ray.intersectObjects(this.meshes, false)[0];
+    if (!hit) return null;
+    const p = this.pivot.worldToLocal(hit.point.clone());
+    return { x: p.x, y: p.y, object: (hit.object.userData.object as string | undefined) ?? 'main' };
+  }
+
+  /** The handle under a page point. */
+  handleAt(clientX: number, clientY: number): { kind: 'hole' | 'magnet'; i: number } | null {
+    this.aim(clientX, clientY);
+    const hit = this.ray.intersectObjects(this.handleGroup.children, false)[0];
+    return hit ? (hit.object.userData.handle as { kind: 'hole' | 'magnet'; i: number }) : null;
+  }
+
+  /** Where a page point meets the plane of the model's top, in the model frame (for dragging handles). */
+  onTop(clientX: number, clientY: number): { x: number; y: number } | null {
+    this.aim(clientX, clientY);
+    const n = new THREE.Vector3(0, 0, 1).applyQuaternion(this.pivot.getWorldQuaternion(new THREE.Quaternion()));
+    const o = this.pivot.localToWorld(new THREE.Vector3(0, 0, this.top()));
+    const pt = this.ray.ray.intersectPlane(new THREE.Plane().setFromNormalAndCoplanarPoint(n, o), new THREE.Vector3());
+    if (!pt) return null;
+    const p = this.pivot.worldToLocal(pt);
+    return { x: p.x, y: p.y };
+  }
+
+  /** The front body's largest X in the model frame: core mirrors the back half about it. */
+  frontMaxX(): number {
+    return this.localBox((m) => m.userData.object !== 'back').max.x;
+  }
+
+  /** Model bounds in world space, handles left out (for the e2e checks). */
+  bounds(): { min: Vec3; max: Vec3 } | null {
+    if (!this.meshes.length) return null;
+    const b = this.box();
+    return { min: b.min.toArray(), max: b.max.toArray() };
+  }
+
+  /** Each handle's centre in page coordinates (for the e2e checks). */
+  handleScreen(): { kind: string; i: number; x: number; y: number }[] {
+    const r = this.canvas.getBoundingClientRect();
+    this.holder.updateMatrixWorld(true);
+    return this.handleGroup.children.map((o) => {
+      const p = o.getWorldPosition(new THREE.Vector3()).project(this.camera);
+      const h = o.userData.handle as { kind: string; i: number };
+      return { kind: h.kind, i: h.i, x: r.left + ((p.x + 1) / 2) * r.width, y: r.top + ((1 - p.y) / 2) * r.height };
+    });
   }
 
   /** Frame whatever is on the bed: the default view suits a ~70 mm diagonal, larger models pull the camera back. */
@@ -127,6 +227,7 @@ export class Viewport {
     this.ro.disconnect();
     this.renderer.setAnimationLoop(null);
     this.clearHolder();
+    this.setHandles([]);
     this.mats.forEach((m) => m.dispose());
     this.controls.dispose();
     this.renderer.dispose();
@@ -173,7 +274,8 @@ export class Viewport {
       (this.gridHelper.material as THREE.Material).dispose();
     }
     const { on, colour, opacity } = this.gridOpts;
-    const g = (this.gridHelper = new THREE.GridHelper(200, 20, colour, colour));
+    const step = this.gridStep, n = Math.round(200 / step);
+    const g = (this.gridHelper = new THREE.GridHelper(n * step, n, colour, colour));
     g.rotation.x = Math.PI / 2;
     const m = g.material as THREE.LineBasicMaterial;
     m.transparent = true;
@@ -184,33 +286,83 @@ export class Viewport {
   }
 
   private clearHolder() {
-    for (const c of [...this.holder.children]) {
-      this.holder.remove(c);
+    for (const c of this.meshes) {
+      this.pivot.remove(c);
       if (c instanceof THREE.InstancedMesh) c.dispose();
       else if (c instanceof THREE.Mesh) c.geometry.dispose();
     }
+    this.meshes = [];
   }
 
-  /** Swap the shown meshes, centre them on the plate with the lowest point on the bed, and place the cut plane. */
-  private show(objects: THREE.Object3D[], size: Size | null, row?: number) {
+  private drawHandles() {
+    for (const c of [...this.handleGroup.children]) {
+      this.handleGroup.remove(c);
+      (c as THREE.Mesh).geometry.dispose();
+    }
+    if (this.meshes.length && this.handleList.length) this.handleGroup.add(...handleMeshes(this.handleList, this.top()));
+    this.dirty = true;
+  }
+
+  /** Bounds of the meshes `which` picks, in the model frame. */
+  private localBox(which: (m: THREE.Object3D) => boolean = () => true): THREE.Box3 {
+    this.holder.updateMatrixWorld(true);
+    const inv = this.pivot.matrixWorld.clone().invert(), box = new THREE.Box3();
+    for (const m of this.meshes) if (which(m)) box.union(new THREE.Box3().setFromObject(m).applyMatrix4(inv));
+    return box;
+  }
+
+  /** The top of the model in the model frame. */
+  private top(): number {
+    return this.meshes.length ? this.localBox().max.z : 0;
+  }
+
+  private aim(clientX: number, clientY: number) {
+    const r = this.canvas.getBoundingClientRect();
+    const ndc = new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+    this.holder.updateMatrixWorld(true);
+    this.ray.setFromCamera(ndc, this.camera);
+  }
+
+  /** World bounds of the model meshes. */
+  private box(): THREE.Box3 {
+    this.holder.updateMatrixWorld(true);
+    const box = new THREE.Box3();
+    for (const m of this.meshes) box.expandByObject(m);
+    return box;
+  }
+
+  /**
+   * Centre the model on the plate with its lowest point on the bed (not while a handle is dragged), set the size,
+   * place the cut plane through the middle of the pixel row nearest the centre, and lay the handles on top.
+   */
+  private place() {
+    if (this.meshes.length) {
+      if (!this.hold) {
+        this.holder.position.set(0, 0, 0);
+        const b = this.box(), c = b.getCenter(new THREE.Vector3());
+        this.holder.position.set(-c.x, -c.y, -b.min.z);
+      }
+      const box = this.box(), sz = box.getSize(new THREE.Vector3());
+      this.size = { x: sz.x, y: sz.y, z: sz.z };
+      const mid = sz.y / 2;
+      this.cutPlane.constant = -(box.min.y + (Math.floor(mid / this.row) + 0.5) * this.row);
+    } else this.size = null;
+    this.drawHandles();
+    this.dirty = true;
+  }
+
+  /** Swap the shown meshes, then place them. */
+  private show(objects: THREE.Object3D[], row?: number) {
     this.clearHolder();
-    this.size = size;
     if (row) this.row = row;
     // keep only the materials still in use, so recolouring doesn't pile up shader programs
     const used = new Set<THREE.Material>();
     for (const o of objects) if (o instanceof THREE.Mesh) used.add(o.material as THREE.Material);
     for (const [hex, m] of this.mats) if (!used.has(m)) { m.dispose(); this.mats.delete(hex); }
     if (objects.length) {
-      this.holder.add(...objects);
-      this.holder.position.set(0, 0, 0);
-      this.holder.updateMatrixWorld(true);
-      const box = new THREE.Box3().setFromObject(this.holder), c = box.getCenter(new THREE.Vector3());
-      this.holder.position.set(-c.x, -c.y, -box.min.z);
-      this.holder.updateMatrixWorld(true);
-      // through the middle of the pixel row nearest the centre
-      const y0 = box.min.y - c.y, mid = (box.max.y - box.min.y) / 2;
-      this.cutPlane.constant = -(y0 + (Math.floor(mid / this.row) + 0.5) * this.row);
+      this.pivot.add(...objects);
+      this.meshes = objects;
     }
-    this.dirty = true;
+    this.place();
   }
 }

@@ -4,7 +4,7 @@ import { basename, extname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { convert, parsePreset, PresetError } from '@pixel3d/core';
 import type { Preset, Report } from '@pixel3d/core';
-import { setPath } from './args';
+import { CONVERT_OPTIONS, setPath } from './args';
 import { emptyPresetDoc, parsePresetJson, PresetJsonError } from './presetLoad';
 
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp']);
@@ -174,18 +174,13 @@ export async function convertCmd(argv: string[]): Promise<number> {
       parsed = parseArgs({
         args: argv,
         allowPositionals: true,
-        options: {
-          preset: { type: 'string' },
-          out: { type: 'string' },
-          format: { type: 'string' },
-          set: { type: 'string', multiple: true },
-        },
+        options: CONVERT_OPTIONS,
       });
     } catch (e) {
       throw new UsageError((e as Error).message);
     }
     const { preset: presetFile, out, format } = parsed.values;
-    if (!out) throw new UsageError('Missing --out <dir>.');
+    if (!out) throw new UsageError('Missing --out <dir> (or -o <dir>).');
     if (format !== undefined && format !== 'stl' && format !== '3mf') throw new UsageError(`--format must be stl or 3mf, not "${format}".`);
     if (!parsed.positionals.length) throw new UsageError('Give at least one image, glob or folder to convert.');
 

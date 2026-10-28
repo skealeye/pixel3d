@@ -7,7 +7,13 @@
   import Header from './Header.svelte';
   import ImagePanel from './panels/ImagePanel.svelte';
   import PalettePanel from './panels/PalettePanel.svelte';
-  import SettingsPlaceholder from './panels/SettingsPlaceholder.svelte';
+  import SizePanel from './panels/SizePanel.svelte';
+  import BasePanel from './panels/BasePanel.svelte';
+  import InsidePanel from './panels/InsidePanel.svelte';
+  import SidesPanel from './panels/SidesPanel.svelte';
+  import KeychainPanel from './panels/KeychainPanel.svelte';
+  import MagnetsPanel from './panels/MagnetsPanel.svelte';
+  import OrientationPanel from './panels/OrientationPanel.svelte';
   import ViewportPane from './viewport/ViewportPane.svelte';
   import Footer from './Footer.svelte';
   import Toast from './Toast.svelte';
@@ -40,6 +46,7 @@
     if (e.key === 'Escape') {
       ui.popover = null;
       ui.cropping = false;
+      ui.placing = false;
       stopPicking();
       return;
     }
@@ -61,7 +68,17 @@
 
 <ViewportPane />
 
-<SettingsPlaceholder />
+<aside class="right">
+  <!-- Make (Flat model / Clicker) arrives with the clicker, Task 17 -->
+  <section><h2>Make</h2></section>
+  <SizePanel />
+  <BasePanel />
+  <InsidePanel />
+  <SidesPanel />
+  <KeychainPanel />
+  <MagnetsPanel />
+  <OrientationPanel />
+</aside>
 
 <Footer />
 

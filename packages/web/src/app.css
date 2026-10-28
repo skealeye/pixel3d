@@ -163,3 +163,18 @@ footer .bad { color: var(--danger); }
 #url { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; }
 #src.pan { cursor: grab; }
 #src.crop, #src.draw { cursor: crosshair; }
+
+/* model settings: favourites and the magnet list (from the mockup) */
+.favs { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+.favs .lbl { color: var(--muted); flex: 1; }
+.fav { width: 22px; height: 22px; border-radius: 50%; border: 1px solid #0008; cursor: pointer; padding: 0; box-shadow: inset 0 0 0 1px #ffffff1a; }
+.fav.cur { outline: 2px solid var(--gold); outline-offset: 1px; }
+.fav.empty { background: none; border: 1px dashed var(--line); cursor: default; }
+.star { white-space: nowrap; background: none; border: 1px solid var(--line); border-radius: var(--r-s); color: var(--muted); cursor: pointer; padding: 1px 6px; }
+.star:hover { color: var(--gold); border-color: var(--gold); }
+.maglist { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 2px; color: var(--muted); }
+.maglist li { display: flex; justify-content: space-between; }
+/* not in the mockup: a text label leading a row (the mockup uses <label> with no control), the unit switch, the grid scale */
+.row > .lbl:first-child { flex: 1; color: var(--muted); }
+.row .seg { margin-top: 0; }
+.gridscale { position: absolute; bottom: 12px; right: 12px; color: var(--muted); font-size: 12px; pointer-events: none; }

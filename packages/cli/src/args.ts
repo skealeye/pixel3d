@@ -1,3 +1,11 @@
+/** `px3d convert` options (node:util parseArgs). `-o` is short for `--out`. */
+export const CONVERT_OPTIONS = {
+  preset: { type: 'string' },
+  out: { type: 'string', short: 'o' },
+  format: { type: 'string' },
+  set: { type: 'string', multiple: true },
+} as const;
+
 const FORBIDDEN = new Set(['__proto__', 'constructor', 'prototype']);
 
 /** Parse a `--set` value: JSON when it is JSON (numbers, booleans, arrays...), otherwise the raw string. */

@@ -32,7 +32,11 @@ export const ui = $state({
   /** Pick mode: the background shows and the next click in the preview picks its colour. */
   picking: false,
   cropping: false,
+  /** Magnet placement mode: the next click on the model drops a magnet. Esc cancels. */
+  placing: false,
   cut: false,
+  /** Cut view switches on by itself only the first time Shell or Hollow is picked (spec §4.5). */
+  cutAuto: false,
   grid: { on: true, colour: '#8a7446', opacity: 0.7 },
   /** Image panel width, px. */
   left: 330,
@@ -102,7 +106,15 @@ export function redo() {
 export function recompute(notify = true): string | null {
   const src = app.source;
   if (!src) { app.grid = null; app.meta = null; return null; }
-  const r = computeGrid(src, $state.snapshot(app.settings), app.edits, ui.picking);
+  const settings = $state.snapshot(app.settings) as Settings;
+  // a model setting (base, keychain, rotation...) leaves the grid as it is: skip the pipeline, which takes tens of
+  // milliseconds on a large image, and keep the grid object so nothing downstream redraws
+  const key = gridKey(settings);
+  if (last && last.src === src && last.edits === app.edits && last.picking === ui.picking && last.key === key && last.grid === app.grid) {
+    if (!app.meta?.showBg) fitSize(last.grid);
+    return null;
+  }
+  const r = computeGrid(src, settings, app.edits, ui.picking);
   if ('error' in r) { if (notify) toast(r.error); return r.error; }
   app.grid = r.grid;
   app.meta = r.meta;
@@ -112,8 +124,14 @@ export function recompute(notify = true): string | null {
     toast('Edits that no longer apply were removed.');
   }
   if (!r.meta.showBg) fitSize(r.grid);
+  last = { src, edits: app.edits, picking: ui.picking, key, grid: r.grid };
   return null;
 }
+
+/** The settings `computeGrid` reads. */
+const gridKey = (s: Settings) => JSON.stringify([s.background, s.pixelate, s.colours, s.heights]);
+/** What the last pipeline run was made from, and the grid it gave. */
+let last: { src: Source; edits: Edit[]; picking: boolean; key: string; grid: Grid } | null = null;
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -176,6 +194,12 @@ export function stopPicking() {
   if (!ui.picking) return;
   ui.picking = false;
   recompute();
+}
+
+/** A settings change from a panel: undoable once an image is open, applied directly before that. */
+export function setting(apply: () => void): boolean {
+  if (!app.source) { apply(); return true; }
+  return change(apply);
 }
 
 /** Undoable change: push, apply, recompute. When the pipeline fails, the state and the whole history are put back. */

@@ -1,11 +1,13 @@
 <script lang="ts">
-  import { cornerTouches, type Grid } from '@pixel3d/core';
-  import { app, toast, ui } from '../state.svelte';
+  import { cornerTouches, type Grid, type Settings } from '@pixel3d/core';
+  import { app, pushUndo, setting, toast, ui } from '../state.svelte';
   import { pieceCount, removeStrays } from '../actions.svelte';
   import { previewShown } from '../perf';
+  import { fmt, gridLabel, gridStep, toUnit } from '../units';
   import { Viewport } from './Viewport';
   import { ModelBuilder } from './modelBuilder';
   import { previewOf } from './previewMesh';
+  import { handlesOf, modelToAnchor } from './handles';
   import { register } from '../hook';
 
   let main: HTMLElement;
@@ -19,6 +21,7 @@
   let buildError = $state<string | null>(null);
 
   const count = $derived(pieceCount());
+  const unit = $derived(app.settings.size.unit);
   /** Stray pixels (every piece but the largest) and corner-only contacts, for the note. */
   const strays = $derived.by(() => {
     const g = app.grid;
@@ -33,6 +36,22 @@
   let lastSource: unknown;
   /** The grid of the newest build request: only the newest result is delivered, so it is the grid of any model that arrives. */
   let scheduled: Grid | null = null;
+  /** What the last preview and the last build were made from, so a change neither uses skips it. */
+  let last: { grid: Grid | null; preview: string; build: string } = { grid: null, preview: '', build: '' };
+
+  /** Equal content: a recompute makes a new grid object even when nothing in it changed. */
+  function sameGrid(a: Grid | null, b: Grid) {
+    if (!a) return false;
+    if (a === b) return true;
+    if (a.w !== b.w || a.h !== b.h || a.palette.length !== b.palette.length) return false;
+    if (a.palette.some((p, i) => p.hex !== b.palette[i]!.hex || p.height !== b.palette[i]!.height)) return false;
+    for (let k = 0; k < a.cells.length; k++) if (a.cells[k] !== b.cells[k]) return false;
+    return true;
+  }
+  /** The settings the preview uses (previewMesh.ts). */
+  const previewKey = (s: Settings) => JSON.stringify([s.size.width, s.size.height, s.size.keepAspect, s.pixelMm, s.base, s.sides, s.heights.h]);
+  /** Core builds the model unrotated; the viewport turns it, and units are display-only. */
+  const forBuild = (s: Settings): Settings => ({ ...s, rotation: [0, 0, 0], size: { ...s.size, unit: 'mm' } });
 
   $effect(() => {
     const v = new Viewport(canvas, main);
@@ -43,29 +62,114 @@
     vp = v;
     const b = builder;
     const unregister = register({
-      viewport: () => ({ shown: v.shown, cut: ui.cut, grid: { ...ui.grid }, renders: v.renders, size: v.size, buildError, ...v.stats() }),
+      viewport: () => ({
+        shown: v.shown, cut: ui.cut, grid: { ...ui.grid }, renders: v.renders, size: v.size, buildError, ...v.stats(),
+        bounds: v.bounds(), handles: v.handleScreen(), gridStep: v.gridStep,
+      }),
       failNextBuild: () => b.failNextBuild(),
     });
     return () => { unregister(); builder?.dispose(); v.dispose(); vp = builder = undefined; };
   });
 
-  // the fast preview at once, then the core model (debounced, in a worker) replaces it
+  // the fast preview at once, then the core model (debounced, in a worker) replaces it. A change the preview
+  // doesn't show (keychain, magnets, Inside) keeps the current model up until the new one arrives.
   $effect(() => {
-    const grid = app.grid, settings = $state.snapshot(app.settings), v = vp;
+    const grid = app.grid, settings = $state.snapshot(app.settings) as Settings, v = vp;
     if (!v || !builder) return;
-    if (!grid) { builder.cancel(); v.clear(); size = null; return; }
-    const p = previewOf(grid, settings);
-    rowMm = p?.px.y ?? 1;
-    v.setPreview(p);
-    previewShown();
-    size = v.size;
-    if (app.source !== lastSource) { lastSource = app.source; v.fitView(); }
-    if (p) { scheduled = grid; builder.schedule(grid, settings); }
-    else builder.cancel();
+    if (!grid) { builder.cancel(); v.clear(); size = null; last = { grid: null, preview: '', build: '' }; return; }
+    const same = sameGrid(last.grid, grid), fresh = app.source !== lastSource;
+    const build = forBuild(settings), pk = previewKey(settings), bk = JSON.stringify(build);
+    last.grid = grid;
+    if (!same || fresh || pk !== last.preview || v.shown !== 'model') {
+      const p = previewOf(grid, settings);
+      rowMm = p?.px.y ?? 1;
+      v.setPreview(p);
+      previewShown();
+      size = v.size;
+      last.preview = pk;
+      if (!p) { builder.cancel(); last.build = ''; return; }
+    }
+    if (fresh) { lastSource = app.source; v.fitView(); }
+    if (!same || bk !== last.build || v.shown !== 'model') {
+      scheduled = grid;
+      last.build = bk;
+      builder.schedule(grid, build);
+    } else {
+      // the same grid content: the model shown (or on its way) is still this grid's
+      if (app.built && app.built.grid !== grid && sameGrid(app.built.grid, grid)) app.built = { grid, pieces: app.built.pieces };
+      scheduled = grid;
+    }
   });
 
   $effect(() => { vp?.setCut(ui.cut); });
-  $effect(() => { vp?.setGrid({ on: ui.grid.on, colour: ui.grid.colour, opacity: ui.grid.opacity }); });
+  $effect(() => { vp?.setGrid({ on: ui.grid.on, colour: ui.grid.colour, opacity: ui.grid.opacity, step: gridStep(unit) }); });
+  $effect(() => {
+    const r = app.settings.rotation;
+    if (!vp) return;
+    vp.setRotation([r[0], r[1], r[2]]);
+    size = vp.size;
+  });
+  $effect(() => {
+    const g = app.grid, s = $state.snapshot(app.settings) as Settings;
+    vp?.setHandles(g ? handlesOf(g, s) : []);
+  });
+  $effect(() => { vp?.setCursor(ui.placing ? 'crosshair' : ''); });
+
+  /** Model-frame point → anchor; a point on the back half is mirrored onto the front first. */
+  function anchorAt(x: number, y: number, object: string) {
+    const g = app.grid, v = vp;
+    if (!g || !v) return null;
+    if (object === 'back') x = 2 * v.frontMaxX() + 8 - x;
+    return modelToAnchor(x, y, g, app.settings);
+  }
+
+  /** The handle being dragged: one undo step, taken when it first moves. */
+  let drag: { kind: 'hole' | 'magnet'; i: number; moved: boolean } | null = null;
+
+  /** Capture phase, so it runs before the orbit controls see the press. */
+  function pointerDown(e: PointerEvent) {
+    const v = vp;
+    if (!v || !app.grid || e.button !== 0) return;
+    if (ui.placing) {
+      v.setOrbit(false);
+      const hit = v.pick(e.clientX, e.clientY);
+      const a = hit && anchorAt(hit.x, hit.y, hit.object);
+      if (a) {
+        ui.placing = false;
+        setting(() => app.settings.magnets.at.push(a));
+      }
+      return;
+    }
+    const h = v.handleAt(e.clientX, e.clientY);
+    if (!h) return;
+    drag = { ...h, moved: false };
+    v.setHold(true);
+    v.setCursor('grabbing');
+    canvas.setPointerCapture(e.pointerId);
+  }
+
+  function pointerMove(e: PointerEvent) {
+    const v = vp;
+    if (!v) return;
+    if (!drag) {
+      if (!ui.placing) v.setCursor(app.grid && v.handleAt(e.clientX, e.clientY) ? 'grab' : '');
+      return;
+    }
+    const p = v.onTop(e.clientX, e.clientY);
+    const a = p && anchorAt(p.x, p.y, 'main');
+    if (!a) return;
+    const s = app.settings;
+    if (!drag.moved) { drag.moved = true; pushUndo(); }
+    if (drag.kind === 'hole') s.keychain.hole.at = a;
+    else if (drag.i < s.magnets.at.length) s.magnets.at[drag.i] = a;
+  }
+
+  function pointerUp() {
+    const v = vp;
+    if (!v) return;
+    if (drag) { drag = null; v.setHold(false); v.setCursor(''); }
+    else v.setOrbit(true);
+  }
 
   function resizeDown(e: PointerEvent) { resizer.setPointerCapture(e.pointerId); resizing = true; }
   function resizeMove(e: PointerEvent) {
@@ -76,7 +180,7 @@
 </script>
 
 <main bind:this={main}>
-  <canvas id="view" bind:this={canvas}></canvas>
+  <canvas id="view" bind:this={canvas} onpointerdowncapture={pointerDown} onpointermove={pointerMove} onpointerup={pointerUp} onpointercancel={pointerUp}></canvas>
   <div id="resizer" title="Drag to resize" role="separator" aria-orientation="vertical" class:drag={resizing} bind:this={resizer}
     onpointerdown={resizeDown} onpointermove={resizeMove} onpointerup={() => (resizing = false)} onpointercancel={() => (resizing = false)}></div>
   <div class="vtools">
@@ -99,7 +203,10 @@
       <span class="warn">{strays.n} separate pieces. {strays.pixels} stray pixel{strays.pixels > 1 ? 's' : ''} (outlined in red in the image) don't share an edge with the rest, so they would print as loose parts.{strays.corners ? " Pixels that touch only at a corner don't count as joined." : ''} Paint pixels to connect them, or remove them.</span><br><button class="btn small" id="removeStrays" onclick={removeStrays}>Remove strays</button>
     {/if}
   </div>
+  <div class="mode" id="mode" style:display={ui.placing ? 'block' : 'none'}>Click the model to place a magnet. Press Esc to cancel.</div>
   {#if size}
-    <div class="dims" id="dims"><b>{size.x.toFixed(1)} × {size.y.toFixed(1)} × {size.z.toFixed(1)} mm</b>&nbsp; {#if buildError}<span class="warn">preview only, the model could not be built</span>{:else if count > 1}<span class="warn">{count} separate pieces</span>{:else}one piece{/if}</div>
+    <div class="dims" id="dims"><b>{fmt(toUnit(size.x, unit), unit)} × {fmt(toUnit(size.y, unit), unit)} × {fmt(toUnit(size.z, unit), unit)} {unit}</b>&nbsp; {#if buildError}<span class="warn">preview only, the model could not be built</span>{:else if count > 1}<span class="warn">{count} separate pieces</span>{:else}one piece{/if}</div>
   {/if}
+  <!-- not in the mockup: the grid's scale, so mm and inches can be told apart -->
+  {#if ui.grid.on}<div class="gridscale" id="gridScale">{gridLabel(unit)}</div>{/if}
 </main>

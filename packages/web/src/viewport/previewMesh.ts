@@ -12,8 +12,8 @@ export interface Preview {
 
 /**
  * Per-colour pixel columns straight from the grid: no booleans, so it takes a few milliseconds where `buildModel` takes
- * hundreds (Ruling R10). Covers the base and the pixel layers for one side or both; the keychain, magnets, Inside and
- * rotation come only from the core model, which replaces this preview when it arrives.
+ * hundreds (Ruling R10). Covers the base and the pixel layers for one side or both; the keychain, magnets and Inside
+ * come only from the core model, which replaces this preview when it arrives. The viewport applies the rotation to both.
  */
 export function previewOf(g: Grid, s: Settings): Preview | null {
   const box = opaqueBox(g);
@@ -54,13 +54,18 @@ export function previewMeshes(p: Preview, material: (hex: string) => THREE.Mater
   for (const [hex, list] of p.columns) {
     const n = list.length / 4;
     const mesh = new THREE.InstancedMesh(unit, material(hex), n);
+    // bounds straight from the columns: three's computeBoundingBox walks every instance matrix, ~200 ms at 512²
+    const box = new THREE.Box3();
     for (let i = 0; i < n; i++) {
-      pos.set(list[i * 4]!, list[i * 4 + 1]!, list[i * 4 + 2]!);
-      sc.set(p.px.x, p.px.y, list[i * 4 + 3]!);
+      const x = list[i * 4]!, y = list[i * 4 + 1]!, z = list[i * 4 + 2]!, h = list[i * 4 + 3]!;
+      pos.set(x, y, z);
+      sc.set(p.px.x, p.px.y, h);
       mesh.setMatrixAt(i, m.compose(pos, q, sc));
+      box.expandByPoint(pos);
+      box.expandByPoint(sc.add(pos));
     }
-    mesh.computeBoundingBox();
-    mesh.computeBoundingSphere();
+    mesh.boundingBox = box;
+    mesh.boundingSphere = box.getBoundingSphere(new THREE.Sphere());
     out.push(mesh);
   }
   return out;
