@@ -215,7 +215,7 @@ describe('to3MF: Bambu', () => {
     const art = parts.find((p) => p.name === potion.palette[0]!.hex)!;
     expect(parts[0]!.extruder).toBe(art.extruder);
     expect(r.project.filament_colour).toHaveLength(same.parts.length - 1);
-    expect(r.project.filament_colour).toEqual(filamentColors(potion.palette, settings((s) => { s.base.colour = potion.palette[0]!.hex; })).map((h) => h.toUpperCase()));
+    expect(r.project.filament_colour).toEqual(filamentColors(potion, settings((s) => { s.base.colour = potion.palette[0]!.hex; })).map((h) => h.toUpperCase()));
   });
 
   it('8 art colors and a base equal to one of them: 8 filaments, 8 slots (R25)', async () => {
@@ -223,10 +223,18 @@ describe('to3MF: Bambu', () => {
     const hexes = ['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6'];
     const eight: Grid = { w: 8, h: 3, cells: Int16Array.from({ length: 24 }, (_, k) => k % 8), palette: hexes.map((hex) => ({ hex, height: 1 })) };
     const s = settings((x) => { x.base.colour = eight.palette[3]!.hex.toUpperCase(); });
-    expect(filamentColors(eight.palette, s)).toHaveLength(8);
+    expect(filamentColors(eight, s)).toHaveLength(8);
     const r = readBambu(await to3MF(await buildModel(eight, s), { slicer: 'bambu', mono: false, name: 'potion' }));
     expect(r.project.filament_colour).toHaveLength(8);
     expect(new Set(r.cfgObjects[0]!.parts.map((p) => p.extruder)).size).toBe(8);
+  });
+
+  it('a palette color with no pixels (just added) makes no part and no filament', async () => {
+    const added: Grid = { ...potion, palette: [...potion.palette, { hex: '#e0715c', height: 1 }] };
+    const s = settings(() => {});
+    expect(filamentColors(added, s)).toEqual(filamentColors(potion, s));
+    const r = readBambu(await to3MF(await buildModel(added, s), { slicer: 'bambu', mono: false, name: 'potion' }));
+    expect(r.project.filament_colour).toEqual(filamentColors(added, s).map((h) => h.toUpperCase()));
   });
 
   it('filamentColors matches the 3MF slots: base off with a loop, mono, clicker', async () => {
@@ -238,7 +246,7 @@ describe('to3MF: Bambu', () => {
     ];
     for (const s of cases) {
       const r = readBambu(await to3MF(await buildModel(potion, s), { slicer: 'bambu', mono: s.export.mono, monoHex: s.export.monoColour, name: 'potion' }));
-      expect(r.project.filament_colour).toEqual(filamentColors(potion.palette, s).map((h) => h.toUpperCase()));
+      expect(r.project.filament_colour).toEqual(filamentColors(potion, s).map((h) => h.toUpperCase()));
     }
   }, 60_000);
 

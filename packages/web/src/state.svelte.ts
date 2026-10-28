@@ -83,6 +83,10 @@ function restore(s: Snapshot) {
   app.settings = structuredClone(s.settings);
   app.edits = s.edits;
   ui.picking = ui.cropping = false;
+  // the restored grid is what these settings make: the next change compares against it (background included)
+  last = s.source && s.grid
+    ? { src: s.source, edits: s.edits, picking: false, key: gridKey(s.settings), grid: s.grid, bg: bgKey(s.source, s.settings) }
+    : null;
 }
 
 /** Record the current state before a change. Keeps the last 50 steps and clears redo. */

@@ -70,11 +70,15 @@ test.describe('export', () => {
     await customize(page);
     const preset = parsePreset(JSON.parse(await savePreset(page)));
     expect(preset.colourRules).toHaveLength(1);
+    // On edge reached the preset, and it changes the file: a lost rotation on both sides would not pass
+    expect(preset.settings.rotation).toEqual([1, 0, 0]);
+    const flat = await convert(new Uint8Array(fixture('potion.png')), parsePreset({ ...preset, settings: { ...preset.settings, rotation: [0, 0, 0] } }), 'potion');
     const dl = await exportFile(page);
     expect(dl.suggestedFilename()).toBe('potion.3mf');
     const ref = await convert(new Uint8Array(fixture('potion.png')), preset, 'potion');
     expect(ref.report.error).toBeUndefined();
     expect(same(await bytesOf(dl), ref.files[0]!.bytes)).toBe(true);
+    expect(same(await bytesOf(dl), flat.files[0]!.bytes)).toBe(false);
     await expect(page.locator('.toast')).toHaveText('Exported potion.3mf, filaments 1 to 8 assigned for Bambu Studio.');
   });
 
@@ -196,6 +200,35 @@ test.describe('export', () => {
     expect(same(await bytesOf(await exportFile(page)), ref.files[0]!.bytes)).toBe(true);
     await page.keyboard.press('Control+z');
     expect((await snap(page)).settings.pixelMm).toEqual(before.settings.pixelMm);
+  });
+
+  test('after undo, the same background change sizes the model afresh again', async ({ page }) => {
+    await page.goto('/?test');
+    await page.locator('#fileIn').setInputFiles({ name: 'eye.png', mimeType: 'image/png', buffer: fixture('eye-on-white.png') });
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+    const before = await snap(page);
+    await page.locator('#removeBg').uncheck();
+    await expect.poll(async () => (await snap(page)).undo).toBe(before.undo + 1);
+    const off = (await snap(page)).settings.pixelMm;
+    expect(off).not.toEqual(before.settings.pixelMm);
+    await page.keyboard.press('Control+z');
+    await expect.poll(async () => (await snap(page)).settings.pixelMm).toEqual(before.settings.pixelMm);
+    await page.locator('#removeBg').uncheck();
+    await expect.poll(async () => (await snap(page)).settings.pixelMm).toEqual(off);
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+    const preset = parsePreset(JSON.parse(await savePreset(page, 'eye.json')));
+    const ref = await convert(new Uint8Array(fixture('eye-on-white.png')), preset, 'eye');
+    expect(same(await bytesOf(await exportFile(page)), ref.files[0]!.bytes)).toBe(true);
+  });
+
+  test('Add color with nothing painted leaves the filament count alone', async ({ page }) => {
+    await loadPotion(page);
+    await expect(page.locator('#fcount')).toHaveText('8 filaments');
+    await page.locator('#addColour').click();
+    await expect.poll(async () => (await snap(page)).grid!.palette.length).toBe(8);
+    await expect(page.locator('#fcount')).toHaveText('8 filaments');
+    await page.locator('#exportBtn').click();
+    await expect(page.locator('#summary')).toContainText('potion.3mf, 8 filaments, ');
   });
 
   test('a failed export says why and Export works again', async ({ page }) => {

@@ -6,7 +6,8 @@ export const API_PORT = 7300;
  * so the commands below run as shown in any shell, unquoted.
  */
 export function presetBase(name: string): string {
-  return name.replace(/[^\w.-]+/g, '_').replace(/^[._]+|_+$/g, '') || 'preset';
+  // no leading '-' (it would read as an option), '.' or '_'
+  return name.replace(/[^\w.-]+/g, '_').replace(/^[-._]+|_+$/g, '') || 'preset';
 }
 
 /**

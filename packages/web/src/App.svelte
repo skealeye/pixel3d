@@ -46,12 +46,14 @@
 
   function keydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
+      // first Esc closes what is open (a popover, the Batch dialog, which closes itself) or cancels a mode
+      const busy = !!ui.popover || ui.batch || ui.cropping || ui.placing || ui.picking;
       ui.popover = null;
       ui.cropping = false;
       ui.placing = false;
-      // Esc clears the Select tool's selection (R26); Paint keeps its brush
-      if (ui.tool === 'select') ui.sel = null;
       stopPicking();
+      // only an Esc nothing else used clears the Select tool's selection (R26); Paint keeps its brush
+      if (!busy && ui.tool === 'select') ui.sel = null;
       return;
     }
     if (!(e.ctrlKey || e.metaKey) || typing(e.target)) return;

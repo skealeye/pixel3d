@@ -373,6 +373,13 @@ test.describe('colors and heights', () => {
     await expect.poll(hl).toEqual({ hex: '#2b2135', lit: 1, dim: 7 });
     await row(page, '#2b2135').locator('input[type=range]').fill('3');
     await expect.poll(hl).toEqual({ hex: '#2b2135', lit: 1, dim: 7 });
+    // Esc closes an open popover first and keeps the selection; the next Esc clears it
+    await page.locator('#gridBtn').click();
+    await expect(page.locator('#gridPop')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#gridPop')).toBeHidden();
+    await expect(row(page, '#2b2135')).toHaveClass(/\bsel\b/);
+    expect((await hl()).hex).toBe('#2b2135');
     await page.keyboard.press('Escape');
     await expect.poll(hl).toEqual({ hex: null, lit: 0, dim: 0 });
     await expect(row(page, '#2b2135')).not.toHaveClass(/\bsel\b/);

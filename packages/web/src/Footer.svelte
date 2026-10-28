@@ -5,7 +5,7 @@
 
   const count = $derived(pieceCount());
   /** Distinct filaments: a base the same color as an art color shares its slot (R25). */
-  const filaments = $derived(app.grid ? filamentColors(app.grid.palette, app.settings).length : 0);
+  const filaments = $derived(app.grid ? filamentColors(app.grid, app.settings).length : 0);
 </script>
 
 <footer>

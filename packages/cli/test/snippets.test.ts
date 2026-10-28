@@ -44,6 +44,9 @@ describe('the Batch dialog snippets run', () => {
     expect(presetBase('my potion (2)')).toBe('my_potion_2');
     expect(presetBase('ghost')).toBe('ghost');
     expect(presetBase('..')).toBe('preset');
+    // a leading '-' would read as an option
+    expect(presetBase('-rf potion')).toBe('rf_potion');
+    expect(presetBase('--help')).toBe('help');
     expect(batchSnippets('my potion')).toContain('--preset my_potion.json');
     expect(batchSnippets('my potion')).not.toMatch(/my potion/);
   });

@@ -2,6 +2,7 @@ import { strToU8, zipSync } from 'fflate';
 import type { Model, Part } from '../mesh';
 import { DEFAULTS } from '../settings';
 import { objectsOf, unionParts } from './stl';
+import { filamentSlots } from '../filaments';
 import type { Mesh } from './stl';
 import { bambuFiles } from './bambu';
 import { prusaFiles } from './prusa';
@@ -54,27 +55,25 @@ const shift = (m: Mesh, dx: number, dy: number): Mesh => {
 };
 
 /**
- * Lay the model out for a 3MF: printed objects in part order, each part on a filament slot keyed by its
- * color, so a base or loop the same color as a palette entry shares that filament (R25; `filamentColors` gives
- * the same list) while staying its own part, and halves share slots. Each object's frame is its own XY center; together they sit centered on the plate.
+ * Lay the model out for a 3MF: printed objects in part order, each part on its color's filament slot
+ * (`filamentSlots`, which `filamentColors` also uses), so a base or loop the same color as a palette entry shares
+ * that filament (R25) while staying its own part, and halves share slots. One color is one slot. Each object's
+ * frame is its own XY center; together they sit centered on the plate.
  */
 async function sceneOf(model: Model, opts: ThreeMFOptions): Promise<Scene> {
   const name = opts.name ?? 'model';
   const objects = objectsOf(model, name);
-  const colours: string[] = [];
-  const slots = new Map<string, number>();
-  const slotOf = (key: string, hex: string) => {
-    if (!slots.has(key)) { colours.push(hex.toUpperCase()); slots.set(key, colours.length); }
-    return slots.get(key)!;
-  };
   const monoHex = opts.monoHex ?? DEFAULTS.export.monoColour;
+  const slotList = opts.mono ? [monoHex.toLowerCase()] : filamentSlots(model.parts.map((p) => p.hex));
+  const slotOf = (hex: string) => slotList.indexOf(hex.toLowerCase()) + 1;
   const raw: { name: string; parts: OutPart[] }[] = [];
   for (const o of objects) {
     const parts = opts.mono
-      ? [{ name: o.name, hex: monoHex, slot: slotOf('mono', monoHex), mesh: await unionParts(o.parts) }]
-      : o.parts.map((p: Part) => ({ name: p.name, hex: p.hex, slot: slotOf(p.hex.toLowerCase(), p.hex), mesh: p.mesh }));
+      ? [{ name: o.name, hex: monoHex, slot: 1, mesh: await unionParts(o.parts) }]
+      : o.parts.map((p: Part) => ({ name: p.name, hex: p.hex, slot: slotOf(p.hex), mesh: p.mesh }));
     raw.push({ name: o.name, parts });
   }
+  const colours = slotList.map((h) => h.toUpperCase());
   const all = footprint(raw.flatMap((o) => o.parts.map((p) => p.mesh)));
   const out: OutObject[] = raw.map((o) => {
     const f = footprint(o.parts.map((p) => p.mesh));

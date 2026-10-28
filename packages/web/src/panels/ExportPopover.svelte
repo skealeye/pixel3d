@@ -29,7 +29,7 @@
     return ex.format === 'stl' && two ? `${name}_${two[0]}.stl and ${name}_${two[1]}.stl` : `${name}.${ex.format}`;
   });
   /** Distinct filaments, as the 3MF assigns them (R25). */
-  const filaments = $derived(app.grid ? filamentColors(app.grid.palette, app.settings).length : 0);
+  const filaments = $derived(app.grid ? filamentColors(app.grid, app.settings).length : 0);
   const summary = $derived(`${fileNames}, ${filaments === 1 ? 'one filament' : `${filaments} filaments`}, ${ui.dims}`);
 
   function toggle(e: MouseEvent) {
