@@ -3,7 +3,7 @@
   import { toast, ui } from '../state.svelte';
   import { applyPresetText, baseName, currentPreset, presetText } from '../presets.svelte';
   import { download } from '../export/exporter';
-  import { batchSnippets } from '../snippets';
+  import { batchSnippets, presetBase } from '../snippets';
 
   /** Batch and API (mockup v0.1.9): save the settings as a preset, the commands that use it, and Load preset (spec §5). */
   let dialog: HTMLDialogElement;
@@ -14,7 +14,7 @@
   $effect(() => {
     if (ui.batch && !dialog.open) {
       untrack(() => {
-        const name = baseName();
+        const name = presetBase(baseName());
         shown = { name, cli: batchSnippets(name), json: presetText(currentPreset()) };
       });
       dialog.showModal();
@@ -36,7 +36,7 @@
 
 <dialog id="batch" bind:this={dialog} onclose={() => (ui.batch = false)}>
   <h3>Batch and API</h3>
-  <p>Save these settings as a preset, then convert a whole folder from the command line, from Python over the local API, or from Claude through the MCP tools. Your colour heights become colour rules.</p>
+  <p>Save these settings as a preset, then convert a whole folder from the command line, from Python over the local API, or from Claude through the MCP tools. Your color heights become color rules.</p>
   <pre id="cli">{shown.cli}</pre>
   <pre id="presetJson">{shown.json}</pre>
   <div class="row" style="justify-content:flex-end">

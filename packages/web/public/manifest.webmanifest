@@ -1,7 +1,7 @@
 {
   "name": "pixel3d",
   "short_name": "pixel3d",
-  "description": "Turn pixel art into 3D-print models: STL and multi-colour 3MF.",
+  "description": "Turn pixel art into 3D-print models: STL and multi-color 3MF.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

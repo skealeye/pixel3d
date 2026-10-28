@@ -7,7 +7,7 @@ export const toHex = (r: number, g: number, b: number): string =>
 export const hexToRgb = (hex: string): [number, number, number] =>
   [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
 
-/** Squared RGB distance between two #rrggbb colours. */
+/** Squared RGB distance between two #rrggbb colors. */
 export function hexDist2(a: string, b: string): number {
   const p = hexToRgb(a), q = hexToRgb(b);
   return (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2;
@@ -24,7 +24,7 @@ export function nearestIndex(palette: { hex: string }[], hex: string, skip = -1)
   return best;
 }
 
-/** Exact colours by pixel count; colours beyond `maxColours` merge into the nearest kept colour. Alpha 0 -> -1. */
+/** Exact colors by pixel count; colors beyond `maxColours` merge into the nearest kept color. Alpha 0 -> -1. */
 export function toGrid(img: Img, maxColours: number): Grid {
   const { width: w, height: h, data } = img;
   const counts = new Map<string, number>();
@@ -50,7 +50,7 @@ export function toGrid(img: Img, maxColours: number): Grid {
   return { w, h, cells, palette };
 }
 
-/** Merge the closest pair of colours repeatedly until at most `n` remain. Returns a new grid. */
+/** Merge the closest pair of colors repeatedly until at most `n` remain. Returns a new grid. */
 export function reducePalette(g: Grid, n: number): Grid {
   const out = cloneGrid(g);
   const target = Math.max(1, n);
@@ -64,7 +64,7 @@ export function reducePalette(g: Grid, n: number): Grid {
         if (d < bd) { bd = d; bi = i; bj = j; }
       }
     }
-    // Drop the entry with fewer pixels (ties drop the later one); the kept entry brings its colour and height.
+    // Drop the entry with fewer pixels (ties drop the later one); the kept entry brings its color and height.
     if (counts[bi]! >= counts[bj]!) mergeInto(out, bj, bi); else mergeInto(out, bi, bj);
   }
   return out;

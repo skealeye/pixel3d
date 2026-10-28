@@ -52,7 +52,7 @@ let potion: Grid;
 beforeAll(async () => { potion = await load('potion.png'); await initManifold(); });
 
 describe('buildModel', () => {
-  it('potion, single sided with base: base + 7 colours, 40 x 53.3 x 3.0', async () => {
+  it('potion, single sided with base: base + 7 colors, 40 x 53.3 x 3.0', async () => {
     const m = await buildModel(potion, DEFAULTS);
     expect(m.parts.map((p) => p.name)).toEqual(['base', ...potion.palette.map((p) => p.hex)]);
     expect(m.parts).toHaveLength(8);
@@ -65,7 +65,7 @@ describe('buildModel', () => {
     expect(m.warnings).toEqual([]);
     expect(m.pauseZ).toEqual([]);
     await checkAll(m);
-    // base 0..2, each colour flush on it: 2..3
+    // base 0..2, each color flush on it: 2..3
     expect(bounds([m.parts[0]!]).min[2]).toBeCloseTo(0, 5);
     expect(bounds([m.parts[0]!]).max[2]).toBeCloseTo(2, 5);
     for (const p of m.parts.slice(1)) {
@@ -74,7 +74,7 @@ describe('buildModel', () => {
     }
   });
 
-  it('colour heights come from the palette, measured from the base top', async () => {
+  it('color heights come from the palette, measured from the base top', async () => {
     const m = await buildModel(withHeight(potion, (i) => (i === 0 ? 4 : 1)), DEFAULTS);
     expect(m.size.z).toBeCloseTo(6, 4);
     expect(bounds([m.parts[1]!]).max[2]).toBeCloseTo(6, 5);
@@ -93,7 +93,7 @@ describe('buildModel', () => {
     expect(m.size.y).toBeCloseTo(20, 4);
   });
 
-  it('base off: no base part, colours sit on the bed', async () => {
+  it('base off: no base part, colors sit on the bed', async () => {
     const m = await buildModel(potion, settings((s) => { s.base.enabled = false; }));
     expect(m.parts.map((p) => p.name)).toEqual(potion.palette.map((p) => p.hex));
     expect(m.size.z).toBeCloseTo(1, 4);
@@ -117,7 +117,7 @@ describe('buildModel', () => {
     }
   });
 
-  it('corner-only contacts inside a ring, across colours, and pinching a hole stay manifold', async () => {
+  it('corner-only contacts inside a ring, across colors, and pinching a hole stay manifold', async () => {
     const g = art([
       '0000.1',
       '0..0.1',
@@ -211,7 +211,7 @@ describe('buildModel', () => {
     return performance.now() - t;
   };
 
-  it('128x128 random 16-colour grid: valid, and no slower than 400 ms (regression guard)', async () => {
+  it('128x128 random 16-color grid: valid, and no slower than 400 ms (regression guard)', async () => {
     const g = noisy();
     await checkAll(await buildModel(g, DEFAULTS));
     expect(await timeBuild(g)).toBeLessThan(400);
@@ -219,11 +219,11 @@ describe('buildModel', () => {
 
   // R3 target. CrossSection.extrude measures ~180 ms here (Clipper ~60 ms + triangulation ~100 ms for 14k loops),
   // so this stays skipped until the preview fast path lands. Run with PIXEL3D_PERF=1.
-  it.skipIf(!process.env.PIXEL3D_PERF)('perf: 128x128 random 16-colour grid builds in < 50 ms after warm-up', async () => {
+  it.skipIf(!process.env.PIXEL3D_PERF)('perf: 128x128 random 16-color grid builds in < 50 ms after warm-up', async () => {
     const g = noisy();
     await buildModel(g, DEFAULTS);
     const ms = await timeBuild(g);
-    console.info(`perf: 128x128 16-colour buildModel ${ms.toFixed(1)} ms`);
+    console.info(`perf: 128x128 16-color buildModel ${ms.toFixed(1)} ms`);
     expect(ms).toBeLessThan(50);
   });
 });

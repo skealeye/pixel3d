@@ -274,7 +274,7 @@ test.describe('undo', () => {
 });
 
 test.describe('undo while picking', () => {
-  test('pick a colour, then undo: removal is back on and the background is removed again', async ({ page }) => {
+  test('pick a color, then undo: removal is back on and the background is removed again', async ({ page }) => {
     await open(page);
     const cleared = await loadEye(page);
     await startPick(page);
@@ -322,9 +322,29 @@ test.describe('background', () => {
     await expect(page.locator('#bgTolR')).toBeDisabled();
     await expect(page.locator('#bgTol')).toBeDisabled();
     await expect(page.locator('#tolHint')).toHaveText('Fixed while pixelating.');
+    // R27: it looks disabled, shows the tolerance in force (40 RGB, about 9%), and says why in the row and a tooltip
+    await expect(page.locator('#bgTol')).toHaveValue('9');
+    await expect(page.locator('#bgTolR')).toHaveValue('9');
+    for (const id of ['#bgTolR', '#bgTol']) {
+      await expect(page.locator(id)).toHaveCSS('cursor', 'not-allowed');
+      await expect(page.locator(id)).toHaveAttribute('title', 'Fixed while pixelating. Untick Pixelate to adjust it.');
+      expect(Number(await page.locator(id).evaluate((e) => getComputedStyle(e).opacity))).toBeLessThan(1);
+    }
+    expect(await page.locator('#bgTolR').evaluate((e) => getComputedStyle(e).accentColor)).not.toBe('rgb(217, 164, 65)');
+    // the note sits in the slider's own row
+    expect(await page.locator('#tolHint').evaluate((e) => e.parentElement!.querySelector('#bgTolR') !== null)).toBe(true);
     await page.locator('#pixelate').uncheck();
     await expect(page.locator('#bgTolR')).toBeEnabled();
     await expect(page.locator('#tolHint')).toBeHidden();
+    await expect(page.locator('#bgTolR')).not.toHaveAttribute('title', /./);
+    // a real drag moves it
+    const before = await page.locator('#bgTol').inputValue();
+    const b = (await page.locator('#bgTolR').boundingBox())!;
+    await page.mouse.move(b.x + b.width * 0.2, b.y + b.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width * 0.8, b.y + b.height / 2, { steps: 5 });
+    await page.mouse.up();
+    await expect(page.locator('#bgTol')).not.toHaveValue(before);
   });
 
   test('swatch, tolerance and Pick', async ({ page }) => {
@@ -349,7 +369,7 @@ test.describe('background', () => {
 
     await page.locator('#pickBg').click();
     await expect(page.locator('#pickBg')).toHaveClass(/\bon\b/);
-    await expect(page.locator('.toast')).toHaveText('Click the background colour in the image.');
+    await expect(page.locator('.toast')).toHaveText('Click the background color in the image.');
     // the background shows again while picking
     await expect.poll(async () => (await snap(page)).grid!.opaque).toBe(60);
     const src = page.locator('#src');

@@ -9,26 +9,26 @@ const base = (): Grid => ({
 });
 
 describe('applyEdits', () => {
-  it('recolour onto an existing colour merges and keeps the target height', () => {
+  it('recolor onto an existing color merges and keeps the target height', () => {
     const { grid, dropped } = applyEdits(base(), [{ kind: 'recolour', from: '#ff0000', to: '#fe0000' }]);
     expect(dropped).toEqual([]);
     expect(grid.palette).toEqual([{ hex: '#fe0000', height: 5 }, { hex: '#0000ff', height: 2 }]);
     expect(Array.from(grid.cells)).toEqual([0, 0, 1, 0, 0, -1]);
   });
 
-  it('recolour to a new colour just renames it', () => {
+  it('recolor to a new color just renames it', () => {
     const { grid } = applyEdits(base(), [{ kind: 'recolour', from: '#0000ff', to: '#00FF00' }]);
     expect(grid.palette[2]).toEqual({ hex: '#00ff00', height: 2 });
   });
 
-  it('delete moves pixels to the nearest remaining colour and they take its height', () => {
+  it('delete moves pixels to the nearest remaining color and they take its height', () => {
     const { grid } = applyEdits(base(), [{ kind: 'delete', hex: '#ff0000' }]);
     expect(grid.palette.map((p) => p.hex)).toEqual(['#fe0000', '#0000ff']);
     expect(Array.from(grid.cells)).toEqual([0, 0, 1, 0, 0, -1]);
     expect(grid.palette[grid.cells[0]!]!.height).toBe(5);
   });
 
-  it('height edits set and clamp; a missing colour is dropped', () => {
+  it('height edits set and clamp; a missing color is dropped', () => {
     const e = { kind: 'height', hex: '#abcdef', h: 3 } as const;
     const r = applyEdits(base(), [{ kind: 'height', hex: '#0000ff', h: 99 }, { kind: 'height', hex: '#ff0000', h: 0 }, e]);
     expect(r.grid.palette.map((p) => p.height)).toEqual([0.2, 5, 20]);
@@ -64,7 +64,7 @@ describe('applyEdits', () => {
     expect(JSON.stringify({ c: Array.from(g.cells), p: g.palette })).toBe(snap);
   });
 
-  it('drops edits that name a missing colour', () => {
+  it('drops edits that name a missing color', () => {
     const d = { kind: 'delete', hex: '#123456' } as const;
     const r = applyEdits(base(), [d, { kind: 'recolour', from: '#123456', to: '#000000' }]);
     expect(r.dropped.length).toBe(2);

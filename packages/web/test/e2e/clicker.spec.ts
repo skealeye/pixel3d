@@ -67,7 +67,7 @@ test.describe('keycap clicker', () => {
     await expect(page.locator('aside.right section > h2')).toHaveText([/^Make/, /^Clicker/, /^Size/, /^Base/, /^Inside/, /^Sides/, /^Keychain/, /^Magnets/, /^Orientation/]);
   });
 
-  test('Clicker greys out Sides, Inside, Keychain, Magnets and Orientation with "Not used on a clicker"', async ({ page }) => {
+  test('Clicker grays out Sides, Inside, Keychain, Magnets and Orientation with "Not used on a clicker"', async ({ page }) => {
     await page.goto('/?test');
     const sec = (name: string) => page.locator('aside.right section', { has: page.locator('h2', { hasText: new RegExp(`^${name}`) }) });
     // Orientation too (R24): a clicker always prints flat

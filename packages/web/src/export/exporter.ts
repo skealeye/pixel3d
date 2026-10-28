@@ -6,6 +6,12 @@ const MTIME = new Date('2026-01-01T00:00:00Z');
 
 let worker: Worker | null = null;
 let seq = 0;
+let failNext = false;
+
+/** Make the next export job fail (test hook). */
+export function failNextExport() {
+  failNext = true;
+}
 const waiting = new Map<number, { resolve: (f: OutFile[]) => void; reject: (e: Error) => void }>();
 
 function failAll(message: string) {
@@ -36,7 +42,9 @@ export function runExport(job: ExportJob): Promise<OutFile[]> {
   const id = ++seq;
   return new Promise((resolve, reject) => {
     waiting.set(id, { resolve, reject });
-    get().postMessage({ id, job } satisfies ExportRequest);
+    const req: ExportRequest = { id, job };
+    if (failNext) { req.fail = true; failNext = false; }
+    get().postMessage(req);
   });
 }
 

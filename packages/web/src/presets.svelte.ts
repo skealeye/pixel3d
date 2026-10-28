@@ -2,7 +2,7 @@ import { colourRuleEdits, parsePreset, presetFromState, presetSettings, type Edi
 import { computeGrid } from './pipeline';
 import { app, change, setting, toast } from './state.svelte';
 
-const NO_COLOURS: Grid = { w: 0, h: 0, cells: new Int16Array(0), palette: [] };
+const NO_COLORS: Grid = { w: 0, h: 0, cells: new Int16Array(0), palette: [] };
 
 /** The file name the image's exports and presets are named after: its name without the extension. */
 export function baseName(): string {
@@ -12,10 +12,10 @@ export function baseName(): string {
 
 /**
  * The current settings as a preset (core `presetFromState`, the format `px3d convert --preset` reads): the image's
- * height, recolour and delete edits become colour rules on the colours before edits.
+ * height, recolor and delete edits become color rules on the colors before edits.
  */
 export function currentPreset(): Preset {
-  return presetFromState($state.snapshot(app.settings) as Settings, app.meta?.base ?? NO_COLOURS, app.edits);
+  return presetFromState($state.snapshot(app.settings) as Settings, app.meta?.base ?? NO_COLORS, app.edits);
 }
 
 export const presetText = (p: Preset = currentPreset()) => JSON.stringify(p, null, 2);
@@ -24,7 +24,7 @@ export const presetText = (p: Preset = currentPreset()) => JSON.stringify(p, nul
 const imageEdit = (e: Edit) => e.kind === 'paint' || e.kind === 'add';
 
 /**
- * Apply a preset file: its settings over the defaults, its colour rules as edits on this image's colours (as `convert`
+ * Apply a preset file: its settings over the defaults, its color rules as edits on this image's colors (as `convert`
  * applies them), in one undo step. Returns false with a toast giving the reason when the file is not a valid preset.
  */
 export function applyPresetText(text: string, fileName: string): boolean {

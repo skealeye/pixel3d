@@ -5,7 +5,7 @@ import type { Preset } from '../src/index';
 
 const potion = new Uint8Array(readFileSync(new URL('./fixtures/potion.png', import.meta.url)));
 
-/** The grid convert() makes for the potion with these settings (pixel art, no colour rules). */
+/** The grid convert() makes for the potion with these settings (pixel art, no color rules). */
 async function gridOf(p: Preset) {
   const s = presetSettings(p);
   const img = await decodeImage(potion);
@@ -16,7 +16,7 @@ async function gridOf(p: Preset) {
 describe('exportModel (the web Export path)', () => {
   const cases: [string, unknown][] = [
     ['bambu 3MF, rotated', { rotation: [1, 0, 0], base: { height: 3 } }],
-    ['prusa 3MF, one colour', { export: { slicer: 'prusa', mono: true, monoColour: '#112233' } }],
+    ['prusa 3MF, one color', { export: { slicer: 'prusa', mono: true, monoColour: '#112233' } }],
     ['STL halves', { sides: { mode: 'halves' }, export: { format: 'stl' } }],
     ['clicker 3MF', { make: 'clicker' }],
     ['clicker STL', { make: 'clicker', export: { format: 'stl' } }],

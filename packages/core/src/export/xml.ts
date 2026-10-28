@@ -8,7 +8,7 @@ type Mesh = Part['mesh'];
 export interface OutPart { name: string; hex: string; slot: number; mesh: Mesh }
 /** One printed object: its parts, and where its frame sits on the plate (a translation, mm). */
 export interface OutObject { name: string; parts: OutPart[]; at: [number, number, number] }
-/** Everything a slicer writer needs. `colours[i]` is slot i + 1's colour, #RRGGBB. */
+/** Everything a slicer writer needs. `colours[i]` is slot i + 1's color, #RRGGBB. */
 export interface Scene { name: string; objects: OutObject[]; colours: string[]; pauseZ: number[] }
 export type Files = Record<string, string>;
 

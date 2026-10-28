@@ -18,6 +18,7 @@
   import ViewportPane from './viewport/ViewportPane.svelte';
   import Footer from './Footer.svelte';
   import Toast from './Toast.svelte';
+  import UpdatePrompt from './UpdatePrompt.svelte';
 
   let dragging = $state(false);
 
@@ -48,6 +49,8 @@
       ui.popover = null;
       ui.cropping = false;
       ui.placing = false;
+      // Esc clears the Select tool's selection (R26); Paint keeps its brush
+      if (ui.tool === 'select') ui.sel = null;
       stopPicking();
       return;
     }
@@ -83,4 +86,5 @@
 <Footer />
 
 <Toast />
+<UpdatePrompt />
 <div class="dropzone" class:show={dragging}><div>Drop an image to load it</div></div>

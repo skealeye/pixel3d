@@ -27,8 +27,8 @@ export async function loadBytes(name: string, bytes: Uint8Array): Promise<boolea
   if (ok) {
     ui.sel = null;
     const n = app.grid!.palette.length, meta = app.meta!;
-    toast(`Loaded ${name}: ${n} colour${n === 1 ? '' : 's'}` +
-      (meta.pixelated ? ', pixelated. Adjust Pixels across and Colours to taste.' : meta.bg ? ', background removed.' : '.'));
+    toast(`Loaded ${name}: ${n} color${n === 1 ? '' : 's'}` +
+      (meta.pixelated ? ', pixelated. Adjust Pixels across and Colors to taste.' : meta.bg ? ', background removed.' : '.'));
   }
   return ok;
 }

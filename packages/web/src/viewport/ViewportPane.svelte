@@ -34,8 +34,14 @@
       : app.settings.make === 'clicker' ? (ui.clkView === 'assembled' ? 'assembled, switch at rest' : 'cap and body') : 'one piece';
     return { size: `${fmt(toUnit(size.x, u), u)} × ${fmt(toUnit(size.y, u), u)} × ${fmt(toUnit(size.z, u), u)} ${u}`, note, warn: !!buildError || count > 1 };
   });
-  // the Export summary repeats the readout
-  $effect(() => { ui.dims = dims ? `${dims.size} ${dims.note}` : ''; });
+  /** A clicker's size as printed (cap beside body), whatever the view: what Export writes. */
+  let printed = $state<{ x: number; y: number; z: number } | null>(null);
+  // the Export summary repeats the readout; for a clicker it gives the printed parts' size, not the assembled view's
+  $effect(() => {
+    const u = unit, p = printed;
+    if (dims && app.settings.make === 'clicker' && p && !buildError) ui.dims = `${fmt(toUnit(p.x, u), u)} × ${fmt(toUnit(p.y, u), u)} × ${fmt(toUnit(p.z, u), u)} ${u} cap and body, as printed`;
+    else ui.dims = dims ? `${dims.size} ${dims.note}` : '';
+  });
   const unit = $derived(app.settings.size.unit);
   /** Stray pixels (every piece but the largest) and corner-only contacts, for the note. */
   const strays = $derived.by(() => {
@@ -73,7 +79,7 @@
   const previewKey = (s: Settings) => JSON.stringify([s.size.width, s.size.height, s.size.keepAspect, s.pixelMm, s.base, s.sides, s.heights.h]);
   /**
    * Core builds the model unrotated; the viewport turns it, and units are display-only. The export settings don't
-   * change the model (One colour is a material, set below), so changing them doesn't rebuild it. Export builds afresh.
+   * change the model (One color is a material, set below), so changing them doesn't rebuild it. Export builds afresh.
    */
   const forBuild = (s: Settings): Settings => ({ ...s, rotation: [0, 0, 0], size: { ...s.size, unit: 'mm' }, export: DEFAULTS.export });
 
@@ -82,6 +88,7 @@
     builder = new ModelBuilder(
       (model) => {
         v.setModel(model, { row: rowMm, switches: scheduledSwitches }); size = v.size; buildError = null;
+        printed = model.clicker ? model.size : null;
         if (fitOnModel) { fitOnModel = false; v.fitView(); }
         warnings = model.warnings.filter((w) => !/ magnet needs about /.test(w));
         if (scheduled) app.built = { grid: scheduled, pieces: model.pieces };
@@ -92,7 +99,7 @@
     const b = builder;
     const unregister = register({
       viewport: () => ({
-        shown: v.shown, cut: ui.cut, grid: { ...ui.grid }, renders: v.renders, size: v.size, buildError, ...v.stats(),
+        shown: v.shown, cut: ui.cut, grid: { ...ui.grid }, renders: v.renders, size: v.size, buildError, ...v.stats(), highlight: v.highlight(),
         bounds: v.bounds(), handles: v.handleScreen(), gridStep: v.gridStep, clicker: v.clicker(), camera: v.cameraAt(),
       }),
       failNextBuild: () => b.failNextBuild(),
@@ -150,6 +157,11 @@
 
   $effect(() => { vp?.setCut(ui.cut); });
   $effect(() => { const ex = app.settings.export; vp?.setMono(ex.mono ? ex.monoColour : null); });
+  // R26: in Select mode the selected color shows on the model, the rest dimmed
+  $effect(() => {
+    const sel = ui.sel, on = ui.tool === 'select' && !!sel && !!app.grid?.palette.some((p) => p.hex === sel);
+    vp?.setHighlight(on ? sel : null);
+  });
   $effect(() => { vp?.setGrid({ on: ui.grid.on, colour: ui.grid.colour, opacity: ui.grid.opacity, step: gridStep(unit) }); });
   $effect(() => {
     const r = app.settings.rotation, clicker = app.settings.make === 'clicker';
@@ -244,7 +256,7 @@
       <button class="btn" id="gridBtn" class:on={ui.popover === 'grid'} onclick={() => (ui.popover = ui.popover === 'grid' ? null : 'grid')}>Grid</button>
       <div class="pop" id="gridPop" class:open={ui.popover === 'grid'}>
         <label class="check"><input type="checkbox" id="gridOn" bind:checked={ui.grid.on}> Show grid</label>
-        <div class="sl"><label for="gridColor">Colour</label><input type="color" id="gridColor" bind:value={ui.grid.colour} style="width:100%"><span></span></div>
+        <div class="sl"><label for="gridColor">Color</label><input type="color" id="gridColor" bind:value={ui.grid.colour} style="width:100%"><span></span></div>
         <div class="sl"><label for="gridOpacity">Opacity</label><input type="range" id="gridOpacity" min="0" max="100"
           value={Math.round(ui.grid.opacity * 100)} oninput={(e) => (ui.grid.opacity = +e.currentTarget.value / 100)}><span class="unit" id="gridOpacityV">{Math.round(ui.grid.opacity * 100)}%</span></div>
       </div>

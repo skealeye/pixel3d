@@ -8,7 +8,7 @@ const potion = async () => {
   return downsampleNearest(img, detectScale(img));
 };
 
-/** Build an Img from rows of colours; null = transparent. */
+/** Build an Img from rows of colors; null = transparent. */
 const mk = (rows: (string | null)[][]): Img => {
   const h = rows.length, w = rows[0]!.length;
   const data = new Uint8ClampedArray(w * h * 4);
@@ -27,7 +27,7 @@ describe('toGrid', () => {
     expect(g.palette.every((p) => p.height === 1)).toBe(true);
   });
 
-  it('merges extra colours into the nearest kept colour', () => {
+  it('merges extra colors into the nearest kept color', () => {
     const g = toGrid(mk([['#ff0000', '#ff0000', '#fe0000'], ['#0000ff', '#0000ff', '#0000fd']]), 2);
     expect(g.palette.map((p) => p.hex).sort()).toEqual(['#0000ff', '#ff0000']);
     expect(Array.from(g.cells)).toEqual([0, 0, 0, 1, 1, 1].map((v) => (g.palette[0]!.hex === '#ff0000' ? v : 1 - v)));
@@ -42,7 +42,7 @@ describe('toGrid', () => {
 });
 
 describe('reducePalette', () => {
-  it('merges the closest pair, keeping the colour with more pixels', () => {
+  it('merges the closest pair, keeping the color with more pixels', () => {
     const g = toGrid(mk([['#ff0000', '#ff0000', '#fa0000', '#0000ff']]), 8);
     const r = reducePalette(g, 2);
     expect(r.palette.map((p) => p.hex).sort()).toEqual(['#0000ff', '#ff0000']);

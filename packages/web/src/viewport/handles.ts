@@ -19,7 +19,7 @@ export function artFrame(g: Grid, s: Settings) {
   return { box, px, w: box.w * px.x, h: box.h * px.y };
 }
 
-/** Where core puts an anchor: the centre of the opaque cell nearest to it, in the model frame (mm). */
+/** Where core puts an anchor: the center of the opaque cell nearest to it, in the model frame (mm). */
 export function anchorToModel(a: Anchor, g: Grid, s: Settings): { x: number; y: number } | null {
   const f = artFrame(g, s);
   if (!f) return null;

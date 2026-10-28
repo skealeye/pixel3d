@@ -1,6 +1,6 @@
 # pixel3d
 
-Turns pixel art into 3D-print models (3MF or STL): one raised block per pixel, optional base, keychain loop or hole, and magnet pockets. Colours become separate parts so a multi-colour printer can print them.
+Turns pixel art into 3D-print models (3MF or STL): one raised block per pixel, optional base, keychain loop or hole, and magnet pockets. Colors become separate parts so a multi-color printer can print them.
 
 ## Commands
 
@@ -16,7 +16,7 @@ px3d --help
 
 ## Use with Claude (MCP)
 
-`px3d mcp` gives Claude four tools: `convert_image`, `convert_folder`, `inspect_image` (palette for writing colour rules) and `list_presets`. Relative paths resolve against the folder Claude starts the server in.
+`px3d mcp` gives Claude four tools: `convert_image`, `convert_folder`, `inspect_image` (palette for writing color rules) and `list_presets`. Relative paths resolve against the folder Claude starts the server in.
 
 Claude Code:
 

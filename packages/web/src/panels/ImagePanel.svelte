@@ -3,7 +3,7 @@
   import { loadUrl } from '../load';
   import type { Edit } from '@pixel3d/core';
   import { reloadImage, scalePaint } from '../actions.svelte';
-  import { pixelatedSize } from '../pipeline';
+  import { PIXELATE_BG_TOL_PCT, pixelatedSize } from '../pipeline';
   import SourceCanvas from './SourceCanvas.svelte';
   import Slider from './Slider.svelte';
 
@@ -45,7 +45,7 @@
     if (ui.picking) return stopPicking();
     ui.picking = true;
     recompute();
-    toast('Click the background colour in the image.');
+    toast('Click the background color in the image.');
   }
 
   function setPixelate(box: HTMLInputElement) {
@@ -100,13 +100,15 @@
       <span class="bginfo" id="bgInfo">{bgText}</span>
       <button class="btn small" id="pickBg" class:on={ui.picking} title="Click, then click the background in the image" onclick={pick}>Pick</button>
     </div>
-    <Slider id="bgTol" label="Tolerance" min={0} max={50} value={s.background.tolPct} unit="%" disabled={!!meta?.pixelated} {...tol} />
-    {#if meta?.pixelated}<p class="hint" id="tolHint">Fixed while pixelating.</p>{/if}
-    <p class="hint">Only background touching the image edge is removed, so the same colour inside the art stays.</p>
+    <!-- R27: while pixelating the tolerance in force is fixed (spec §4.1); show that value, dimmed, with the reason in the row -->
+    <Slider id="bgTol" label="Tolerance" min={0} max={50} value={meta?.pixelated ? Math.round(PIXELATE_BG_TOL_PCT) : s.background.tolPct} unit="%"
+      disabled={!!meta?.pixelated} title={meta?.pixelated ? 'Fixed while pixelating. Untick Pixelate to adjust it.' : undefined}
+      note={meta?.pixelated ? { id: 'tolHint', text: 'Fixed while pixelating.' } : undefined} {...tol} />
+    <p class="hint">Only background touching the image edge is removed, so the same color inside the art stays.</p>
   </div>
   <label class="check"><input type="checkbox" id="pixelate" checked={!!meta?.pixelated} onchange={(e) => setPixelate(e.currentTarget)}> Pixelate: turn a photo or drawing into pixel art</label>
   <div id="pixRows" style:display={meta?.pixelated ? '' : 'none'}>
     <Slider id="pixW" label="Pixels across" min={8} max={128} value={s.pixelate.across} unit="px" {...across} />
-    <Slider id="pixColours" label="Colours" min={2} max={16} value={s.pixelate.colours} {...colours} />
+    <Slider id="pixColours" label="Colors" min={2} max={16} value={s.pixelate.colours} hold="#pal" {...colours} />
   </div>
 </section>

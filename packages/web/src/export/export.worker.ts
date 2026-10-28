@@ -6,7 +6,8 @@ import { buildModel, exportModel, fitTest, toSTL, type Grid, type Settings } fro
  * `fitTest`: the clicker fit-test coupons, one STL each.
  */
 export type ExportJob = { kind: 'model'; grid: Grid; settings: Settings; name: string } | { kind: 'fitTest'; settings: Settings };
-export interface ExportRequest { id: number; job: ExportJob }
+/** `fail` makes this job throw (the e2e test hook's `failNextExport`). */
+export interface ExportRequest { id: number; job: ExportJob; fail?: boolean }
 export interface OutFile { name: string; bytes: Uint8Array }
 export type ExportReply = { id: number; files: OutFile[] } | { id: number; error: string };
 
@@ -18,8 +19,9 @@ async function run(job: ExportJob): Promise<OutFile[]> {
 }
 
 self.onmessage = async (e: MessageEvent<ExportRequest>) => {
-  const { id, job } = e.data;
+  const { id, job, fail } = e.data;
   try {
+    if (fail) throw new Error('forced failure (test)');
     const files = await run(job);
     post({ id, files }, files.map((f) => f.bytes.buffer as ArrayBuffer));
   } catch (err) {

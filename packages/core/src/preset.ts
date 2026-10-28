@@ -75,7 +75,7 @@ export function presetSettings(p: Preset): Settings {
   return merge(DEFAULTS, p.settings);
 }
 
-/** Colour rules as edits for `g`'s (reduced) palette, with one readable `applied` line per edit (same index); `unmatched` lists rules that matched no colour. */
+/** Color rules as edits for `g`'s (reduced) palette, with one readable `applied` line per edit (same index); `unmatched` lists rules that matched no color. */
 export function colourRuleEdits(rules: ColourRule[], g: Grid): { edits: Edit[]; applied: string[]; unmatched: ColourRule[] } {
   const edits: Edit[] = [];
   const applied: string[] = [];
@@ -97,7 +97,7 @@ export function colourRuleEdits(rules: ColourRule[], g: Grid): { edits: Edit[]; 
       }
       if (rule.recolour !== undefined) {
         edits.push({ kind: 'recolour', from: hex, to: rule.recolour });
-        applied.push(`${hex} → recolour ${rule.recolour}`);
+        applied.push(`${hex} → recolor ${rule.recolour}`);
       }
     }
     if (!hit) unmatched.push(rule);
@@ -106,7 +106,7 @@ export function colourRuleEdits(rules: ColourRule[], g: Grid): { edits: Edit[]; 
 }
 
 /**
- * Merge a preset over DEFAULTS and turn colour rules into edits for `g`'s (reduced) palette.
+ * Merge a preset over DEFAULTS and turn color rules into edits for `g`'s (reduced) palette.
  * Rules override general rules: apply `edits` after the height mode.
  */
 export function resolvePreset(p: Preset, g: Grid): { settings: Settings; edits: Edit[]; applied: string[] } {
@@ -114,7 +114,7 @@ export function resolvePreset(p: Preset, g: Grid): { settings: Settings; edits: 
 }
 
 /**
- * Cell centre `{u, v}` in pixel units nearest to an anchor, snapped to an opaque cell.
+ * Cell center `{u, v}` in pixel units nearest to an anchor, snapped to an opaque cell.
  * `v` is measured up from the bottom of the grid (cell (x, y-up) spans [x, x+1]).
  */
 export function placeRelative(anchor: Anchor, g: Grid): { u: number; v: number } {
@@ -140,13 +140,13 @@ export function placeRelative(anchor: Anchor, g: Grid): { u: number; v: number }
 }
 
 /**
- * "Save as preset": the settings (minus `pixelMm`) plus colour rules from this image's
- * height, recolour and delete edits. Paint and add edits are image-specific and not saved.
+ * "Save as preset": the settings (minus `pixelMm`) plus color rules from this image's
+ * height, recolor and delete edits. Paint and add edits are image-specific and not saved.
  */
 export function presetFromState(settings: Settings, g: Grid, edits: Edit[]): Preset {
   const { pixelMm: _pixelMm, ...rest } = settings;
   const source = new Set(g.palette.map((c) => c.hex));
-  const origin = new Map<string, string>(); // current colour -> source colour
+  const origin = new Map<string, string>(); // current color -> source color
   const rules = new Map<string, ColourRule>();
   const rule = (hex: string): ColourRule | undefined => {
     const orig = origin.get(hex) ?? hex;

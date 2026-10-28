@@ -1,8 +1,8 @@
 import { setting } from '../state.svelte';
 
 /**
- * A colour picker bound to one setting: the first input of a picking session is one undo step, the rest of the
- * session (the picker sends input events while it is dragged) updates it in place. A model colour never changes
+ * A color picker bound to one setting: the first input of a picking session is one undo step, the rest of the
+ * session (the picker sends input events while it is dragged) updates it in place. A model color never changes
  * the grid, so the in-place updates need no pipeline run.
  */
 export function colourInput(put: (hex: string) => void) {

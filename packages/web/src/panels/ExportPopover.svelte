@@ -1,17 +1,19 @@
 <script lang="ts">
-  import { safeName, type Settings, type Slicer } from '@pixel3d/core';
+  import { filamentColors, safeName, type Settings, type Slicer } from '@pixel3d/core';
   import { app, setting, stopPicking, toast, ui } from '../state.svelte';
   import { baseName } from '../presets.svelte';
-  import { downloadFiles, runExport } from '../export/exporter';
+  import { downloadFiles, failNextExport, runExport } from '../export/exporter';
+  import { register } from '../hook';
   import { colourInput } from './colour';
 
-  /** The Export panel (mockup v0.1.9): All colours / One colour, format, slicer, file name and a summary line (spec §4.8). */
+  /** The Export panel (mockup v0.1.9): All colors / One color, format, slicer, file name and a summary line (spec §4.8). */
   const ex = $derived(app.settings.export);
   const open = $derived(ui.popover === 'export');
   const SLICERS: [Slicer, string][] = [['bambu', 'Bambu Studio'], ['orca', 'OrcaSlicer'], ['prusa', 'PrusaSlicer'], ['generic', 'Other']];
   const slicerLabel = $derived(SLICERS.find(([v]) => v === ex.slicer)![1]);
   const monoColour = colourInput((hex) => (app.settings.export.monoColour = hex));
   let busy = $state(false);
+  $effect(() => register({ failNextExport }));
 
   // a new image names the export after itself
   let named: unknown = null;
@@ -26,8 +28,9 @@
     const two = app.settings.make === 'clicker' ? ['cap', 'body'] : app.settings.sides.mode === 'halves' ? ['front', 'back'] : null;
     return ex.format === 'stl' && two ? `${name}_${two[0]}.stl and ${name}_${two[1]}.stl` : `${name}.${ex.format}`;
   });
-  const filaments = $derived(app.grid ? app.grid.palette.length + (app.settings.base.enabled ? 1 : 0) : 0);
-  const summary = $derived(`${fileNames}, ${ex.mono ? 'one filament' : `${filaments} filaments`}, ${ui.dims}`);
+  /** Distinct filaments, as the 3MF assigns them (R25). */
+  const filaments = $derived(app.grid ? filamentColors(app.grid.palette, app.settings).length : 0);
+  const summary = $derived(`${fileNames}, ${filaments === 1 ? 'one filament' : `${filaments} filaments`}, ${ui.dims}`);
 
   function toggle(e: MouseEvent) {
     e.stopPropagation();
@@ -44,7 +47,7 @@
     if (!grid) return;
     busy = true;
     ui.popover = null;
-    const done = `Exported ${fileNames}` + (ex.mono ? ' in one colour.' : ex.format === '3mf' ? `, filaments 1 to ${filaments} assigned for ${slicerLabel}.` : '.');
+    const done = `Exported ${fileNames}` + (ex.mono ? ' in one color.' : ex.format === '3mf' ? `, filaments 1 to ${filaments} assigned for ${slicerLabel}.` : '.');
     try {
       const settings = $state.snapshot(app.settings) as Settings;
       downloadFiles(await runExport({ kind: 'model', grid, settings, name }), `${name}.zip`);
@@ -65,11 +68,11 @@
   <div id="exportPop" class:open onclick={(e) => e.stopPropagation()}>
     <h2>Export</h2>
     <div class="seg" data-key="colourMode">
-      <button data-v="full" class:on={!ex.mono} onclick={() => ex.mono && set(() => (app.settings.export.mono = false))}>All colours</button>
-      <button data-v="mono" class:on={ex.mono} onclick={() => !ex.mono && set(() => (app.settings.export.mono = true))}>One colour</button>
+      <button data-v="full" class:on={!ex.mono} onclick={() => ex.mono && set(() => (app.settings.export.mono = false))}>All colors</button>
+      <button data-v="mono" class:on={ex.mono} onclick={() => !ex.mono && set(() => (app.settings.export.mono = true))}>One color</button>
     </div>
     {#if ex.mono}
-      <div class="row" id="monoRow"><label for="monoColor">Print colour</label><input type="color" id="monoColor" value={ex.monoColour} {...monoColour}></div>
+      <div class="row" id="monoRow"><label for="monoColor">Print color</label><input type="color" id="monoColor" value={ex.monoColour} {...monoColour}></div>
     {/if}
     <div class="seg" data-key="format">
       <button data-v="3mf" class:on={ex.format === '3mf'} onclick={() => ex.format !== '3mf' && set(() => (app.settings.export.format = '3mf'))}>3MF</button>

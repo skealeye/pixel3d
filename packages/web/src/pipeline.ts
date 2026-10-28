@@ -12,9 +12,9 @@ export interface Source {
   name: string;
   img: Img;
   scale: Scale;
-  /** At most 64 colours and within the size cap after the upscale (core `looksLikePixelArt`). */
+  /** At most 64 colors and within the size cap after the upscale (core `looksLikePixelArt`). */
   pixelArt: boolean;
-  /** Background colour picked in the preview, or null to find it in the corners. */
+  /** Background color picked in the preview, or null to find it in the corners. */
   pick: string | null;
   /** Crop in full-resolution pixels, or null for the whole image. */
   crop: Rect | null;
@@ -33,7 +33,7 @@ export interface Meta {
   how: BgHow;
   /** The part of the full image the grid covers; grid cell (i, j) maps to `region.x + (i + .5) * region.w / grid.w`. */
   region: Rect;
-  /** Colours in the image before the colour count reduces them (at most 64). */
+  /** Colors in the image before the color count reduces them (at most 64). */
   colours: number;
 }
 
@@ -41,8 +41,8 @@ export interface Meta {
 /** Longest side, in native pixels, kept as pixel art; anything bigger is pixelated (spec §4.1). */
 const CAP = 512;
 /** Corner tolerance for the full-resolution background pass before pixelating: 40 RGB (spec §4.1). */
-const PIXELATE_BG_TOL_PCT = (40 / 441.7) * 100;
-/** Colours kept exactly before palette reduction merges the closest pairs. */
+export const PIXELATE_BG_TOL_PCT = (40 / 441.7) * 100;
+/** Colors kept exactly before palette reduction merges the closest pairs. */
 const EXACT_COLOURS = 64;
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(n)));
@@ -98,7 +98,7 @@ export function upscaleText(s: Scale): string {
   return `, detected from a ${s.sx === s.sy ? s.sx : `${s.sx} × ${s.sy}`}× upscale`;
 }
 
-/** `dropped`: edits that no longer apply (their colour or cell is gone). */
+/** `dropped`: edits that no longer apply (their color or cell is gone). */
 export type Result = { grid: Grid; meta: Meta; dropped: Edit[] } | { error: string };
 
 /**

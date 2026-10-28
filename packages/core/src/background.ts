@@ -18,7 +18,7 @@ function corners(img: Img): number[][] {
   return [0, w - 1, (h - 1) * w, h * w - 1].map((i) => [d[i * 4]!, d[i * 4 + 1]!, d[i * 4 + 2]!, d[i * 4 + 3]!]);
 }
 
-/** The colour all four corners share (within tolerance), or null if a corner is transparent or they disagree. */
+/** The color all four corners share (within tolerance), or null if a corner is transparent or they disagree. */
 export function findCornerBg(img: Img, tolPct: number): [number, number, number] | null {
   const cs = corners(img);
   if (cs.some((c) => c[3]! < OPAQUE)) return null;
@@ -27,7 +27,7 @@ export function findCornerBg(img: Img, tolPct: number): [number, number, number]
   return cs.every((c) => Math.hypot(c[0]! - c0[0]!, c[1]! - c0[1]!, c[2]! - c0[2]!) <= tol) ? [c0[0]!, c0[1]!, c0[2]!] : null;
 }
 
-/** Edge flood fill: clears only background connected to the image border, so the same colour inside the art stays. Returns the count of opaque pixels cleared. */
+/** Edge flood fill: clears only background connected to the image border, so the same color inside the art stays. Returns the count of opaque pixels cleared. */
 function floodClear(d: Uint8ClampedArray, w: number, h: number, col: readonly number[], tol: number): number {
   const seen = new Uint8Array(w * h), q = new Int32Array(w * h);
   let qh = 0, qt = 0, cleared = 0;
@@ -60,7 +60,7 @@ export function removeBackground(img: Img, opts: BgOptions): BgResult {
   return { img: out, bg: toHex(col), how: opts.pick ? 'picked' : 'corners', cleared };
 }
 
-/** True when the image has at most 64 distinct opaque colours and its longest side after dividing by the scale is at most 512 px. */
+/** True when the image has at most 64 distinct opaque colors and its longest side after dividing by the scale is at most 512 px. */
 export function looksLikePixelArt(img: Img, scale: Scale): boolean {
   if (Math.max(Math.round(img.width / scale.sx), Math.round(img.height / scale.sy)) > 512) return false;
   const seen = new Set<number>();

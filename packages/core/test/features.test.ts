@@ -121,7 +121,7 @@ describe('keychain hole', () => {
     const m = await buildModel(potion, settings((s) => { s.sides.mode = 'halves'; s.keychain.type = 'hole'; s.keychain.hole = { style: 'square', size: 4, at: centre }; }));
     for (const o of ['front', 'back'] as const) {
       const lost = (await volume(none.parts.filter((p) => p.object === o))) - (await volume(m.parts.filter((p) => p.object === o)));
-      expect(lost).toBeCloseTo(16 * 2, 1); // half base 1 + colour 1
+      expect(lost).toBeCloseTo(16 * 2, 1); // half base 1 + color 1
     }
     await checkAll(m);
   });
@@ -148,8 +148,8 @@ describe('keychain hole', () => {
 });
 
 describe('piece count after cuts', () => {
-  it('an open pocket deeper than base + lowest colour leaves a taller colour island floating: pieces >= 2', async () => {
-    // 9 x 9 at 4 mm: a field of colour 0 (1 mm) with one 3 mm pixel of colour 1 in the middle, inside a 10 mm pocket
+  it('an open pocket deeper than base + lowest color leaves a taller color island floating: pieces >= 2', async () => {
+    // 9 x 9 at 4 mm: a field of color 0 (1 mm) with one 3 mm pixel of color 1 in the middle, inside a 10 mm pocket
     const cells = new Int16Array(81).fill(0);
     cells[4 * 9 + 4] = 1;
     const g: Grid = { w: 9, h: 9, cells, palette: [{ hex: '#ff0000', height: 1 }, { hex: '#0000ff', height: 3 }] };
@@ -188,7 +188,7 @@ describe('keychain loop', () => {
     expect([right.nx, right.ny]).toEqual([1, 0]);
   });
 
-  it('a pixel loop (in 3, out 14) at 60° is unioned into the base: one body, hole centred at edge + normal x R', async () => {
+  it('a pixel loop (in 3, out 14) at 60° is unioned into the base: one body, hole centered at edge + normal x R', async () => {
     const m = await buildModel(potion, settings((s) => {
       s.keychain.type = 'loop';
       s.keychain.loop = { ...s.keychain.loop, style: 'pixel', inner: 3, outer: 14, angle: 60 };
@@ -206,7 +206,7 @@ describe('keychain loop', () => {
     const e = edgeAtAngle(potion, 60), o = origin(potion), R = (3 + 14) / 4;
     expect(e.nx * Math.sin(Math.PI / 3) + e.ny * Math.cos(Math.PI / 3)).toBeGreaterThan(0.3);
     const cx = (e.u - o.x0) * PX + e.nx * R, cy = (e.v - o.y0) * PX + e.ny * R;
-    // the square hole's four corners are vertices of the base, so the hole is centred on (cx, cy)
+    // the square hole's four corners are vertices of the base, so the hole is centered on (cx, cy)
     const v = base.mesh.vertProperties;
     for (const [dx, dy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]] as const) {
       let best = Infinity;
@@ -217,7 +217,7 @@ describe('keychain loop', () => {
     expect(m.size.x).toBeGreaterThan(plain.size.x);
   });
 
-  it('loopSolid: a pixel frame of exactly out mm, centred at edge + normal x R', async () => {
+  it('loopSolid: a pixel frame of exactly out mm, centered at edge + normal x R', async () => {
     const wasm = await initManifold();
     const l = loopSolid(wasm, { u: 2, v: 3, nx: 0, ny: 1 }, settings((s) => { s.keychain.loop = { ...s.keychain.loop, style: 'pixel', inner: 3, outer: 14 }; }), 2, { px: { x: 2, y: 2 }, x0: 0, y0: 0 });
     const b = l.boundingBox();
@@ -227,7 +227,7 @@ describe('keychain loop', () => {
     l.delete();
   });
 
-  it('a rounded loop with no base is its own part in the loop colour, as thick as the lowest colour', async () => {
+  it('a rounded loop with no base is its own part in the loop color, as thick as the lowest color', async () => {
     const g = { ...potion, palette: potion.palette.map((p, i) => ({ ...p, height: i === 0 ? 0.8 : 2 })) };
     const m = await buildModel(g, settings((s) => {
       s.base.enabled = false;
@@ -278,7 +278,7 @@ describe('magnets', () => {
     await checkAll(m);
   });
 
-  it('sealed in the centre of a 5 mm base: closed on the bed, pause at the top of the pocket', async () => {
+  it('sealed in the center of a 5 mm base: closed on the bed, pause at the top of the pocket', async () => {
     const none = await buildModel(potion, settings((s) => { s.base.height = 5; }));
     const m = await buildModel(potion, magnet((s) => { s.base.height = 5; s.magnets.position = 'centre'; }));
     expect(m.warnings).toEqual([]);
@@ -299,7 +299,7 @@ describe('magnets', () => {
     expect(m.warnings).toHaveLength(1);
   });
 
-  it('double sided is always sealed, centred on the middle base; pauseZ is in bed coordinates', async () => {
+  it('double sided is always sealed, centered on the middle base; pauseZ is in bed coordinates', async () => {
     const m = await buildModel(potion, magnet((s) => { s.base.height = 5; s.sides.mode = 'solid'; }));
     expect(m.warnings).toEqual([]);
     expect(m.pauseZ).toEqual([1 + 1 + 3]); // under layer 1, pocket from 1 above the base bottom

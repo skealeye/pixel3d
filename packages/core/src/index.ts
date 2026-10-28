@@ -25,6 +25,7 @@ export type { Settings, Anchor } from './settings';
 export { parsePreset, resolvePreset, presetSettings, colourRuleEdits, placeRelative, presetFromState, PresetError } from './preset';
 export type { Preset, ColourRule } from './preset';
 export { buildModel } from './mesh';
+export { filamentColors } from './filaments';
 export type { Model, Part } from './mesh';
 export { MX, TRAVEL_MARGIN, CAP_ROOF, MIN_ART, MIN_WALL, FIT_STEPS, capThickness, buildClicker, clickerLevels, fitTest } from './clicker';
 export { edgeAtAngle, loopSolid, holeCutter, magnetCutters, insideCutter } from './features';

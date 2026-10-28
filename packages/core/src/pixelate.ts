@@ -69,7 +69,7 @@ function kmeans(px: Float64Array, n: number, k: number, seed: number): { cent: n
 }
 
 /**
- * Shrinks to `across` pixels wide (never larger than the source, aspect kept) by area averaging, then snaps to `colours` k-means colours.
+ * Shrinks to `across` pixels wide (never larger than the source, aspect kept) by area averaging, then snaps to `colours` k-means colors.
  * Remove the background at full resolution first (removeBackground) so edge pixels do not average into a pale fringe.
  */
 export function pixelate(img: Img, opts: PixelateOptions): Img {

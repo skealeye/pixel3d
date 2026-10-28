@@ -38,13 +38,13 @@ const isDir = (p: string) => {
   }
 };
 
-/** One line describing what a preset does, e.g. "base 2 mm, halves, loop, 3 colour rules". */
+/** One line describing what a preset does, e.g. "base 2 mm, halves, loop, 3 color rules". */
 export function presetSummary(p: Preset): string {
   const s = presetSettings(p);
   const parts = [s.base.enabled ? `base ${s.base.height} mm` : 'no base', s.sides.mode];
   if (s.keychain.type !== 'none') parts.push(s.keychain.type);
   const n = p.colourRules.length;
-  if (n) parts.push(`${n} colour ${n === 1 ? 'rule' : 'rules'}`);
+  if (n) parts.push(`${n} color ${n === 1 ? 'rule' : 'rules'}`);
   return parts.join(', ');
 }
 
@@ -82,7 +82,7 @@ export function createMcpServer(): McpServer {
   server.registerTool(
     'inspect_image',
     {
-      description: 'Inspect an image before converting it: size, detected pixel scale, whether it looks like pixel art, and its palette (hex + count per colour, most frequent first). Use this when writing colour rules for a preset.',
+      description: 'Inspect an image before converting it: size, detected pixel scale, whether it looks like pixel art, and its palette (hex + count per color, most frequent first). Use this when writing color rules for a preset.',
       inputSchema: { path: z.string().describe('Path to the image.') },
     },
     async (a) => guarded(async () => text(json(await inspect(new Uint8Array(await readFile(a.path)))))),

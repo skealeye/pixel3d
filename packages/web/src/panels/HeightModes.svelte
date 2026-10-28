@@ -4,7 +4,7 @@
   import { inputStarted } from '../perf';
   import Slider from './Slider.svelte';
 
-  /** Height mode and its values. Changing any of them sets every colour's height again, so per-colour heights go. */
+  /** Height mode and its values. Changing any of them sets every color's height again, so per-color heights go. */
   const h = $derived(app.settings.heights);
   const modes = [['uniform', 'All the same'], ['random', 'Random'], ['brightness', 'By brightness']] as const;
   const MIN = 0.2, MAX = 20;
@@ -58,6 +58,6 @@
     </div>
   {:else}
     <label class="check" id="brightRow"><input type="checkbox" id="darkHigh" checked={h.darkHigh}
-      onchange={(e) => { const on = e.currentTarget.checked; set(() => (h.darkHigh = on)); }}> Darker colours sit higher</label>
+      onchange={(e) => { const on = e.currentTarget.checked; set(() => (h.darkHigh = on)); }}> Darker colors sit higher</label>
   {/if}
 </div>

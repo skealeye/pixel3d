@@ -14,7 +14,7 @@ export function objectsOf(model: Model, name: string): { name: string; parts: Pa
   return out.map(({ name, parts }) => ({ name, parts }));
 }
 
-/** All the parts as one watertight body: a manifold union, so shared faces between colours disappear. */
+/** All the parts as one watertight body: a manifold union, so shared faces between colors disappear. */
 export async function unionParts(parts: Part[]): Promise<Mesh> {
   const { Manifold, Mesh } = await initManifold();
   const solids = parts.map((p) => new Manifold(new Mesh({ numProp: 3, vertProperties: p.mesh.vertProperties, triVerts: p.mesh.triVerts })));
@@ -55,9 +55,9 @@ export function stlBytes(meshes: Mesh[]): Uint8Array {
 }
 
 /**
- * Single-colour binary STL, one file per printed object (`name.stl`, or `name_front.stl` / `name_back.stl`,
+ * Single-color binary STL, one file per printed object (`name.stl`, or `name_front.stl` / `name_back.stl`,
  * `name_cap.stl` / `name_body.stl`). Each file is one watertight body: the manifold union of that object's
- * parts, so a keychain ring with no base is joined to the outline. `mono` changes nothing here (STL has no colour).
+ * parts, so a keychain ring with no base is joined to the outline. `mono` changes nothing here (STL has no color).
  */
 export async function toSTL(model: Model, opts: { mono: boolean; name?: string }): Promise<{ name: string; bytes: Uint8Array }[]> {
   const out: { name: string; bytes: Uint8Array }[] = [];

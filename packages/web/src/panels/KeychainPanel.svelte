@@ -19,7 +19,7 @@
   const ownColour = $derived(!app.settings.base.enabled && !app.settings.export.mono);
   const hint = $derived(key.type === 'hole'
     ? 'Drag the gold marker on the model to move the hole. It cuts through every layer.'
-    : app.settings.base.enabled ? 'The loop uses the base colour.' : 'Move the slider to slide the loop around the edge.');
+    : app.settings.base.enabled ? 'The loop uses the base color.' : 'Move the slider to slide the loop around the edge.');
 </script>
 
 <section class:off={app.settings.make === 'clicker'} inert={app.settings.make === 'clicker'}>
@@ -48,7 +48,7 @@
       <Slider id="loopOut" label="Outside" min={4} max={16} step={0.5} value={key.loop.outer} unit="mm" format={f1} {...outer} />
       {#if ownColour}
         <div id="loopColRows">
-          <div class="row"><label for="loopColor">Loop colour</label><input type="color" id="loopColor" value={key.loop.colour} {...colour}></div>
+          <div class="row"><label for="loopColor">Loop color</label><input type="color" id="loopColor" value={key.loop.colour} {...colour}></div>
           <Favourites id="loopFavs" value={key.loop.colour} pick={(hex) => setting(() => (key.loop.colour = hex))} />
         </div>
       {/if}

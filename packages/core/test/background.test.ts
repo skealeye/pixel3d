@@ -18,7 +18,7 @@ describe('removeBackground', () => {
     expect(r.how).toBe('corners');
     expect(r.bg).toBe('#ffffff');
     expect(r.cleared).toBe(whites - eye);
-    // eye centre (cell 3,2 => px 12..15, 8..11) stays opaque
+    // eye center (cell 3,2 => px 12..15, 8..11) stays opaque
     expect(alphaAt(r.img, 13, 9)).toBe(255);
     expect(alphaAt(r.img, 0, 0)).toBe(0);
     // input untouched
@@ -40,7 +40,7 @@ describe('removeBackground', () => {
     expect(alphaAt(b.img, 19, 14)).toBe(255);
   });
 
-  it('a picked colour reports picked', async () => {
+  it('a picked color reports picked', async () => {
     const r = removeBackground(await load('eye-on-white.png'), { enabled: true, tolPct: 9, pick: '#ffffff' });
     expect(r.how).toBe('picked');
     expect(r.bg).toBe('#ffffff');
@@ -77,7 +77,7 @@ describe('findCornerBg', () => {
 });
 
 describe('looksLikePixelArt', () => {
-  it('true for a few colours at small size', async () => {
+  it('true for a few colors at small size', async () => {
     const img = await load('potion.png');
     expect(looksLikePixelArt(img, detectScale(img))).toBe(true);
   });

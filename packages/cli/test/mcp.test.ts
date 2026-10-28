@@ -42,10 +42,10 @@ describe('px3d mcp (in-process)', () => {
     const client = await connect();
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(['convert_folder', 'convert_image', 'inspect_image', 'list_presets']);
-    expect(tools.find((t) => t.name === 'inspect_image')!.description).toMatch(/colour rules/);
+    expect(tools.find((t) => t.name === 'inspect_image')!.description).toMatch(/color rules/);
   });
 
-  it('inspect_image returns 7 colours for potion', async () => {
+  it('inspect_image returns 7 colors for potion', async () => {
     const client = await connect();
     const r = await call(client, 'inspect_image', { path: fixture('potion.png') });
     expect(r.isError).toBe(false);
@@ -133,7 +133,7 @@ describe('px3d mcp (in-process)', () => {
     expect(list.map((p) => p.name)).toEqual(['broken', 'good']);
     expect(list[0]!.error).toBeTruthy();
     expect(list[0]!.summary).toBeUndefined();
-    expect(list[1]!.summary).toBe('base 2 mm, halves, loop, 3 colour rules');
+    expect(list[1]!.summary).toBe('base 2 mm, halves, loop, 3 color rules');
     expect(list[1]!.error).toBeUndefined();
   });
 });

@@ -6,7 +6,7 @@ import type { Files, Scene } from './xml';
  * writes it: `3D/3dmodel.model` holds one assembly object per printed object, whose components point
  * (production extension `p:path`) at mesh objects in `3D/Objects/object_<k>.model`, one per part.
  * `Metadata/model_settings.config` puts each part on its filament slot; `project_settings.config` sets the
- * slot colours; `custom_gcode_per_layer.xml` pauses for sealed magnets.
+ * slot colors; `custom_gcode_per_layer.xml` pauses for sealed magnets.
  */
 
 /** Claim a released Bambu Studio version so the file is read as a Bambu project, not geometry only. */

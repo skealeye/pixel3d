@@ -35,7 +35,7 @@ export const ui = $state({
   exportName: 'model',
   /** The 3D view's size readout as plain text, e.g. `40.0 × 53.3 × 3.0 mm one piece` (the Export summary repeats it). */
   dims: '',
-  /** Pick mode: the background shows and the next click in the preview picks its colour. */
+  /** Pick mode: the background shows and the next click in the preview picks its color. */
   picking: false,
   cropping: false,
   /** Magnet placement mode: the next click on the model drops a magnet. Esc cancels. */
@@ -51,9 +51,9 @@ export const ui = $state({
   wide: false,
   /** Source preview zoom, 1–16. */
   zoom: 1,
-  /** Source preview tool: Select pans and picks a colour, Paint and Erase draw. */
+  /** Source preview tool: Select pans and picks a color, Paint and Erase draw. */
   tool: 'select' as 'select' | 'paint' | 'erase',
-  /** The colour Paint uses (falls back to the first colour when it is gone). */
+  /** The color Paint uses (falls back to the first color when it is gone). */
   sel: null as string | null,
   toast: { text: '', n: 0 },
 });
@@ -124,6 +124,10 @@ export function recompute(notify = true): string | null {
   }
   const r = computeGrid(src, settings, app.edits, ui.picking);
   if ('error' in r) { if (notify) toast(r.error); return r.error; }
+  // a background change moves the outline's box: size it afresh from Width (as a batch run does from the preset),
+  // in the same undo step, so the export stays byte-equal to convert()
+  const bg = bgKey(src, settings);
+  if (!ui.picking && last && last.src.img === src.img && last.bg !== bg) delete app.settings.pixelMm;
   app.grid = r.grid;
   app.meta = r.meta;
   // edits that no longer apply are dropped, with a notice (spec §4.10)
@@ -132,14 +136,16 @@ export function recompute(notify = true): string | null {
     toast('Edits that no longer apply were removed.');
   }
   if (!r.meta.showBg) fitSize(r.grid);
-  last = { src, edits: app.edits, picking: ui.picking, key, grid: r.grid };
+  last = { src, edits: app.edits, picking: ui.picking, key, grid: r.grid, bg: ui.picking ? (last?.bg ?? bg) : bg };
   return null;
 }
 
 /** The settings `computeGrid` reads. */
 const gridKey = (s: Settings) => JSON.stringify([s.background, s.pixelate, s.colours, s.heights]);
 /** What the last pipeline run was made from, and the grid it gave. */
-let last: { src: Source; edits: Edit[]; picking: boolean; key: string; grid: Grid } | null = null;
+let last: { src: Source; edits: Edit[]; picking: boolean; key: string; grid: Grid; bg: string } | null = null;
+/** What decides which pixels are background. */
+const bgKey = (src: Source, s: Settings) => JSON.stringify([s.background, src.pick]);
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 

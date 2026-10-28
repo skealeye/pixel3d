@@ -14,13 +14,13 @@ import { toSTL } from './export/stl';
 import { to3MF } from './export/threemf';
 
 export interface Report {
-  /** The sanitised name the files are named after. */
+  /** The sanitized name the files are named after. */
   name: string;
-  /** Final colours and heights, mm. */
+  /** Final colors and heights, mm. */
   palette: { hex: string; height: number }[];
-  /** Colour-rule edits that took effect, e.g. `#aabbcc → height 3`. */
+  /** Color-rule edits that took effect, e.g. `#aabbcc → height 3`. */
   applied: string[];
-  /** Colour-rule edits whose colour no longer existed, same wording. */
+  /** Color-rule edits whose color no longer existed, same wording. */
   dropped: string[];
   /** Overall bounding box, mm. */
   size: { x: number; y: number; z: number };
@@ -42,11 +42,11 @@ export interface ConvertResult { files: { name: string; bytes: Uint8Array }[]; r
 const CAP = 512;
 /** Corner tolerance for the full-resolution background pass before pixelating: 40 RGB (spec §4.1). */
 const PIXELATE_BG_TOL_PCT = (40 / 441.7) * 100;
-/** Colours kept exactly before palette reduction merges the closest pairs. */
+/** Colors kept exactly before palette reduction merges the closest pairs. */
 const EXACT_COLOURS = 64;
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(n)));
-/** Colours `inspect` lists, most frequent first. */
+/** Colors `inspect` lists, most frequent first. */
 const INSPECT_COLOURS = 64;
 const MAX_NAME = 100;
 
@@ -129,7 +129,7 @@ export async function exportModel(model: Model, s: Settings, name: string): Prom
 
 /**
  * The one entry point for the CLI, HTTP API, MCP server and web export: the fixed pipeline of spec §4.10
- * (decode → scale → background → palette → height mode → colour rules → mesh → booleans → export).
+ * (decode → scale → background → palette → height mode → color rules → mesh → booleans → export).
  * Never throws: any failure comes back as `report.error` with no files.
  */
 export async function convert(bytes: Uint8Array, preset: Preset, name: string): Promise<ConvertResult> {
@@ -142,12 +142,12 @@ export async function convert(bytes: Uint8Array, preset: Preset, name: string): 
     const { grid: reduced, warnings } = await toReducedGrid(bytes, settings);
     report.warnings.push(...warnings);
 
-    // colour rules match the reduced palette and win over the height mode, so they go on after it
+    // color rules match the reduced palette and win over the height mode, so they go on after it
     const { edits, applied, unmatched } = colourRuleEdits(preset.colourRules, reduced);
     const { grid, dropped } = applyEdits(applyHeightMode(reduced, heightModeOf(settings)), edits);
     const gone = new Set(dropped);
     edits.forEach((e, i) => (gone.has(e) ? report.dropped : report.applied).push(applied[i]!));
-    for (const r of unmatched) report.warnings.push(`Colour rule ${r.match} matched no colour.`);
+    for (const r of unmatched) report.warnings.push(`Color rule ${r.match} matched no color.`);
     report.palette = grid.palette.map(({ hex, height }) => ({ hex, height }));
     report.grid = { w: grid.w, h: grid.h };
 
@@ -174,15 +174,15 @@ export interface InspectResult {
   width: number;
   height: number;
   scale: Scale;
-  /** The 64 most frequent colours, most frequent first. */
+  /** The 64 most frequent colors, most frequent first. */
   palette: { hex: string; count: number }[];
-  /** Distinct opaque colours in all. */
+  /** Distinct opaque colors in all. */
   colourCount: number;
   looksLikePixelArt: boolean;
 }
 
 /**
- * The native-resolution grid (after scale detection and default background removal): size, scale and colours by count.
+ * The native-resolution grid (after scale detection and default background removal): size, scale and colors by count.
  * Throws a `ConvertError` with a plain sentence when the bytes are not a readable image.
  */
 export async function inspect(bytes: Uint8Array): Promise<InspectResult> {

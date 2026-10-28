@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { convert, parsePreset } from '@pixel3d/core';
-import { API_PORT, batchSnippets } from '../../web/src/snippets';
+import { API_PORT, batchSnippets, presetBase } from '../../web/src/snippets';
 
 const root = join(import.meta.dirname, '..', '..', '..');
 const main = join(root, 'packages', 'cli', 'src', 'main.ts');
@@ -40,6 +40,14 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }));
 const same = (file: string, bytes: Uint8Array) => Buffer.from(readFileSync(file)).equals(Buffer.from(bytes));
 
 describe('the Batch dialog snippets run', () => {
+  it('names the preset so the commands need no quoting in any shell', () => {
+    expect(presetBase('my potion (2)')).toBe('my_potion_2');
+    expect(presetBase('ghost')).toBe('ghost');
+    expect(presetBase('..')).toBe('preset');
+    expect(batchSnippets('my potion')).toContain('--preset my_potion.json');
+    expect(batchSnippets('my potion')).not.toMatch(/my potion/);
+  });
+
   it('shows a CLI, an HTTP and a Python command', () => {
     expect(find('px3d', 'convert')).toEqual(['px3d', 'convert', './sprites', '--out', './models', '--preset', 'potion.json']);
     expect(find('px3d', 'serve')).toEqual(['px3d', 'serve', '--port', String(API_PORT)]);

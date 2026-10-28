@@ -65,7 +65,7 @@ export function edgeAtAngle(g: Grid, deg: number): Edge {
 }
 
 /**
- * The keychain loop, z 0..thickness, centred `R = (inner + outer) / 4` mm out from `edge`.
+ * The keychain loop, z 0..thickness, centered `R = (inner + outer) / 4` mm out from `edge`.
  * Rounded: a torus (revolved circle) squashed to the thickness. Pixel: a square frame of exactly outer / inner mm.
  */
 export function loopSolid(wasm: Wasm, edge: Edge, s: Settings, thickness: number, f: Frame): Manifold {
@@ -115,8 +115,8 @@ function magnetShapes(wasm: Wasm, g: Grid, s: Settings, f: Frame): CrossSection[
 }
 
 /**
- * Magnet pockets for one body. Bottom: open on the bed (z = 0). Sealed (single 'centre', and always for double
- * sided): centred in the base, with `pauseZ` the top of the pocket. Halves: open on each half's glue face (z = 0).
+ * Magnet pockets for one body. Bottom: open on the bed (z = 0). Sealed (single 'center', and always for double
+ * sided): centered in the base, with `pauseZ` the top of the pocket. Halves: open on each half's glue face (z = 0).
  * `warning` when the material there is under h + 0.6 mm (open) or h + 1.2 mm (sealed).
  */
 export function magnetCutters(wasm: Wasm, g: Grid, s: Settings, f: Frame, side: Side): { cutters: Manifold[]; pauseZ: number | null; warning: string | null } {
@@ -137,7 +137,7 @@ export function magnetCutters(wasm: Wasm, g: Grid, s: Settings, f: Frame, side: 
 
 /**
  * The Inside cavity: the outline (pixel units) less the hole and magnet footprints, eroded by the wall.
- * Shell keeps a floor of `wall`; hollow opens the bottom; the top is the lowest colour top less `wall`.
+ * Shell keeps a floor of `wall`; hollow opens the bottom; the top is the lowest color top less `wall`.
  * Halves stay solid; double sided builds hollow as shell. Too thin gives a warning and no cavity.
  */
 export function insideCutter(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: CrossSection, side: Side): { cutter: Manifold | null; warnings: string[] } {
@@ -165,13 +165,13 @@ type Keep = <O extends { delete(): void }>(o: O) => O;
 const outlineMm = (outline: CrossSection, f: Frame): CrossSection =>
   scratch((k) => k(outline.translate([-f.x0, -f.y0])).scale([f.px.x, f.px.y]));
 
-/** The loop for one body: as thick as its base, else the lowest colour (halved for halves). The caller owns it. */
+/** The loop for one body: as thick as its base, else the lowest color (halved for halves). The caller owns it. */
 const bodyLoop = (wasm: Wasm, g: Grid, s: Settings, f: Frame, side: Side, hasBase: boolean): Manifold =>
   loopSolid(wasm, edgeAtAngle(g, s.keychain.loop.angle), s, hasBase ? side.baseT : minTop(g) * (side.kind === 'half' ? 0.5 : 1), f);
 
 /**
  * Join the keychain loop to one body's solids (unmirrored): into the base, or, with no base, as its own
- * 'loop' part in the loop colour that meets the outline flush.
+ * 'loop' part in the loop color that meets the outline flush.
  */
 export function addLoop(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: CrossSection, solids: Solid[], side: Side, keep: Keep): Solid[] {
   if (!hasLoop(s)) return solids;
@@ -204,12 +204,12 @@ export function cutBody(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: Cro
 
 /**
  * Disconnected pieces of one body after its loop and cuts. `solids` (uncut) and `cutters` are placed; `place`
- * moves unmirrored geometry the same way. A 3D union of every colour layer takes seconds on busy art, so this
+ * moves unmirrored geometry the same way. A 3D union of every color layer takes seconds on busy art, so this
  * counts a stand-in: the outline through the body's thinnest stack, plus the loop. Where a cutter reaches past
- * that stack (a pocket at least as deep as base + lowest colour), the stand-in has no material left there, so
- * each colour's own geometry inside the cutter's footprint is added back: a taller colour island standing over
+ * that stack (a pocket at least as deep as base + lowest color), the stand-in has no material left there, so
+ * each color's own geometry inside the cutter's footprint is added back: a taller color island standing over
  * the pocket then shows as its own piece. Each cutter is then subtracted. It can still over-count where a pocket
- * severs the thinnest stack but taller colours bridge it. A sealed void is its own negative-volume component and
+ * severs the thinnest stack but taller colors bridge it. A sealed void is its own negative-volume component and
  * is not counted.
  */
 function bodyPieces(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: CrossSection, solids: Solid[], side: Side,

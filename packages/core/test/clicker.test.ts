@@ -23,7 +23,7 @@ const settings = (patch: (s: Settings) => void): Settings => {
   patch(s);
   return s;
 };
-/** An n x n sprite of one colour. */
+/** An n x n sprite of one color. */
 const square = (n: number, height = 1): Grid => ({ w: n, h: n, cells: new Int16Array(n * n), palette: [{ hex: '#cc3333', height }] });
 /** An n x n sprite with the cells where `clear(x, y)` (y from the top) transparent. */
 const holed = (n: number, clear: (x: number, y: number) => boolean): Grid => {
@@ -60,12 +60,12 @@ const volumeIn = async (parts: Part[], lo: Vec3, hi: Vec3) => {
   const cut = u.intersect(cube);
   try { return cut.volume(); } finally { for (const o of [u, c0, cube, cut]) o.delete(); }
 };
-/** A box centred on (x, y), w x d across, from z0 to z1. */
+/** A box centered on (x, y), w x d across, from z0 to z1. */
 const around = (x: number, y: number, w: number, d: number, z0: number, z1: number) =>
   [[x - w / 2, y - d / 2, z0], [x + w / 2, y + d / 2, z1]] as [Vec3, Vec3];
 
 /**
- * The slice of the parts at height z, inside a `win` x `win` window centred on (x, y) (a circle of diameter `win`
+ * The slice of the parts at height z, inside a `win` x `win` window centered on (x, y) (a circle of diameter `win`
  * when `round`): its empty part (`void`) or its solid part, as width, depth and area.
  */
 const sliceAt = async (parts: Part[], z: number, x: number, y: number, win: number, want: 'void' | 'solid', round = false) => {
@@ -185,7 +185,7 @@ describe('buildClicker', () => {
       const body = of(m, 'body'), b = boxOf(body);
       const [cx, cy] = centre(b);
       const L = clickerLevels(s);
-      // the well edge is 20 + 1.5 from the centre; the wall stands just beyond it, up to the rim
+      // the well edge is 20 + 1.5 from the center; the wall stands just beyond it, up to the rim
       const wellEdge = 20 + s.clicker.fitGap;
       expect(await volumeIn(body, ...around(cx + wellEdge + 0.75, cy, 1, 1, L.rimTop - 1, L.rimTop))).toBeCloseTo(1, 3);
       expect(await volumeIn(body, ...around(cx, cy - wellEdge - 0.75, 1, 1, L.rimTop - 1, L.rimTop))).toBeCloseTo(1, 3);
@@ -374,7 +374,7 @@ describe('art with holes and narrow art', () => {
     }
   }
 
-  it("art too narrow over the switch (a notch to the centre) warns that it doesn't cover the switch", async () => {
+  it("art too narrow over the switch (a notch to the center) warns that it doesn't cover the switch", async () => {
     const m = await buildClicker(holed(32, (x, y) => x >= 14 && x < 18 && y < 17), settings(() => {}));
     expect(m.warnings.join(' ')).toMatch(/doesn't fully cover the switch/);
     for (const p of m.parts) await assertManifold(p);

@@ -9,7 +9,7 @@
   /** CSS size of the square canvas. */
   let size = $state(160);
   let pan = $state({ x: 0, y: 0 });
-  /** A pan remembers where it started so a click (no movement) can pick a colour; a paint stroke its last cell. */
+  /** A pan remembers where it started so a click (no movement) can pick a color; a paint stroke its last cell. */
   let drag:
     | { kind: 'pan'; x: number; y: number; at: { x: number; y: number } }
     | { kind: 'crop'; c0: number; r0: number }
@@ -175,7 +175,7 @@
     const d = drag, s = sel;
     drag = null;
     sel = null;
-    // Select: a click without a drag picks the colour under the pointer
+    // Select: a click without a drag picks the color under the pointer
     if (d?.kind === 'pan' && ui.tool === 'select' && Math.hypot(e.clientX - d.at.x, e.clientY - d.at.y) < 4) {
       const at = cellAt(e), v = at?.inside ? at.g.cells[at.j * at.g.w + at.i]! : -1;
       if (at && v >= 0) ui.sel = at.g.palette[v]!.hex;

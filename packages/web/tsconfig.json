@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["node", "svelte", "vite/client"],
+    "types": ["node", "svelte", "vite/client", "vite-plugin-pwa/client"],
     "baseUrl": "../..",
     "paths": { "@pixel3d/core": ["packages/core/src/index.ts"] }
   },

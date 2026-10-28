@@ -13,8 +13,9 @@ export default defineConfig({
     svelte(),
     // installable and offline (spec §3): precache the whole build, wasm included. The manifest is public/manifest.webmanifest.
     VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'script-defer',
+      // a new deploy waits for the user: UpdatePrompt.svelte (virtual:pwa-register) offers Reload
+      registerType: 'prompt',
+      injectRegister: false,
       manifest: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,wasm,png,webmanifest}'],

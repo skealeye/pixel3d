@@ -8,8 +8,8 @@ const r1 = (n: number) => (Math.round(Math.max(0, n) * 10) / 10).toFixed(1);
 
 /**
  * The pocket as core cuts it (features.ts magnetCutters), for the panel: whether it is sealed, the material below it
- * (null when it opens onto the bed or the glue face) and above it up to the lowest colour's top, and the
- * thin-base check (the mockup's: base only, or half the base plus the lowest colour for halves).
+ * (null when it opens onto the bed or the glue face) and above it up to the lowest color's top, and the
+ * thin-base check (the mockup's: base only, or half the base plus the lowest color for halves).
  */
 export function magnetPocket(s: Settings, lowest: number) {
   const { d, h } = magnetSize(s);

@@ -4,14 +4,14 @@ import { addEdits, app, change, toast, ui } from './state.svelte';
 
 // Edits from the palette panel and the source preview. Each one is a core `Edit`, replayed on top of the image (spec §4.10).
 
-/** The colour Paint uses: the selected one, or the first while it is gone. */
+/** The color Paint uses: the selected one, or the first while it is gone. */
 function paintHex(): string | null {
   const p = app.grid?.palette;
   if (!p?.length) return null;
   return p.some((c) => c.hex === ui.sel) ? ui.sel : p[0]!.hex;
 }
 
-/** One colour's height. Repeats on the same colour replace the last height edit rather than piling up. */
+/** One color's height. Repeats on the same color replace the last height edit rather than piling up. */
 export function setHeight(hex: string, h: number, push: boolean) {
   const before = app.edits, last = before.at(-1);
   if (!addEdits([{ kind: 'height', hex, h }], push)) return;
@@ -24,15 +24,15 @@ export function recolour(from: string, to: string) {
   const merge = app.grid.palette.some((p) => p.hex === to);
   if (!addEdits([{ kind: 'recolour', from, to }])) return;
   if (ui.sel === from) ui.sel = to;
-  if (merge) toast('Merged into the matching colour.');
+  if (merge) toast('Merged into the matching color.');
 }
 
 export function deleteColour(hex: string) {
   if ((app.grid?.palette.length ?? 0) < 2) return;
-  if (addEdits([{ kind: 'delete', hex }])) toast('Colour deleted. Its pixels now use the nearest colour.');
+  if (addEdits([{ kind: 'delete', hex }])) toast('Color deleted. Its pixels now use the nearest color.');
 }
 
-/** The mockup's new colour, at the current pixel height; then paint with it. */
+/** The mockup's new color, at the current pixel height; then paint with it. */
 export function addColour() {
   const hex = '#e0715c', h = app.settings.heights.h;
   if (!app.grid?.palette.some((p) => p.hex === hex)) {
@@ -45,7 +45,7 @@ export function addColour() {
 }
 
 /**
- * Paint cells with the selected colour, or empty them with Erase. Cells already that colour are skipped, so a click
+ * Paint cells with the selected color, or empty them with Erase. Cells already that color are skipped, so a click
  * on one adds no undo step. Returns how many changed.
  */
 export function paintCells(cells: { x: number; y: number }[], push: boolean): number {
@@ -68,17 +68,17 @@ export function removeStrays() {
   if (addEdits(edits)) toast('Stray pixels removed. Press Ctrl+Z to undo.');
 }
 
-/** Bring back deleted, recoloured and merged colours; heights set for colours that still exist are kept. */
+/** Bring back deleted, recolored and merged colors; heights set for colors that still exist are kept. */
 export function restoreColours() {
   if (!app.source) return;
   const ok = change(() => {
     app.edits = app.edits.filter((e) => e.kind !== 'recolour' && e.kind !== 'delete');
     app.settings.colours.max = DEFAULTS.colours.max;
   });
-  if (ok) toast('Original colours restored. Your heights were kept.');
+  if (ok) toast('Original colors restored. Your heights were kept.');
 }
 
-/** Back to the original image: no crop, no edits, the full colour count. The height mode stays and is applied again. Undoable. */
+/** Back to the original image: no crop, no edits, the full color count. The height mode stays and is applied again. Undoable. */
 export function reloadImage() {
   if (!app.source) { toast('Open an image first.'); return; }
   const src = app.source;

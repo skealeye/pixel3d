@@ -112,14 +112,14 @@ describe('px3d convert', () => {
     expect(r.stderr).toMatch(/✓ b\.png/);
   }, 120_000);
 
-  it('warns about a colour rule that matched no colour', () => {
+  it('warns about a color rule that matched no color', () => {
     const p = join(fresh('p'), 'p.json');
     writeFileSync(p, JSON.stringify({ version: 1, settings: {}, colourRules: [{ match: '#00ff01', tolPct: 0, height: 3 }] }));
     const out = fresh('out');
     const r = run(['convert', fixture('potion.png'), '--preset', p, '--out', out]);
     expect(r.status).toBe(0);
-    expect(r.stderr).toMatch(/Colour rule #00ff01 matched no colour\./);
-    expect(reportOf(out)[0]!.warnings).toContain('Colour rule #00ff01 matched no colour.');
+    expect(r.stderr).toMatch(/Color rule #00ff01 matched no color\./);
+    expect(reportOf(out)[0]!.warnings).toContain('Color rule #00ff01 matched no color.');
   }, 120_000);
 
   describe('usage and preset errors exit 2 before any image is processed', () => {

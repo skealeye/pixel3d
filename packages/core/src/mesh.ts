@@ -63,7 +63,7 @@ export function pixelSize(s: Settings, box: { w: number; h: number }) {
 }
 
 /**
- * Turn a palette grid into watertight solids, one part per colour plus the base, in mm.
+ * Turn a palette grid into watertight solids, one part per color plus the base, in mm.
  * Model +Y is up in the image, +Z is up off the bed. The keychain, magnets and Inside cavity (features.ts)
  * are applied before rotation; size and placement come from the solids before any cut, so cuts never move the model.
  */
@@ -79,7 +79,7 @@ export async function buildModel(g: Grid, s: Settings): Promise<Model> {
   const trash: { delete(): void }[] = [];
   const keep = <T extends { delete(): void }>(o: T): T => { trash.push(o); return o; };
   try {
-    // one cross-section per region, in pixel units: the whole outline, then each colour's cells
+    // one cross-section per region, in pixel units: the whole outline, then each color's cells
     const region = (pick: (v: number) => boolean): CrossSection | null => {
       const on = new Uint8Array(g.cells.length);
       let any = false;
@@ -94,7 +94,7 @@ export async function buildModel(g: Grid, s: Settings): Promise<Model> {
       keep(keep(keep(cs.extrude(h)).translate([-box.x0, -box.y0, z0])).scale([px.x, px.y, 1]));
 
     const uniform = s.heights.h;
-    // one side's layers: base 0..bt, each colour bt..bt + h (and, double sided, -h'..0 underneath)
+    // one side's layers: base 0..bt, each color bt..bt + h (and, double sided, -h'..0 underneath)
     const layers = (bt: number, vary: boolean, under: false | 'vary' | 'uniform'): Solid[] => {
       const out: Solid[] = [];
       if (s.base.enabled) out.push({ name: 'base', hex: s.base.colour, m: slab(outline, 0, bt) });
@@ -147,7 +147,7 @@ export async function buildModel(g: Grid, s: Settings): Promise<Model> {
       if (r.pieces !== null) pieceCount = Math.max(pieceCount ?? 0, r.pieces);
     }
 
-    // rotation last, about the model centre (quarter turns X, then Y, then Z); then seat min Z on the bed
+    // rotation last, about the model center (quarter turns X, then Y, then Z); then seat min Z on the bed
     const c = [0, 1, 2].map((a) => (bb.min[a]! + bb.max[a]!) / 2) as [number, number, number];
     const [rx, ry, rz] = s.rotation;
     const turn = (m: Manifold) => keep(keep(keep(m.translate([-c[0], -c[1], -c[2]])).rotate([rx * 90, ry * 90, rz * 90])).translate(c));

@@ -12,7 +12,7 @@ import { all, parseXml } from './util/xml';
 const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`./fixtures/${name}`, import.meta.url)));
 const preset = (settings: unknown = {}, colourRules: unknown[] = []): Preset => parsePreset({ version: 1, settings, colourRules });
 
-/** PNG from rows of colours; null = transparent. Each cell is drawn `k`×`k`. */
+/** PNG from rows of colors; null = transparent. Each cell is drawn `k`×`k`. */
 const png = (rows: (string | null)[][], k = 1): Uint8Array => {
   const h = rows.length * k, w = rows[0]!.length * k;
   const data = new Uint8Array(w * h * 4);
@@ -106,7 +106,7 @@ describe('convert: golden files (potion)', () => {
     });
   }
 
-  it('names files after the sanitised name: halves STL gives _front and _back', async () => {
+  it('names files after the sanitized name: halves STL gives _front and _back', async () => {
     const { files, report } = await convert(fixture('potion.png'), cases[1]![1], 'po/ti\\on:*?"<>|');
     expect(files.map((f) => f.name)).toEqual(['potion_front.stl', 'potion_back.stl']);
     expect(report.name).toBe('potion');
@@ -116,7 +116,7 @@ describe('convert: golden files (potion)', () => {
 });
 
 describe('convert: report', () => {
-  it('lists palette heights, size and pieces; colour rules win over the height mode', async () => {
+  it('lists palette heights, size and pieces; color rules win over the height mode', async () => {
     const { palette } = await inspect(fixture('potion.png'));
     const hex = palette[0]!.hex;
     const { report } = await convert(fixture('potion.png'), preset({ heights: { mode: 'random', seed: 42 } }, [{ match: hex, tolPct: 0, height: 7 }]), 'p');
@@ -129,19 +129,19 @@ describe('convert: report', () => {
     expect(report.warnings).toEqual([]);
   });
 
-  it('a rule whose colour an earlier rule recoloured away is dropped with a readable line', async () => {
+  it('a rule whose color an earlier rule recolored away is dropped with a readable line', async () => {
     const { palette } = await inspect(fixture('potion.png'));
     const hex = palette[0]!.hex;
     const { report } = await convert(fixture('potion.png'), preset({}, [
       { match: hex, tolPct: 0, recolour: '#123456' },
       { match: hex, tolPct: 0, height: 3 },
     ]), 'p');
-    expect(report.applied).toEqual([`${hex} → recolour #123456`]);
+    expect(report.applied).toEqual([`${hex} → recolor #123456`]);
     expect(report.dropped).toEqual([`${hex} → height 3`]);
     expect(report.palette.map((c) => c.hex)).toContain('#123456');
   });
 
-  it('warns once per colour rule that matched no colour', async () => {
+  it('warns once per color rule that matched no color', async () => {
     const { palette } = await inspect(fixture('potion.png'));
     const hex = palette[0]!.hex;
     const { report } = await convert(fixture('potion.png'), preset({}, [
@@ -149,7 +149,7 @@ describe('convert: report', () => {
       { match: hex, tolPct: 0, height: 3 },
     ]), 'p');
     expect(report.error).toBeUndefined();
-    expect(report.warnings).toEqual(['Colour rule #00ff01 matched no colour.']);
+    expect(report.warnings).toEqual(['Color rule #00ff01 matched no color.']);
   });
 
   it('warns about separate pieces', async () => {
@@ -171,7 +171,7 @@ describe('convert: report', () => {
     expect(strFromU8(z['Metadata/custom_gcode_per_layer.xml']!)).toContain('M400 U1');
   });
 
-  it('pixelates a photo automatically: at most `colours` colours', async () => {
+  it('pixelates a photo automatically: at most `colors` colors', async () => {
     const { report } = await convert(fixture('gradient-photo.png'), preset({ pixelate: { colours: 4, across: 16 } }), 'photo');
     expect(report.error).toBeUndefined();
     expect(report.palette.length).toBeGreaterThan(0);
@@ -180,7 +180,7 @@ describe('convert: report', () => {
   });
 
   /**
-   * A photo-like image (a gradient, so far more than 64 colours) on a solid #282828 background, with a solid band
+   * A photo-like image (a gradient, so far more than 64 colors) on a solid #282828 background, with a solid band
    * of `edge` along the top of the art touching the background. Art: x 50–149, band y 30–59, gradient y 60–149.
    */
   const photoOnBg = (edge: [number, number, number]) => {
@@ -195,21 +195,21 @@ describe('convert: report', () => {
   // 20 across: 10 source px per cell, so the art is 10 cells wide and 9 (gradient) or 12 (with band) tall
   const across20 = preset({ pixelate: { across: 20 } });
 
-  it('pixelating clears the background at full resolution with tolerance 40: an edge colour ~30 away goes', async () => {
+  it('pixelating clears the background at full resolution with tolerance 40: an edge color ~30 away goes', async () => {
     const { report } = await convert(photoOnBg([57, 57, 57]), across20, 'p'); // 29.4 RGB from #282828
     expect(report.error).toBeUndefined();
     expect(report.grid).toEqual({ w: 20, h: 20 });
     expect(report.size.y).toBeCloseTo(40 * 9 / 10, 3);
   });
 
-  it('... and an edge colour ~50 away stays', async () => {
+  it('... and an edge color ~50 away stays', async () => {
     const { report } = await convert(photoOnBg([69, 69, 69]), across20, 'p'); // 50.2 RGB from #282828
     expect(report.error).toBeUndefined();
     expect(report.grid).toEqual({ w: 20, h: 20 });
     expect(report.size.y).toBeCloseTo(40 * 12 / 10, 3);
   });
 
-  /** 600×600 that otherwise looks like pixel art: 8 colours in seeded 3–11 px blocks (no common scale), corners transparent. */
+  /** 600×600 that otherwise looks like pixel art: 8 colors in seeded 3–11 px blocks (no common scale), corners transparent. */
   const big = () => {
     const rnd = mulberry32(11), n = 600;
     const cols = ['#aa2222', '#22aa22', '#2222aa', '#aaaa22', '#22aaaa', '#aa22aa', '#eeeeee', '#333333'];
@@ -248,7 +248,7 @@ describe('convert: degenerate images (Review Focus 1)', () => {
       return buf.slice(0, n.end());
     }, /too small/i],
     ['fully transparent', () => png(fill(16, 16, null)), /transparent/i],
-    ['single colour that is all background', () => png(fill(16, 16, '#3366cc')), /empty once the background is removed/],
+    ['single color that is all background', () => png(fill(16, 16, '#3366cc')), /empty once the background is removed/],
     ['empty after background removal', () => {
       const rows = fill(16, 16, '#ffffff');
       for (let y = 4; y < 12; y++) for (let x = 4; x < 12; x++) rows[y]![x] = '#f2f2f2';
@@ -270,7 +270,7 @@ describe('convert: degenerate images (Review Focus 1)', () => {
     });
   }
 
-  it('a single-colour shape on transparent converts to a solid block', async () => {
+  it('a single-color shape on transparent converts to a solid block', async () => {
     const g = '#22aa44';
     const { files, report } = await convert(png([[null, g, null], [g, g, g], [null, g, null]], 4), preset(), 'plus');
     expect(report.error).toBeUndefined();
@@ -310,7 +310,7 @@ describe('inspect', () => {
     expect(r.palette.every((c) => /^#[0-9a-f]{6}$/.test(c.hex))).toBe(true);
   });
 
-  it('flags a photo as not pixel art and lists only its 64 most frequent colours', async () => {
+  it('flags a photo as not pixel art and lists only its 64 most frequent colors', async () => {
     const r = await inspect(fixture('gradient-photo.png'));
     expect(r.looksLikePixelArt).toBe(false);
     expect(r.palette).toHaveLength(64);
@@ -325,7 +325,7 @@ describe('inspect', () => {
 });
 
 describe('convert: large pixel art (Review Focus 5)', () => {
-  /** 512×512 at native resolution: 16 colours in seeded blocks 3–11 px, so runs share no common factor and nothing shrinks. */
+  /** 512×512 at native resolution: 16 colors in seeded blocks 3–11 px, so runs share no common factor and nothing shrinks. */
   const sprite = () => {
     const rnd = mulberry32(5);
     const cols = Array.from({ length: 16 }, (_, i) => `#${((i * 0x2f1b3d + 0x102030) & 0xffffff).toString(16).padStart(6, '0')}`);
@@ -339,7 +339,7 @@ describe('convert: large pixel art (Review Focus 5)', () => {
     return png(rows);
   };
 
-  it('a 512×512, 16-colour sprite converts in under 5 s', async () => {
+  it('a 512×512, 16-color sprite converts in under 5 s', async () => {
     const bytes = sprite();
     const info = await inspect(bytes);
     expect(info).toMatchObject({ width: 512, height: 512, looksLikePixelArt: true });

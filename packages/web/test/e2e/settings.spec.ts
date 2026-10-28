@@ -100,14 +100,14 @@ test.describe('model settings', () => {
     expect((await settings(page)).size).toMatchObject({ width: 30, height: 60, keepAspect: false });
   });
 
-  test('favourites: save, use, right-click remove; they survive a reload', async ({ page }) => {
+  test('favorites: save, use, right-click remove; they survive a reload', async ({ page }) => {
     await page.goto('/?test');
     const favs = () => page.locator('#baseFavs [data-c]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.c));
     expect(await favs()).toEqual(['#2a2d33', '#f2efe6', '#111111', '#d9a441', '#3d6fb6']);
     await page.locator('#baseColor').fill('#123456');
     expect((await settings(page)).base.colour).toBe('#123456');
     await page.locator('#baseFavs .star').click();
-    await expect(page.locator('.toast')).toHaveText('Saved to favourites.');
+    await expect(page.locator('.toast')).toHaveText('Saved to favorites.');
     expect(await favs()).toEqual(['#123456', '#2a2d33', '#f2efe6', '#111111', '#d9a441']);
     await expect(page.locator('#baseFavs [data-c="#123456"]')).toHaveClass(/\bcur\b/);
     await page.locator('#baseFavs [data-c="#f2efe6"]').click();
@@ -208,7 +208,7 @@ test.describe('model settings', () => {
     expect(after.size!.z).toBeCloseTo(before.size!.z, 6);
   });
 
-  test('loop: Position slider at 60°; the loop colour row appears only with no base', async ({ page }) => {
+  test('loop: Position slider at 60°; the loop color row appears only with no base', async ({ page }) => {
     await loadPotion(page);
     await seg(page, 'key', 'loop').click();
     await page.locator('#loopAngleR').fill('60');
@@ -216,7 +216,7 @@ test.describe('model settings', () => {
     expect((await settings(page)).keychain.loop.angle).toBe(60);
     await model(page);
     await expect(page.locator('#loopColRows')).toBeHidden();
-    await expect(page.locator('#keyHint')).toHaveText('The loop uses the base colour.');
+    await expect(page.locator('#keyHint')).toHaveText('The loop uses the base color.');
     await page.locator('#baseOn').uncheck();
     await expect(page.locator('#baseRows')).toBeHidden();
     await expect(page.locator('#loopColRows')).toBeVisible();

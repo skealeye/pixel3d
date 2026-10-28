@@ -33,7 +33,7 @@
   <p class="hint" id="sidesHint">{HINTS[sides.mode]}</p>
   {#if sides.mode !== 'single'}
     <div id="applyRow">
-      <div class="row"><span class="lbl">Colour heights apply to</span></div>
+      <div class="row"><span class="lbl">Color heights apply to</span></div>
       <div class="seg" data-key="heightsOn">
         <button data-v="both" id="hoBoth" class:on={sides.heightsOn === 'both'} onclick={() => sides.heightsOn !== 'both' && setting(() => (sides.heightsOn = 'both'))}>{halves ? 'Both halves' : 'Both sides'}</button>
         <button data-v="top" id="hoTop" class:on={sides.heightsOn === 'top'} onclick={() => sides.heightsOn !== 'top' && setting(() => (sides.heightsOn = 'top'))}>{halves ? 'Front half only' : 'Top side only'}</button>

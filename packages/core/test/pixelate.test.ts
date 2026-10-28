@@ -11,7 +11,7 @@ const colours = (img: Img) => {
 };
 
 describe('pixelate', () => {
-  it('gradient at across 20 / 5 colours is 20x20, <= 5 colours, deterministic, no pale fringe', async () => {
+  it('gradient at across 20 / 5 colors is 20x20, <= 5 colors, deterministic, no pale fringe', async () => {
     const src = await load('gradient-photo.png');
     const a = pixelate(src, { across: 20, colours: 5 });
     const b = pixelate(src, { across: 20, colours: 5 });
@@ -48,7 +48,7 @@ describe('pixelate', () => {
     expect(pale.sort()).toEqual(['3,2', '3,3', '4,2']);
   });
 
-  it('colours caps at the number of opaque pixels', () => {
+  it('colors caps at the number of opaque pixels', () => {
     const img: Img = { width: 2, height: 1, data: new Uint8ClampedArray([10, 20, 30, 255, 200, 20, 30, 255]) };
     const r = pixelate(img, { across: 2, colours: 9 });
     expect(colours(r).size).toBe(2);

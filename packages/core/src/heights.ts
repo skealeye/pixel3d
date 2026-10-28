@@ -13,7 +13,7 @@ function luminance(hex: string): number {
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
 }
 
-/** Set every colour's height from a mode. Returns a new grid. */
+/** Set every color's height from a mode. Returns a new grid. */
 export function applyHeightMode(g: Grid, m: HeightMode): Grid {
   const out = cloneGrid(g);
   if (m.mode === 'uniform') {

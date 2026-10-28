@@ -14,7 +14,7 @@ export type Slicer = 'bambu' | 'orca' | 'prusa' | 'generic';
 export interface ThreeMFOptions {
   slicer: Slicer;
   mono: boolean;
-  /** Mono colour, #rrggbb; defaults to the settings default. */
+  /** Mono color, #rrggbb; defaults to the settings default. */
   monoHex?: string;
   /** Pause heights (mm) for sealed magnets; defaults to the model's. */
   pauseZ?: number[];
@@ -22,7 +22,7 @@ export interface ThreeMFOptions {
   name?: string;
 }
 
-/** Bambu's 256 x 256 mm plate: the model is centred on it. */
+/** Bambu's 256 x 256 mm plate: the model is centered on it. */
 export const PLATE_CENTRE: [number, number] = [128, 128];
 const MTIME = new Date('2026-01-01T00:00:00Z');
 
@@ -37,7 +37,7 @@ const CONTENT_TYPES = `<?xml version="1.0" encoding="UTF-8"?>
 `;
 
 
-/** XY bounding-box centre of some meshes. Z is left as built (min 0, seated by buildModel). */
+/** XY bounding-box center of some meshes. Z is left as built (min 0, seated by buildModel). */
 function footprint(meshes: Mesh[]) {
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const { vertProperties: v } of meshes) for (let i = 0; i < v.length; i += 3) {
@@ -55,8 +55,8 @@ const shift = (m: Mesh, dx: number, dy: number): Mesh => {
 
 /**
  * Lay the model out for a 3MF: printed objects in part order, each part on a filament slot keyed by its
- * name (base, loop, or palette hex), so a base the same colour as a palette entry still gets its own slot and
- * halves share slots. Each object's frame is its own XY centre; together they sit centred on the plate.
+ * color, so a base or loop the same color as a palette entry shares that filament (R25; `filamentColors` gives
+ * the same list) while staying its own part, and halves share slots. Each object's frame is its own XY center; together they sit centered on the plate.
  */
 async function sceneOf(model: Model, opts: ThreeMFOptions): Promise<Scene> {
   const name = opts.name ?? 'model';
@@ -72,7 +72,7 @@ async function sceneOf(model: Model, opts: ThreeMFOptions): Promise<Scene> {
   for (const o of objects) {
     const parts = opts.mono
       ? [{ name: o.name, hex: monoHex, slot: slotOf('mono', monoHex), mesh: await unionParts(o.parts) }]
-      : o.parts.map((p: Part) => ({ name: p.name, hex: p.hex, slot: slotOf(p.name, p.hex), mesh: p.mesh }));
+      : o.parts.map((p: Part) => ({ name: p.name, hex: p.hex, slot: slotOf(p.hex.toLowerCase(), p.hex), mesh: p.mesh }));
     raw.push({ name: o.name, parts });
   }
   const all = footprint(raw.flatMap((o) => o.parts.map((p) => p.mesh)));
@@ -88,7 +88,7 @@ async function sceneOf(model: Model, opts: ThreeMFOptions): Promise<Scene> {
 }
 
 /**
- * Generic 3MF (core spec + materials extension): one mesh object per part, coloured through
+ * Generic 3MF (core spec + materials extension): one mesh object per part, colored through
  * `<basematerials>` (one `<base>` per slot), and one assembly object per printed object.
  */
 function genericFiles(scene: Scene): Files {
@@ -126,7 +126,7 @@ ${items.join('\n')}
 /**
  * A 3MF of the model for one slicer: one object made of parts per printed object (halves: front and back),
  * parts in palette order with the base first. Bambu and Orca get Bambu project metadata (parts on filament
- * slots 1..N with their colours, magnet pauses), Prusa its volume config, anything else `<basematerials>`.
+ * slots 1..N with their colors, magnet pauses), Prusa its volume config, anything else `<basematerials>`.
  * Mono: one part per object, the union of its parts, in `monoHex`.
  */
 export async function to3MF(model: Model, opts: ThreeMFOptions): Promise<Uint8Array> {

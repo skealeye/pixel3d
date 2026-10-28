@@ -12,6 +12,9 @@ type Vec3 = [number, number, number];
 export type ClickerView = 'assembled' | 'apart';
 type Box = { min: Vec3; max: Vec3 };
 
+/** What a dimmed part's color is pulled toward: the app background. */
+const DIM_TOWARD = '#1b1e23';
+
 /** Cut faces of solid material show gold: with the near half clipped away, any back face we can see is the inside. */
 const capHook = (sh: { fragmentShader: string }) => {
   sh.fragmentShader = sh.fragmentShader.replace(
@@ -25,7 +28,7 @@ const capHook = (sh: { fragmentShader: string }) => {
  * Renders on demand, and straight after every resize so the canvas never shows a stretched or cleared frame.
  *
  * The meshes sit in `pivot` in core's unrotated model frame; the pivot turns them to the export orientation (as the
- * mockup does) and `holder` centres the result with its lowest point on the bed. The drag handles sit in the pivot
+ * mockup does) and `holder` centers the result with its lowest point on the bed. The drag handles sit in the pivot
  * too but are left out of the size and placement, so moving one never moves the model.
  */
 export class Viewport {
@@ -52,8 +55,10 @@ export class Viewport {
   private uncut: THREE.Box3 | null = null;
   private ray = new THREE.Raycaster();
   private mats = new Map<string, THREE.MeshStandardMaterial>();
-  /** One colour (Export: One colour): every part shows in this colour; null shows each part's own. */
+  /** One color (Export: One color): every part shows in this color; null shows each part's own. */
   private mono: string | null = null;
+  /** The highlighted palette color (R26), or null. */
+  private hl: string | null = null;
   private cutPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private cut = false;
   private gridOpts: GridOptions = { on: true, colour: '#8a7446', opacity: 0.7, step: 10 };
@@ -106,7 +111,7 @@ export class Viewport {
   }
 
   /**
-   * The core model: one mesh per part, one flat-shaded material per colour. A clicker (`model.clicker`) is shown
+   * The core model: one mesh per part, one flat-shaded material per color. A clicker (`model.clicker`) is shown
    * Assembled or Apart (`setClickerView`); `switches` places its stand-in switches.
    */
   setModel(model: Model, opts: { row?: number; switches?: number } = {}) {
@@ -115,9 +120,10 @@ export class Viewport {
       geo.setAttribute('position', new THREE.BufferAttribute(p.mesh.vertProperties, 3));
       geo.setIndex(new THREE.BufferAttribute(p.mesh.triVerts, 1));
       geo.computeVertexNormals();
-      const m = new THREE.Mesh(geo, this.material(p.hex));
+      const m = new THREE.Mesh(geo, this.material(p.hex, p.name));
       m.userData.object = p.object;
       m.userData.hex = p.hex;
+      m.userData.part = p.name;
       return m;
     });
     this.uncut = model.parts.length ? new THREE.Box3(new THREE.Vector3(...model.bounds.min), new THREE.Vector3(...model.bounds.max)) : null;
@@ -154,7 +160,7 @@ export class Viewport {
     if (!p) return this.clear();
     this.uncut = null;
     this.clk = null;
-    this.show(previewMeshes(p, (hex) => this.material(hex)), p.px.y);
+    this.show(previewMeshes(p, (hex, part) => this.material(hex, part)), p.px.y);
     this.shown = 'preview';
   }
 
@@ -254,7 +260,7 @@ export class Viewport {
     return { min: b.min.toArray(), max: b.max.toArray() };
   }
 
-  /** Each handle's centre in page coordinates (for the e2e checks). */
+  /** Each handle's center in page coordinates (for the e2e checks). */
   handleScreen(): { kind: string; i: number; x: number; y: number }[] {
     const r = this.canvas.getBoundingClientRect();
     this.holder.updateMatrixWorld(true);
@@ -312,29 +318,63 @@ export class Viewport {
     this.render();
   }
 
-  /** Show every part in one colour (the Export panel's One colour), or null for each part's own colour. */
+  /** Show every part in one color (the Export panel's One color), or null for each part's own color. */
   setMono(hex: string | null) {
     if (hex === this.mono) return;
     this.mono = hex;
+    this.restyle();
+  }
+
+  /**
+   * Highlight one palette color (the Select tool's selection, R26): its parts glow a little and every other part,
+   * base and loop included, is dimmed. Null shows every part normally. One color mode ignores it.
+   */
+  setHighlight(hex: string | null) {
+    if (hex === this.hl) return;
+    this.hl = hex;
+    this.restyle();
+  }
+
+  /** The highlighted color, and how many meshes are lit and dimmed (for the e2e checks). */
+  highlight() {
+    let lit = 0, dim = 0;
+    for (const o of this.meshes) {
+      const mode = o instanceof THREE.Mesh ? (o.material as THREE.Material).userData.mode : undefined;
+      if (mode === 'lit') lit++;
+      else if (mode === 'dim') dim++;
+    }
+    return { hex: this.hl, lit, dim };
+  }
+
+  /** Give every mesh the material its color, part, One color and the highlight call for; free the ones left over. */
+  private restyle() {
     const used = new Set<THREE.Material>();
     for (const o of this.meshes) {
       if (!(o instanceof THREE.Mesh) || typeof o.userData.hex !== 'string') continue;
-      o.material = this.material(o.userData.hex);
+      o.material = this.material(o.userData.hex, o.userData.part ?? o.userData.hex);
       used.add(o.material);
     }
     for (const [k, m] of this.mats) if (!used.has(m)) { m.dispose(); this.mats.delete(k); }
     this.dirty = true;
   }
 
-  private material(part: string) {
-    const hex = this.mono ?? part;
-    let m = this.mats.get(hex);
+  /** The shared material for a part: `hex` is its color, `part` its core name ('base', 'loop' or a palette hex). */
+  private material(hex: string, part: string = hex) {
+    const mode = this.mono ? 'normal' : !this.hl ? 'normal' : part.toLowerCase() === this.hl.toLowerCase() ? 'lit' : 'dim';
+    const shown = this.mono ?? hex;
+    const key = `${mode}:${shown}`;
+    let m = this.mats.get(key);
     if (!m) {
-      m = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.55, flatShading: true });
+      const color = new THREE.Color(shown);
+      // dimmed: toward the background, not transparent (transparency sorts badly and spoils Cut view)
+      if (mode === 'dim') color.lerp(new THREE.Color(DIM_TOWARD), 0.65);
+      m = new THREE.MeshStandardMaterial({ color, roughness: 0.55, flatShading: true });
+      if (mode === 'lit') { m.emissive = new THREE.Color(shown); m.emissiveIntensity = 0.35; }
+      m.userData.mode = mode;
       m.onBeforeCompile = capHook;
       m.customProgramCacheKey = () => 'cap';
       this.styleCut(m);
-      this.mats.set(hex, m);
+      this.mats.set(key, m);
     }
     return m;
   }
@@ -414,8 +454,8 @@ export class Viewport {
   }
 
   /**
-   * Centre the model on the plate with its lowest point on the bed (not while a handle is dragged), set the size,
-   * place the cut plane through the middle of the pixel row nearest the centre, and lay the handles on top.
+   * Center the model on the plate with its lowest point on the bed (not while a handle is dragged), set the size,
+   * place the cut plane through the middle of the pixel row nearest the center, and lay the handles on top.
    */
   private place() {
     if (this.meshes.length) {
@@ -437,7 +477,7 @@ export class Viewport {
   private show(objects: THREE.Object3D[], row?: number) {
     this.clearHolder();
     if (row) this.row = row;
-    // keep only the materials still in use, so recolouring doesn't pile up shader programs
+    // keep only the materials still in use, so recoloring doesn't pile up shader programs
     const used = new Set<THREE.Material>();
     for (const o of objects) if (o instanceof THREE.Mesh) used.add(o.material as THREE.Material);
     for (const [hex, m] of this.mats) if (!used.has(m)) { m.dispose(); this.mats.delete(hex); }
@@ -480,7 +520,7 @@ export class Viewport {
     }
     for (const m of caps) m.position.set(sx, sy, c.info.restZ - press.at);
     this.uncut = rest;
-    // switches at keyboard pitch along the art's long side, centred (core clicker.ts switchSpots); the cap's box is the art's
+    // switches at keyboard pitch along the art's long side, centered (core clicker.ts switchSpots); the cap's box is the art's
     const w = cap.max.x - cap.min.x, h = cap.max.y - cap.min.y, long = w >= h;
     const cx = (cap.min.x + cap.max.x) / 2, cy = (cap.min.y + cap.max.y) / 2;
     // the top housing steps in at seat + 4 so it stays inside the cap's pocket (ceiling 14.0) when pressed

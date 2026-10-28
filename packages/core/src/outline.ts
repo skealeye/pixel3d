@@ -4,7 +4,7 @@ export type Loop = [number, number][];
 /**
  * Outline of the cells where `on[row * w + x]` is set (row 0 = top), as closed loops of grid
  * corners in a y-up frame: cell (x, row) spans [x, x+1] x [yUp, yUp+1] with yUp = h-1-row.
- * Outer loops run anticlockwise and holes clockwise (the region is always on the left);
+ * Outer loops run counterclockwise and holes clockwise (the region is always on the left);
  * points along straight runs are dropped. Where two cells meet only at a corner the walk
  * turns left, so the loops touch at that point but never cross.
  */

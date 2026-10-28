@@ -2,11 +2,19 @@
 export const API_PORT = 7300;
 
 /**
+ * A preset's file name (no extension) from the image's: anything but letters, digits, `.`, `_` and `-` becomes `_`,
+ * so the commands below run as shown in any shell, unquoted.
+ */
+export function presetBase(name: string): string {
+  return name.replace(/[^\w.-]+/g, '_').replace(/^[._]+|_+$/g, '') || 'preset';
+}
+
+/**
  * The Batch dialog's commands for a preset saved as `<name>.json`: the CLI over a folder, the local HTTP API with
  * curl, and the Python example over the same API. packages/cli/test/snippets.test.ts runs every command line here.
  */
 export function batchSnippets(name: string): string {
-  const preset = `${name}.json`;
+  const preset = `${presetBase(name)}.json`;
   return [
     '# Convert a whole folder from the command line',
     '# (from a clone of the repo: npm run dev:cli -- convert ...)',

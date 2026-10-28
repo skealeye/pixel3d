@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { strFromU8, unzipSync } from 'fflate';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { buildModel, decodeImage, DEFAULTS, detectScale, downsampleNearest, to3MF, toGrid, toSTL } from '../src/index';
+import { buildModel, decodeImage, DEFAULTS, detectScale, downsampleNearest, filamentColors, to3MF, toGrid, toSTL } from '../src/index';
 import type { Grid, Model, Part, Settings } from '../src/index';
 import { initManifold } from '../src/manifold';
 import { assertManifold } from './util/assertManifold';
@@ -185,7 +185,7 @@ describe('to3MF: Bambu', () => {
     expect(cy).toBeCloseTo(128, 3);
   });
 
-  it('model_settings.config: N parts on extruders 1..N; project filament colours include the base', async () => {
+  it('model_settings.config: N parts on extruders 1..N; project filament colors include the base', async () => {
     const r = readBambu(await to3MF(main, { slicer: 'bambu', mono: false, name: 'potion' }));
     const [a] = r.assemblies, [o] = r.cfgObjects;
     expect(r.cfgObjects).toHaveLength(1);
@@ -206,13 +206,41 @@ describe('to3MF: Bambu', () => {
     expect(kid(kid(r.settings, 'assemble'), 'assemble_item').attrs.object_id).toBe(a!.id);
   });
 
-  it('a base the same colour as a palette entry still gets its own slot', async () => {
+  it('a base the same color as a palette entry shares its filament slot (R25); the parts stay separate', async () => {
     const same = await buildModel(potion, settings((s) => { s.base.colour = potion.palette[0]!.hex; }));
     const r = readBambu(await to3MF(same, { slicer: 'bambu', mono: false, name: 'potion' }));
-    expect(r.cfgObjects[0]!.parts.map((p) => p.extruder)).toEqual(same.parts.map((_, i) => String(i + 1)));
-    expect(r.project.filament_colour).toHaveLength(same.parts.length);
-    expect(r.project.filament_colour![0]).toBe(r.project.filament_colour![1]);
+    const parts = r.cfgObjects[0]!.parts;
+    expect(parts.map((p) => p.name)).toEqual(same.parts.map((p) => p.name));
+    expect(parts[0]!.name).toBe('base');
+    const art = parts.find((p) => p.name === potion.palette[0]!.hex)!;
+    expect(parts[0]!.extruder).toBe(art.extruder);
+    expect(r.project.filament_colour).toHaveLength(same.parts.length - 1);
+    expect(r.project.filament_colour).toEqual(filamentColors(potion.palette, settings((s) => { s.base.colour = potion.palette[0]!.hex; })).map((h) => h.toUpperCase()));
   });
+
+  it('8 art colors and a base equal to one of them: 8 filaments, 8 slots (R25)', async () => {
+    // 8 columns, 3 rows, one color a column
+    const hexes = ['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6'];
+    const eight: Grid = { w: 8, h: 3, cells: Int16Array.from({ length: 24 }, (_, k) => k % 8), palette: hexes.map((hex) => ({ hex, height: 1 })) };
+    const s = settings((x) => { x.base.colour = eight.palette[3]!.hex.toUpperCase(); });
+    expect(filamentColors(eight.palette, s)).toHaveLength(8);
+    const r = readBambu(await to3MF(await buildModel(eight, s), { slicer: 'bambu', mono: false, name: 'potion' }));
+    expect(r.project.filament_colour).toHaveLength(8);
+    expect(new Set(r.cfgObjects[0]!.parts.map((p) => p.extruder)).size).toBe(8);
+  });
+
+  it('filamentColors matches the 3MF slots: base off with a loop, mono, clicker', async () => {
+    const cases: Settings[] = [
+      settings((s) => { s.base.enabled = false; s.keychain.type = 'loop'; s.keychain.loop.colour = potion.palette[1]!.hex; }),
+      settings((s) => { s.base.enabled = false; s.keychain.type = 'loop'; s.keychain.loop.colour = '#123456'; }),
+      settings((s) => { s.export.mono = true; }),
+      settings((s) => { s.make = 'clicker'; s.base.enabled = false; }),
+    ];
+    for (const s of cases) {
+      const r = readBambu(await to3MF(await buildModel(potion, s), { slicer: 'bambu', mono: s.export.mono, monoHex: s.export.monoColour, name: 'potion' }));
+      expect(r.project.filament_colour).toEqual(filamentColors(potion.palette, s).map((h) => h.toUpperCase()));
+    }
+  }, 60_000);
 
   it('base off: no base part, no empty object', async () => {
     const m = await buildModel(potion, settings((s) => { s.base.enabled = false; }));
@@ -223,7 +251,7 @@ describe('to3MF: Bambu', () => {
     expect(r.project.filament_colour).toEqual(potion.palette.map((p) => p.hex.toUpperCase()));
   });
 
-  it('halves: two objects, the same colour on the same slot in both', async () => {
+  it('halves: two objects, the same color on the same slot in both', async () => {
     const m = await buildModel(potion, settings((s) => { s.sides.mode = 'halves'; }));
     const r = readBambu(await to3MF(m, { slicer: 'bambu', mono: false, name: 'potion' }));
     expect(r.assemblies).toHaveLength(2);
@@ -259,7 +287,7 @@ describe('to3MF: Bambu', () => {
     expect(orca).toEqual(bambu);
   });
 
-  it('mono: a single part in the mono colour', async () => {
+  it('mono: a single part in the mono color', async () => {
     const r = readBambu(await to3MF(main, { slicer: 'bambu', mono: true, monoHex: '#123456', name: 'potion' }));
     expect(r.assemblies[0]!.components).toHaveLength(1);
     expect(r.cfgObjects[0]!.parts.map((p) => p.extruder)).toEqual(['1']);
@@ -297,6 +325,14 @@ describe('to3MF: Prusa', () => {
     expect(next).toBe(tris(main));
   });
 
+  it('a base the same color as an art color shares its extruder (R25)', async () => {
+    const same = await buildModel(potion, settings((s) => { s.base.colour = potion.palette[0]!.hex; }));
+    const cfg = parseXml(unzip(await to3MF(same, { slicer: 'prusa', mono: false, name: 'potion' })).text('Metadata/Slic3r_PE_model.config'));
+    const ex = kids(kids(cfg, 'object')[0]!, 'volume').map((v) => kids(v, 'metadata').find((e) => e.attrs.key === 'extruder')!.attrs.value);
+    expect(ex[0]).toBe(ex[1]);
+    expect(new Set(ex).size).toBe(same.parts.length - 1);
+  });
+
   it('a sealed magnet writes a PausePrint at the same height; none without', async () => {
     const z = unzip(await to3MF(main, { slicer: 'prusa', mono: false, name: 'potion', pauseZ: [1.4, 2.25] }));
     const g = parseXml(z.text('Metadata/Prusa_Slicer_custom_gcode_per_print_z.xml'));
@@ -316,7 +352,7 @@ describe('to3MF: Prusa', () => {
 });
 
 describe('to3MF: generic', () => {
-  it('basematerials with one colour per part, each part object pointing at its own', async () => {
+  it('basematerials with one color per part, each part object pointing at its own', async () => {
     const z = unzip(await to3MF(main, { slicer: 'generic', mono: false, name: 'potion' }));
     const model = parseXml(z.text('3D/3dmodel.model'));
     const res = kid(model, 'resources');
@@ -336,7 +372,7 @@ describe('to3MF: generic', () => {
     expect(z.names.filter((n) => n.startsWith('Metadata/'))).toEqual([]);
   });
 
-  it('mono: one base in the mono colour', async () => {
+  it('mono: one base in the mono color', async () => {
     const z = unzip(await to3MF(main, { slicer: 'generic', mono: true, monoHex: '#abcdef', name: 'potion' }));
     const mats = all(parseXml(z.text('3D/3dmodel.model')), 'base');
     expect(mats.map((b) => b.attrs.displaycolor)).toEqual(['#ABCDEF']);

@@ -36,13 +36,13 @@ async function loadPotion(page: Page) {
 }
 
 /** Batch and API → Save preset: the downloaded preset text. */
-async function savePreset(page: Page): Promise<string> {
+async function savePreset(page: Page, file = 'potion.json'): Promise<string> {
   await page.locator('#openBatch').click();
   await expect(page.locator('#batch')).toBeVisible();
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#savePreset').click()]);
-  expect(dl.suggestedFilename()).toBe('potion.json');
+  expect(dl.suggestedFilename()).toBe(file);
   await expect(page.locator('#batch')).toBeHidden();
-  await expect(page.locator('.toast')).toHaveText('Saved potion.json');
+  await expect(page.locator('.toast')).toHaveText(`Saved ${file}`);
   return strFromU8(await bytesOf(dl));
 }
 
@@ -53,8 +53,8 @@ async function exportFile(page: Page): Promise<Download> {
   return dl;
 }
 
-/** A few settings and a colour height, so the parity check covers base, keychain, rotation and colour rules. */
-async function customise(page: Page) {
+/** A few settings and a color height, so the parity check covers base, keychain, rotation and color rules. */
+async function customize(page: Page) {
   await page.locator('#baseH').fill('3');
   await page.locator('#baseH').press('Enter');
   await seg(page, 'key', 'hole').click();
@@ -67,7 +67,7 @@ async function customise(page: Page) {
 test.describe('export', () => {
   test('Export file gives the bytes convert() gives with the saved preset (3MF, Bambu)', async ({ page }) => {
     await loadPotion(page);
-    await customise(page);
+    await customize(page);
     const preset = parsePreset(JSON.parse(await savePreset(page)));
     expect(preset.colourRules).toHaveLength(1);
     const dl = await exportFile(page);
@@ -108,7 +108,11 @@ test.describe('export', () => {
     expect([...cfg.matchAll(/<object id="\d+">\s*<metadata key="name" value="([^"]+)"/g)].map((m) => m[1])).toEqual(['potion_cap', 'potion_body']);
     await page.locator('#exportBtn').click();
     await seg(page, 'format', 'stl').click();
+    // the summary gives the printed parts' size (cap beside body), not the assembled view's
     await expect(page.locator('#summary')).toContainText('potion_cap.stl and potion_body.stl, ');
+    await expect(page.locator('#summary')).toContainText(' mm cap and body, as printed');
+    const sz = ref.report.size;
+    await expect(page.locator('#summary')).toContainText(`${sz.x.toFixed(1)} × ${sz.y.toFixed(1)} × ${sz.z.toFixed(1)} mm`);
     const zip = unzipSync(await bytesOf(await exportFile(page)));
     expect(Object.keys(zip)).toEqual(['potion_cap.stl', 'potion_body.stl']);
   });
@@ -137,7 +141,7 @@ test.describe('export', () => {
     await expect(page.locator('#exportPop')).toBeHidden();
   });
 
-  test('One colour exports one part, in the print colour, and the preview shows it', async ({ page }) => {
+  test('One color exports one part, in the print color, and the preview shows it', async ({ page }) => {
     await loadPotion(page);
     await page.locator('#exportBtn').click();
     await seg(page, 'colourMode', 'mono').click();
@@ -148,10 +152,68 @@ test.describe('export', () => {
     const cfg = strFromU8(files['Metadata/model_settings.config']!);
     expect(cfg.match(/<part /g)).toHaveLength(1);
     expect(strFromU8(files['Metadata/project_settings.config']!)).toContain('#336699');
-    await expect(page.locator('.toast')).toHaveText('Exported potion.3mf in one colour.');
+    await expect(page.locator('.toast')).toHaveText('Exported potion.3mf in one color.');
     await page.locator('#exportBtn').click();
     await seg(page, 'colourMode', 'full').click();
     await expect.poll(async () => (await view(page)).materials).toBeGreaterThan(1);
+  });
+
+  test('a base the same color as an art color shares its filament (R25): footer, summary, toast and 3MF', async ({ page }) => {
+    await loadPotion(page);
+    await expect(page.locator('#fcount')).toHaveText('8 filaments');
+    const art = (await snap(page)).grid!.palette[2]!.hex;
+    await page.locator('#baseColor').fill(art);
+    await expect(page.locator('#fcount')).toHaveText('7 filaments');
+    await page.locator('#exportBtn').click();
+    await expect(page.locator('#summary')).toContainText('potion.3mf, 7 filaments, ');
+    const files = unzipSync(await bytesOf(await exportFile(page)));
+    await expect(page.locator('.toast')).toHaveText('Exported potion.3mf, filaments 1 to 7 assigned for Bambu Studio.');
+    const cfg = strFromU8(files['Metadata/model_settings.config']!);
+    // each <part> block: its name, then its extruder
+    const parts = cfg.split('<part ').slice(1).map((b) => ({ name: /key="name" value="([^"]+)"/.exec(b)![1], extruder: /key="extruder" value="(\d+)"/.exec(b)![1] }));
+    const ex = (name: string) => parts.find((p) => p.name === name)!.extruder;
+    expect(parts.map((p) => p.name)).toContain('base');
+    expect(ex('base')).toBe(ex(art));
+    expect((JSON.parse(strFromU8(files['Metadata/project_settings.config']!)) as { filament_colour: string[] }).filament_colour).toHaveLength(7);
+    await page.locator('#baseColor').fill('#123456');
+    await expect(page.locator('#fcount')).toHaveText('8 filaments');
+  });
+
+  test('changing the background sizes the model afresh, so export still equals convert()', async ({ page }) => {
+    await page.goto('/?test');
+    await page.locator('#fileIn').setInputFiles({ name: 'eye.png', mimeType: 'image/png', buffer: fixture('eye-on-white.png') });
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+    const before = await snap(page);
+    await page.locator('#removeBg').uncheck();
+    await expect.poll(async () => (await snap(page)).undo).toBe(before.undo + 1);
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+    const after = await snap(page);
+    // the box is now the whole image: a new pixel size from the same Width, in the same undo step
+    expect(after.settings.pixelMm).not.toEqual(before.settings.pixelMm);
+    expect(after.undo).toBe(before.undo + 1);
+    const preset = parsePreset(JSON.parse(await savePreset(page, 'eye.json')));
+    const ref = await convert(new Uint8Array(fixture('eye-on-white.png')), preset, 'eye');
+    expect(same(await bytesOf(await exportFile(page)), ref.files[0]!.bytes)).toBe(true);
+    await page.keyboard.press('Control+z');
+    expect((await snap(page)).settings.pixelMm).toEqual(before.settings.pixelMm);
+  });
+
+  test('a failed export says why and Export works again', async ({ page }) => {
+    await loadPotion(page);
+    await page.evaluate(() => (window as unknown as { __pixel3d: { failNextExport(): void } }).__pixel3d.failNextExport());
+    await page.locator('#exportBtn').click();
+    await page.locator('#export').click();
+    await expect(page.locator('.toast')).toHaveText("Couldn't export: forced failure (test)");
+    await expect(page.locator('#exportBtn')).toBeEnabled();
+    expect((await exportFile(page)).suggestedFilename()).toBe('potion.3mf');
+  });
+
+  test('a new version offers Reload (PWA prompt)', async ({ page }) => {
+    await page.goto('/?test');
+    await expect(page.locator('#updateToast')).toHaveCount(0);
+    await page.evaluate(() => (window as unknown as { __pixel3d: { needRefresh(): void } }).__pixel3d.needRefresh());
+    await expect(page.locator('#updateToast')).toContainText('A new version is ready.');
+    await expect(page.locator('#updateReload')).toHaveText('Reload');
   });
 
   test('Export is disabled until an image is open', async ({ page }) => {
@@ -162,9 +224,9 @@ test.describe('export', () => {
 });
 
 test.describe('presets and batch', () => {
-  test('Save preset, then Load preset restores the settings and colour heights in one undo step', async ({ page }) => {
+  test('Save preset, then Load preset restores the settings and color heights in one undo step', async ({ page }) => {
     await loadPotion(page);
-    await customise(page);
+    await customize(page);
     const text = await savePreset(page);
     const saved = await snap(page);
     // a fresh page: everything back to the defaults
@@ -185,6 +247,17 @@ test.describe('presets and batch', () => {
     expect((await snap(page)).settings).toEqual(fresh.settings);
   });
 
+  test('an image name with spaces gives a preset file and commands that run unquoted', async ({ page }) => {
+    await page.goto('/?test');
+    await page.locator('#fileIn').setInputFiles({ name: 'my potion (2).png', mimeType: 'image/png', buffer: fixture('potion.png') });
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+    await page.locator('#openBatch').click();
+    await expect(page.locator('#cli')).toHaveText(batchSnippets('my_potion_2'));
+    await expect(page.locator('#cli')).toContainText('--preset my_potion_2.json');
+    await page.locator('#closeBatch').click();
+    await savePreset(page, 'my_potion_2.json');
+  });
+
   test('a bad preset file is refused with the reason', async ({ page }) => {
     await loadPotion(page);
     const before = await snap(page);
@@ -198,7 +271,7 @@ test.describe('presets and batch', () => {
     await loadPotion(page);
     await page.locator('#openBatch').click();
     await expect(page.locator('#batch h3')).toHaveText('Batch and API');
-    await expect(page.locator('#batch p')).toHaveText('Save these settings as a preset, then convert a whole folder from the command line, from Python over the local API, or from Claude through the MCP tools. Your colour heights become colour rules.');
+    await expect(page.locator('#batch p')).toHaveText('Save these settings as a preset, then convert a whole folder from the command line, from Python over the local API, or from Claude through the MCP tools. Your color heights become color rules.');
     await expect(page.locator('#cli')).toHaveText(batchSnippets('potion'));
     for (const cmd of ['px3d convert ./sprites --out ./models --preset potion.json', 'px3d serve --port 7300', 'curl ', 'python examples/python/convert.py']) {
       await expect(page.locator('#cli')).toContainText(cmd);

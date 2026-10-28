@@ -21,7 +21,7 @@ interface Snap {
     heights: { mode: string; h: number; min: number; max: number; seed: number } };
   edits: Edit[]; undo: number;
 }
-interface View { shown: 'none' | 'preview' | 'model'; size: { x: number; y: number; z: number } | null }
+interface View { shown: 'none' | 'preview' | 'model'; size: { x: number; y: number; z: number } | null; highlight: { hex: string | null; lit: number; dim: number } }
 type Hook = { snapshot(): Snap; viewport(): View; latency(): number[] };
 const snap = (page: Page) => page.evaluate(() => (window as unknown as { __pixel3d: Hook }).__pixel3d.snapshot());
 const view = (page: Page) => page.evaluate(() => (window as unknown as { __pixel3d: Hook }).__pixel3d.viewport());
@@ -30,7 +30,7 @@ const hexes = async (page: Page) => (await snap(page)).grid!.palette.map((p) => 
 const heights = async (page: Page) => (await snap(page)).grid!.palette.map((p) => p.height);
 const opaque = async (page: Page) => (await snap(page)).grid!.opaque;
 
-/** Potion's colours with their pixel counts: 130 opaque cells, one piece, no corner-only contact. */
+/** Potion's colors with their pixel counts: 130 opaque cells, one piece, no corner-only contact. */
 const POTION = ['#7a4fd6', '#2b2135', '#bfd9e6', '#4e2f9e', '#9c6b3e', '#b394f2', '#f4fbff'];
 const CELLS = 130;
 /** Potion's heights in Random mode with seed 42, range 1–4 (core applyHeightMode). */
@@ -58,7 +58,7 @@ async function clickCell(page: Page, i: number, j: number) {
   await page.mouse.click(p.x, p.y);
 }
 
-test.describe('colours and heights', () => {
+test.describe('colors and heights', () => {
   test('a height slider updates the preview in under 50 ms, then the model', async ({ page }) => {
     await loadPotion(page);
     await expect.poll(async () => (await view(page)).shown).toBe('model');
@@ -76,11 +76,11 @@ test.describe('colours and heights', () => {
     await expect.poll(async () => { const v = await view(page); return v.shown === 'model' ? v.size!.z : 0; }).toBeCloseTo(5, 3);
   });
 
-  test('recolour onto an existing colour merges the two; onto a new one renames it', async ({ page }) => {
+  test('recolor onto an existing color merges the two; onto a new one renames it', async ({ page }) => {
     await loadPotion(page);
     await expect(page.locator('#pcount')).toHaveText('7 of 7');
     await row(page, '#4e2f9e').locator('input[type=color]').fill('#7a4fd6');
-    await expect(page.locator('.toast')).toHaveText('Merged into the matching colour.');
+    await expect(page.locator('.toast')).toHaveText('Merged into the matching color.');
     expect(await hexes(page)).toEqual(POTION.filter((h) => h !== '#4e2f9e'));
     expect(await opaque(page)).toBe(CELLS);
     await expect(page.locator('#pcount')).toHaveText('6 of 7');
@@ -96,10 +96,10 @@ test.describe('colours and heights', () => {
     expect(await hexes(page)).toEqual(POTION);
   });
 
-  test('delete a colour, add one and paint with it, select picks a colour', async ({ page }) => {
+  test('delete a color, add one and paint with it, select picks a color', async ({ page }) => {
     await loadPotion(page);
     await row(page, '#f4fbff').locator('.del').click();
-    await expect(page.locator('.toast')).toHaveText('Colour deleted. Its pixels now use the nearest colour.');
+    await expect(page.locator('.toast')).toHaveText('Color deleted. Its pixels now use the nearest color.');
     expect(await hexes(page)).toEqual(POTION.slice(0, 6));
     expect(await opaque(page)).toBe(CELLS);
     await page.locator('#addColour').click();
@@ -110,7 +110,7 @@ test.describe('colours and heights', () => {
     const g = (await snap(page)).grid!;
     expect(g.palette.findIndex((p) => p.hex === '#e0715c')).toBeGreaterThan(-1);
     expect(await opaque(page)).toBe(CELLS);
-    // Select picks the colour under the pointer
+    // Select picks the color under the pointer
     await tool(page, 'select').click();
     await clickCell(page, 7, 9);
     await expect(row(page, '#7a4fd6')).toHaveClass(/\bsel\b/);
@@ -122,6 +122,8 @@ test.describe('colours and heights', () => {
 
   test('a drag-paint stroke is one undo step', async ({ page }) => {
     await loadPotion(page);
+    // Select's swatch only selects (R26): pick Paint, then the brush
+    await tool(page, 'paint').click();
     await row(page, '#2b2135').locator('.sw').click();
     await expect(tool(page, 'paint')).toHaveClass(/\bon\b/);
     const undo = (await snap(page)).undo;
@@ -141,6 +143,8 @@ test.describe('colours and heights', () => {
     const before = await snap(page);
     expect(before.settings.size.width).toBe(40);
     expect(before.settings.pixelMm!.x).toBeCloseTo(40 / 12, 6);
+    // Select's swatch only selects (R26): pick Paint, then the brush
+    await tool(page, 'paint').click();
     await row(page, '#2b2135').locator('.sw').click();
     await clickCell(page, 1, 8);
     await clickCell(page, 14, 8);
@@ -151,14 +155,14 @@ test.describe('colours and heights', () => {
     await expect.poll(async () => (await view(page)).size?.x).toBeCloseTo(46.667, 2);
   });
 
-  test('Restore colours brings back deleted and recoloured colours and keeps the heights', async ({ page }) => {
+  test('Restore colors brings back deleted and recolored colors and keeps the heights', async ({ page }) => {
     await loadPotion(page);
     await row(page, '#2b2135').locator('input[type=range]').fill('4');
     await row(page, '#9c6b3e').locator('.del').click();
     await row(page, '#bfd9e6').locator('input[type=color]').fill('#123456');
     expect(await hexes(page)).toHaveLength(6);
     await page.locator('#restoreCols').click();
-    await expect(page.locator('.toast')).toHaveText('Original colours restored. Your heights were kept.');
+    await expect(page.locator('.toast')).toHaveText('Original colors restored. Your heights were kept.');
     expect(await hexes(page)).toEqual(POTION);
     const g = (await snap(page)).grid!;
     expect(g.palette.find((p) => p.hex === '#2b2135')!.height).toBe(4);
@@ -171,6 +175,8 @@ test.describe('colours and heights', () => {
     await loadPotion(page);
     await page.locator('.seg[data-key=heightMode] button[data-v=random]').click();
     await row(page, '#2b2135').locator('input[type=range]').fill('6');
+    // Select's swatch only selects (R26): pick Paint, then the brush
+    await tool(page, 'paint').click();
     await row(page, '#2b2135').locator('.sw').click();
     await clickCell(page, 1, 8);
     await row(page, '#f4fbff').locator('.del').click();
@@ -193,6 +199,8 @@ test.describe('colours and heights', () => {
   test('a floating pixel: two pieces, a red outline and Remove strays, which can be undone', async ({ page }) => {
     await loadPotion(page);
     await expect(page.locator('#health')).toHaveText('● Watertight');
+    // Select's swatch only selects (R26): pick Paint, then the brush
+    await tool(page, 'paint').click();
     await row(page, '#2b2135').locator('.sw').click();
     await clickCell(page, 0, 0);
     await expect(page.locator('#health')).toHaveText('▲ 2 separate pieces');
@@ -221,6 +229,8 @@ test.describe('colours and heights', () => {
 
   test('a pixel touching only at a corner is a stray and the note says why', async ({ page }) => {
     await loadPotion(page);
+    // Select's swatch only selects (R26): pick Paint, then the brush
+    await tool(page, 'paint').click();
     await row(page, '#2b2135').locator('.sw').click();
     await clickCell(page, 1, 7);
     await expect(page.locator('#health')).toHaveText('▲ 2 separate pieces');
@@ -246,7 +256,7 @@ test.describe('colours and heights', () => {
     await expect.poll(() => heights(page)).toEqual(POTION.map(() => 2.5));
   });
 
-  test('the colour count merges the closest pair; deleted colours can be restored', async ({ page }) => {
+  test('the color count merges the closest pair; deleted colors can be restored', async ({ page }) => {
     await loadPotion(page);
     await expect(page.locator('#colMax')).toHaveValue('16');
     await page.locator('#colMax').fill('6');
@@ -262,7 +272,7 @@ test.describe('colours and heights', () => {
     await expect(page.locator('#colMax')).toHaveValue('16');
   });
 
-  test('a height for a colour that no longer exists is dropped with a notice', async ({ page }) => {
+  test('a height for a color that no longer exists is dropped with a notice', async ({ page }) => {
     await loadPotion(page);
     await row(page, '#f4fbff').locator('input[type=range]').fill('5');
     await page.locator('#colMax').fill('6');
@@ -276,6 +286,8 @@ test.describe('colours and heights', () => {
 
   test('cropping drops painted pixels outside the crop, with a notice', async ({ page }) => {
     await loadPotion(page);
+    // Select's swatch only selects (R26): pick Paint, then the brush
+    await tool(page, 'paint').click();
     await row(page, '#2b2135').locator('.sw').click();
     await clickCell(page, 0, 0);
     await clickCell(page, 1, 8);
@@ -297,6 +309,7 @@ test.describe('colours and heights', () => {
     await loadPotion(page);
     await page.locator('#pixelate').check();
     await expect(page.locator('#fileInfo')).toHaveText('potion.png 32 × 32 px, pixelated');
+    await tool(page, 'paint').click();
     await page.locator('#pal li .sw').first().click();
     await clickCell(page, 30, 30);
     expect((await snap(page)).edits).toHaveLength(1);
@@ -313,7 +326,7 @@ test.describe('colours and heights', () => {
     await expect(page.locator('#fileInfo')).toHaveText('potion.png 32 × 32 px, pixelated');
     expect((await snap(page)).settings.size.width).toBe(40);
     await expect(page.locator('.dims')).toContainText('40.0 ×');
-    // the colour count hides while Pixelate shows its own Colours slider
+    // the color count hides while Pixelate shows its own Colors slider
     await expect(page.locator('#colMax')).toBeHidden();
     await page.locator('#pixelate').uncheck();
     await expect(page.locator('#fileInfo')).toHaveText('potion.png 16 × 16 px, detected from a 4× upscale');
@@ -325,6 +338,7 @@ test.describe('colours and heights', () => {
     await loadPotion(page);
     await page.locator('#pixelate').check();
     await expect(page.locator('#fileInfo')).toHaveText('potion.png 32 × 32 px, pixelated');
+    await tool(page, 'paint').click();
     await page.locator('#pal li .sw').first().click();
     const hex = (await snap(page)).grid!.palette[0]!.hex;
     await clickCell(page, 3, 5);
@@ -338,4 +352,83 @@ test.describe('colours and heights', () => {
     await expect(page.locator('#fileInfo')).toHaveText('potion.png 64 × 64 px, pixelated');
     expect((await snap(page)).edits).toEqual([{ kind: 'paint', x: 6, y: 10, hex }]);
   });
+
+  test('Select: a swatch selects its color and stays in Select; the model shows it, the rest dimmed (R26)', async ({ page }) => {
+    await loadPotion(page);
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+    await expect(tool(page, 'select')).toHaveClass(/\bon\b/);
+    const hl = async () => (await view(page)).highlight;
+    expect(await hl()).toEqual({ hex: null, lit: 0, dim: 0 });
+    await row(page, '#7a4fd6').locator('.sw').click();
+    await expect(tool(page, 'select')).toHaveClass(/\bon\b/);
+    await expect(row(page, '#7a4fd6')).toHaveClass(/\bsel\b/);
+    // the model: the color's part lit, every other part (6 colors and the base) dimmed
+    await expect.poll(hl).toEqual({ hex: '#7a4fd6', lit: 1, dim: 7 });
+    // clicking it again clears the selection and the highlight
+    await row(page, '#7a4fd6').locator('.sw').click();
+    await expect(row(page, '#7a4fd6')).not.toHaveClass(/\bsel\b/);
+    await expect.poll(hl).toEqual({ hex: null, lit: 0, dim: 0 });
+    // Esc clears it too; the highlight follows rebuilds (the fast preview, then the model)
+    await row(page, '#2b2135').locator('.sw').click();
+    await expect.poll(hl).toEqual({ hex: '#2b2135', lit: 1, dim: 7 });
+    await row(page, '#2b2135').locator('input[type=range]').fill('3');
+    await expect.poll(hl).toEqual({ hex: '#2b2135', lit: 1, dim: 7 });
+    await page.keyboard.press('Escape');
+    await expect.poll(hl).toEqual({ hex: null, lit: 0, dim: 0 });
+    await expect(row(page, '#2b2135')).not.toHaveClass(/\bsel\b/);
+    // Paint mode is unchanged: a swatch picks the brush, and nothing is highlighted
+    await tool(page, 'paint').click();
+    await row(page, '#bfd9e6').locator('.sw').click();
+    await expect(tool(page, 'paint')).toHaveClass(/\bon\b/);
+    await expect(row(page, '#bfd9e6')).toHaveClass(/\bsel\b/);
+    expect((await hl()).hex).toBeNull();
+  });
+
+  test('a base the same color as an art color is not highlighted with it (R26)', async ({ page }) => {
+    await loadPotion(page);
+    await page.locator('#baseColor').fill('#7a4fd6');
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+    await row(page, '#7a4fd6').locator('.sw').click();
+    await expect.poll(async () => (await view(page)).highlight).toEqual({ hex: '#7a4fd6', lit: 1, dim: 7 });
+    // the fast preview keys the base apart too
+    await row(page, '#4e2f9e').locator('input[type=range]').fill('2');
+    await expect.poll(async () => (await view(page)).highlight).toEqual({ hex: '#7a4fd6', lit: 1, dim: 7 });
+  });
+
+  for (const [label, id, open] of [['Colors', 'colMax', null], ['pixelate Colors', 'pixColours', 'pixelate']] as const) {
+    test(`dragging the ${label} slider keeps it under the pointer while the palette list shrinks and grows`, async ({ page }) => {
+      await page.setViewportSize({ width: 1400, height: 600 });
+      await loadPotion(page);
+      if (open) {
+        await page.locator('#pixelate').check();
+        await page.locator(`#${id}`).fill('16');
+        await page.locator(`#${id}`).press('Enter');
+      }
+      const slider = page.locator(`#${id}R`);
+      await expect(slider).toHaveValue('16');
+      // scroll the left panel as far as it goes, then put the slider mid-screen if there is room
+      await page.locator('aside.left').evaluate((a, sel) => {
+        a.scrollTop = a.scrollHeight;
+        const r = document.querySelector(sel)!.getBoundingClientRect();
+        a.scrollTop += r.top - innerHeight / 2;
+      }, `#${id}R`);
+      const top = () => slider.evaluate((e) => e.getBoundingClientRect().top);
+      const at = async (v: number) => {
+        const b = (await slider.boundingBox())!;
+        return { x: b.x + 8 + ((v - 2) / 14) * (b.width - 16), y: b.y + b.height / 2 };
+      };
+      const t0 = await top();
+      const n0 = (await hexes(page)).length;
+      const p16 = await at(16), p4 = await at(4);
+      await page.mouse.move(p16.x, p16.y);
+      await page.mouse.down();
+      await page.mouse.move(p4.x, p4.y, { steps: 6 });
+      await expect.poll(async () => (await hexes(page)).length).toBeLessThan(n0);
+      expect(Math.abs((await top()) - t0)).toBeLessThanOrEqual(1);
+      await page.mouse.move(p16.x, p16.y, { steps: 6 });
+      await expect.poll(async () => (await hexes(page)).length).toBe(n0);
+      expect(Math.abs((await top()) - t0)).toBeLessThanOrEqual(1);
+      await page.mouse.up();
+    });
+  }
 });

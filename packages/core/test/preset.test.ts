@@ -73,8 +73,8 @@ describe('parsePreset', () => {
   });
 });
 
-describe('resolvePreset colour rules', () => {
-  it('sets a matched colour height and lists it as applied', async () => {
+describe('resolvePreset color rules', () => {
+  it('sets a matched color height and lists it as applied', async () => {
     const g = await potion();
     expect(g.palette.some((c) => c.hex === '#2b2135')).toBe(true);
     const p = parsePreset({ version: 1, settings: {}, colourRules: [{ match: '#2b2135', tolPct: 0, height: 5 }] });
@@ -85,14 +85,14 @@ describe('resolvePreset colour rules', () => {
     expect(out.palette.find((c) => c.hex === '#2b2135')!.height).toBe(5);
   });
 
-  it('applies nothing and does not error when no colour matches', async () => {
+  it('applies nothing and does not error when no color matches', async () => {
     const p = parsePreset({ version: 1, settings: {}, colourRules: [{ match: '#00ff00', tolPct: 1, height: 5, delete: true }] });
     const r = resolvePreset(p, await potion());
     expect(r.edits).toEqual([]);
     expect(r.applied).toEqual([]);
   });
 
-  it('matches within the tolerance and emits recolour and delete edits', async () => {
+  it('matches within the tolerance and emits recolor and delete edits', async () => {
     const g = await potion();
     const near = '#2b2136';
     const p = parsePreset({ version: 1, settings: {}, colourRules: [
@@ -104,12 +104,12 @@ describe('resolvePreset colour rules', () => {
       { kind: 'recolour', from: '#2b2135', to: '#ff0000' },
       { kind: 'delete', hex: '#9c6b3e' },
     ]);
-    expect(r.applied).toEqual(['#2b2135 → recolour #ff0000', '#9c6b3e → delete']);
+    expect(r.applied).toEqual(['#2b2135 → recolor #ff0000', '#9c6b3e → delete']);
   });
 });
 
 describe('presetFromState', () => {
-  it('turns height, recolour and delete edits into rules and drops paint', async () => {
+  it('turns height, recolor and delete edits into rules and drops paint', async () => {
     const g = await potion();
     const edits: Edit[] = [
       { kind: 'height', hex: '#2b2135', h: 4 },
@@ -140,7 +140,7 @@ describe('placeRelative', () => {
     expect(v).toBeCloseTo(g.h - top - 0.5);
   });
 
-  it('measures v up from the bottom and snaps to an opaque cell centre', () => {
+  it('measures v up from the bottom and snaps to an opaque cell center', () => {
     const cells = new Int16Array(16).fill(-1);
     cells[0 * 4 + 1] = 0; // x=1, top row
     cells[3 * 4 + 2] = 0; // x=2, bottom row

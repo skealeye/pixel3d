@@ -72,7 +72,7 @@ export const settingsSchema = z.object({
   export: z.object({
     format: z.enum(['stl', '3mf']),
     slicer: z.enum(['bambu', 'orca', 'prusa', 'generic']),
-    /** Export as one colour (all height steps kept). */
+    /** Export as one color (all height steps kept). */
     mono: z.boolean(),
     monoColour: hexSchema,
   }).strict(),

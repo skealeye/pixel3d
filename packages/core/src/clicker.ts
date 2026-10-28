@@ -85,7 +85,7 @@ export function clickerLevels(s: Settings, capT: number = capThickness(s)) {
   return { shaftBottom, seat, columnTop, stemTop, capUnder, wellFloor, rimTop };
 }
 
-/** Switch centres in the art's mm frame: one in the middle, or 2-3 at keyboard pitch along the long side. */
+/** Switch centers in the art's mm frame: one in the middle, or 2-3 at keyboard pitch along the long side. */
 function switchSpots(w: number, h: number, n: number): [number, number][] {
   const long = w >= h;
   return Array.from({ length: n }, (_, i) => {
@@ -134,7 +134,7 @@ function toModel(objects: Objects, pieces: number, warnings: string[], clicker?:
   };
 }
 
-/** A rounded rectangle centred on the origin. */
+/** A rounded rectangle centered on the origin. */
 function rounded(wasm: ManifoldToplevel, w: number, h: number, r: number, keep: Keep): CrossSection {
   const { CrossSection } = wasm;
   return keep(keep(CrossSection.square([w - 2 * r, h - 2 * r], true)).offset(r, 'Round', 2, SEGMENTS));
@@ -216,7 +216,7 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
     const coverAt = (x: number, y: number) => keep(keep(CrossSection.square([MIN_ART, MIN_ART], true)).translate([x, y]));
     const uncovered = spots.filter(([x, y]) => keep(coverAt(x, y).subtract(filled)).area() > 1e-3).length;
 
-    // ---- cap, printed underside down: a solid backing (base colour) minus the pockets, the art on top
+    // ---- cap, printed underside down: a solid backing (base color) minus the pockets, the art on top
     const capT = capThickness(s);
     const backing = keep(filled.extrude(capT));
     const capCuts = keep(Manifold.union(spots.map(([x, y]) => capCutter(wasm, x, y, keep))));
