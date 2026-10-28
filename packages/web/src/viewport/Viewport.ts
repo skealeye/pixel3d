@@ -1,13 +1,16 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import type { Model } from '@pixel3d/core';
+import { MX, type Model } from '@pixel3d/core';
 import { previewMeshes, type Preview } from './previewMesh';
 import { handleMeshes, type Handle } from './handles';
+import { press } from './press';
 
 /** `step`: one grid square, mm (10 mm, or half an inch). */
 export interface GridOptions { on: boolean; colour: string; opacity: number; step?: number }
 type Size = { x: number; y: number; z: number };
 type Vec3 = [number, number, number];
+export type ClickerView = 'assembled' | 'apart';
+type Box = { min: Vec3; max: Vec3 };
 
 /** Cut faces of solid material show gold: with the near half clipped away, any back face we can see is the inside. */
 const capHook = (sh: { fragmentShader: string }) => {
@@ -57,6 +60,13 @@ export class Viewport {
   private dirty = true;
   /** Height of one pixel row in mm, so the cut runs through the middle of a row and never along pixel faces (which flickers). */
   private row = 1;
+  /** The clicker shown (core `Model.clicker`, its printed box and switch count), or null for a flat model. */
+  private clk: { info: NonNullable<Model['clicker']>; printed: THREE.Box3; switches: number } | null = null;
+  private clkView: ClickerView = 'assembled';
+  /** The see-through stand-in switches of the Assembled view (not part of the model). */
+  private ghostGroup = new THREE.Group();
+  private ghostMat = new THREE.MeshStandardMaterial({ color: '#9fb6cc', transparent: true, opacity: 0.3, depthWrite: false, roughness: 0.4 });
+  private lastFrame = 0;
 
   constructor(private canvas: HTMLCanvasElement, private container: HTMLElement) {
     const r = (this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true }));
@@ -76,7 +86,7 @@ export class Viewport {
     this.scene.add(sun, fill);
     const plate = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: '#3b3324', roughness: 0.95 }));
     plate.position.z = -0.05;
-    this.pivot.add(this.handleGroup);
+    this.pivot.add(this.handleGroup, this.ghostGroup);
     this.holder.add(this.pivot);
     this.scene.add(plate, this.holder);
     this.makeGrid();
@@ -85,13 +95,19 @@ export class Viewport {
     this.fitView();
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(container);
-    r.setAnimationLoop(() => {
+    r.setAnimationLoop((t: number) => {
+      const dt = Math.min(0.05, (t - (this.lastFrame || t)) / 1000);
+      this.lastFrame = t;
+      if (this.clk && this.clkView === 'assembled' && press.step(dt)) this.movePress();
       if (this.controls.update() || this.dirty) this.render();
     });
   }
 
-  /** The core model: one mesh per part, one flat-shaded material per colour. */
-  setModel(model: Model, opts: { row?: number } = {}) {
+  /**
+   * The core model: one mesh per part, one flat-shaded material per colour. A clicker (`model.clicker`) is shown
+   * Assembled or Apart (`setClickerView`); `switches` places its stand-in switches.
+   */
+  setModel(model: Model, opts: { row?: number; switches?: number } = {}) {
     const meshes = model.parts.map((p) => {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(p.mesh.vertProperties, 3));
@@ -102,20 +118,49 @@ export class Viewport {
       return m;
     });
     this.uncut = model.parts.length ? new THREE.Box3(new THREE.Vector3(...model.bounds.min), new THREE.Vector3(...model.bounds.max)) : null;
+    const was = !!this.clk;
+    this.clk = model.clicker && this.uncut ? { info: model.clicker, printed: this.uncut.clone(), switches: opts.switches ?? 1 } : null;
     this.show(meshes, opts.row);
     this.shown = model.parts.length ? 'model' : 'none';
+    // a clicker and a flat model are framed very differently
+    if (was !== !!this.clk) this.fitView();
+  }
+
+  /** Assembled (the cap seated on the switch at rest, over a stand-in switch) or Apart (as printed, cap beside the body). */
+  setClickerView(view: ClickerView) {
+    if (view === this.clkView) return;
+    this.clkView = view;
+    if (!this.clk) return;
+    this.layoutClicker();
+    this.place();
+    this.fitView();
+  }
+
+  /** The clicker as shown, in world space (for the e2e checks). */
+  clicker(): { view: ClickerView; at: number; rest: number; cap: Box; body: Box; ghosts: number } | null {
+    const c = this.clk;
+    if (!c) return null;
+    this.holder.updateMatrixWorld(true);
+    const box = (object: string): Box => {
+      const b = new THREE.Box3();
+      for (const m of this.meshes) if (m.userData.object === object) b.expandByObject(m);
+      return { min: b.min.toArray(), max: b.max.toArray() };
+    };
+    return { view: this.clkView, at: press.at, rest: c.info.restZ + this.holder.position.z, cap: box('cap'), body: box('body'), ghosts: this.ghostGroup.children.length };
   }
 
   /** The fast preview (previewMesh.ts), shown until the core model replaces it. */
   setPreview(p: Preview | null) {
     if (!p) return this.clear();
     this.uncut = null;
+    this.clk = null;
     this.show(previewMeshes(p, (hex) => this.material(hex)), p.px.y);
     this.shown = 'preview';
   }
 
   clear() {
     this.uncut = null;
+    this.clk = null;
     this.show([]);
     this.shown = 'none';
   }
@@ -123,6 +168,8 @@ export class Viewport {
   setCut(on: boolean) {
     this.cut = on;
     this.mats.forEach((m) => this.styleCut(m));
+    this.ghostMat.clippingPlanes = on ? [this.cutPlane] : null;
+    this.ghostMat.needsUpdate = true;
     this.dirty = true;
   }
 
@@ -241,6 +288,7 @@ export class Viewport {
     this.clearHolder();
     this.setHandles([]);
     this.mats.forEach((m) => m.dispose());
+    this.ghostMat.dispose();
     this.controls.dispose();
     this.renderer.dispose();
   }
@@ -379,6 +427,65 @@ export class Viewport {
       this.pivot.add(...objects);
       this.meshes = objects;
     }
+    this.layoutClicker();
     this.place();
+  }
+
+  /**
+   * Lay a clicker out for the view: Apart is core's printed layout; Assembled moves the cap by `capShift` onto the
+   * body with its underside at `restZ` (less the press depth), and adds a stand-in switch per switch. The model's box
+   * is the one at rest, so pressing never moves the model.
+   */
+  private layoutClicker() {
+    for (const g of [...this.ghostGroup.children]) {
+      this.ghostGroup.remove(g);
+      (g as THREE.Mesh).geometry.dispose();
+    }
+    const c = this.clk;
+    if (!c) { press.reset(); return; }
+    const caps = this.meshes.filter((m) => m.userData.object === 'cap');
+    if (this.clkView === 'apart') {
+      press.reset();
+      for (const m of caps) m.position.set(0, 0, 0);
+      this.uncut = c.printed.clone();
+      return;
+    }
+    const [sx, sy] = c.info.capShift;
+    const rest = new THREE.Box3(), cap = new THREE.Box3();
+    for (const m of this.meshes) {
+      const g = (m as THREE.Mesh).geometry;
+      g.computeBoundingBox();
+      const b = g.boundingBox!.clone();
+      if (m.userData.object === 'cap') { b.translate(new THREE.Vector3(sx, sy, c.info.restZ)); cap.union(b); }
+      rest.union(b);
+    }
+    for (const m of caps) m.position.set(sx, sy, c.info.restZ - press.at);
+    this.uncut = rest;
+    // switches at keyboard pitch along the art's long side, centred (core clicker.ts switchSpots); the cap's box is the art's
+    const w = cap.max.x - cap.min.x, h = cap.max.y - cap.min.y, long = w >= h;
+    const cx = (cap.min.x + cap.max.x) / 2, cy = (cap.min.y + cap.max.y) / 2;
+    const seat = MX.floor + MX.depth, stemTop = seat + MX.above, top = seat + 6.6;
+    const box = (dx: number, dy: number, z0: number, z1: number, x: number, y: number) =>
+      new THREE.BoxGeometry(dx, dy, z1 - z0).translate(x, y, (z0 + z1) / 2);
+    for (let i = 0; i < c.switches; i++) {
+      const o = (i - (c.switches - 1) / 2) * MX.pitch;
+      const [x, y] = long ? [cx + o, cy] : [cx, cy + o];
+      // the lower housing in the shaft, the top housing above the seat, and the stem that rides down with the cap
+      const lower = new THREE.Mesh(box(14, 14, seat - 5, seat, x, y), this.ghostMat);
+      const upper = new THREE.Mesh(box(15.6, 15.6, seat, top, x, y), this.ghostMat);
+      const stem = new THREE.Mesh(box(4, 4, top, stemTop, x, y), this.ghostMat);
+      stem.userData.stem = true;
+      stem.position.z = -press.at;
+      this.ghostGroup.add(lower, upper, stem);
+    }
+  }
+
+  /** Follow the press preview: the cap and the stand-in stems move down by `press.at`. */
+  private movePress() {
+    const c = this.clk;
+    if (!c) return;
+    for (const m of this.meshes) if (m.userData.object === 'cap') m.position.z = c.info.restZ - press.at;
+    for (const g of this.ghostGroup.children) if (g.userData.stem) g.position.z = -press.at;
+    this.dirty = true;
   }
 }

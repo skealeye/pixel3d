@@ -26,7 +26,7 @@
   export const ALLOWED = { single: ['solid', 'shell', 'hollow'], solid: ['solid', 'shell'], halves: ['solid'] } as const;
 </script>
 
-<section>
+<section class:off={app.settings.make === 'clicker'} inert={app.settings.make === 'clicker'}>
   <h2>Inside</h2>
   <div class="seg" data-key="bottom">
     {#each modes as [v, label] (v)}

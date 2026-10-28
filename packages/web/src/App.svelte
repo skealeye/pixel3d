@@ -7,6 +7,7 @@
   import Header from './Header.svelte';
   import ImagePanel from './panels/ImagePanel.svelte';
   import PalettePanel from './panels/PalettePanel.svelte';
+  import ClickerPanel from './panels/ClickerPanel.svelte';
   import SizePanel from './panels/SizePanel.svelte';
   import BasePanel from './panels/BasePanel.svelte';
   import InsidePanel from './panels/InsidePanel.svelte';
@@ -69,7 +70,7 @@
 <ViewportPane />
 
 <aside class="right">
-  <!-- Make (Flat model / Clicker) goes first, with the clicker in Task 17 -->
+  <ClickerPanel />
   <SizePanel />
   <BasePanel />
   <InsidePanel />

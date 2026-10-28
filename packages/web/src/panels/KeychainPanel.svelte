@@ -22,7 +22,7 @@
     : app.settings.base.enabled ? 'The loop uses the base colour.' : 'Move the slider to slide the loop around the edge.');
 </script>
 
-<section>
+<section class:off={app.settings.make === 'clicker'} inert={app.settings.make === 'clicker'}>
   <h2>Keychain</h2>
   <div class="seg" data-key="key">
     {#each types as [v, label] (v)}

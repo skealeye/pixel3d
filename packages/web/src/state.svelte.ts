@@ -35,6 +35,8 @@ export const ui = $state({
   /** Magnet placement mode: the next click on the model drops a magnet. Esc cancels. */
   placing: false,
   cut: false,
+  /** How a clicker is shown: Assembled (default, with the press preview) or Apart (as printed). A view, not a setting. */
+  clkView: 'assembled' as 'assembled' | 'apart',
   /** Cut view switches on by itself only the first time Shell or Hollow is picked (spec §4.5). */
   cutAuto: false,
   grid: { on: true, colour: '#8a7446', opacity: 0.7 },

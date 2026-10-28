@@ -7,7 +7,7 @@
   import { Viewport } from './Viewport';
   import { ModelBuilder } from './modelBuilder';
   import { previewOf } from './previewMesh';
-  import { handlesOf, modelToAnchor } from './handles';
+  import { artFrame, handlesOf, modelToAnchor } from './handles';
   import { register } from '../hook';
 
   let main: HTMLElement;
@@ -41,6 +41,10 @@
   let lastSource: unknown;
   /** The grid of the newest build request: only the newest result is delivered, so it is the grid of any model that arrives. */
   let scheduled: Grid | null = null;
+  /** The switch count of the newest build request, for the stand-in switches of a clicker. */
+  let scheduledSwitches = 1;
+  /** Frame the view when the next model arrives (a new image shown as a clicker, which has no fast preview). */
+  let fitOnModel = false;
   /** What the last preview and the last build were made from, so a change neither uses skips it. */
   let last: { grid: Grid | null; preview: string; build: string } = { grid: null, preview: '', build: '' };
 
@@ -62,7 +66,8 @@
     const v = new Viewport(canvas, main);
     builder = new ModelBuilder(
       (model) => {
-        v.setModel(model, { row: rowMm }); size = v.size; buildError = null;
+        v.setModel(model, { row: rowMm, switches: scheduledSwitches }); size = v.size; buildError = null;
+        if (fitOnModel) { fitOnModel = false; v.fitView(); }
         warnings = model.warnings.filter((w) => !/ magnet needs about /.test(w));
         if (scheduled) app.built = { grid: scheduled, pieces: model.pieces };
       },
@@ -73,7 +78,7 @@
     const unregister = register({
       viewport: () => ({
         shown: v.shown, cut: ui.cut, grid: { ...ui.grid }, renders: v.renders, size: v.size, buildError, ...v.stats(),
-        bounds: v.bounds(), handles: v.handleScreen(), gridStep: v.gridStep,
+        bounds: v.bounds(), handles: v.handleScreen(), gridStep: v.gridStep, clicker: v.clicker(),
       }),
       failNextBuild: () => b.failNextBuild(),
     });
@@ -89,18 +94,32 @@
     const same = sameGrid(last.grid, grid), fresh = app.source !== lastSource;
     const build = forBuild(settings), pk = previewKey(settings), bk = JSON.stringify(build);
     last.grid = grid;
+    const clicker = settings.make === 'clicker';
     if (!same || fresh || pk !== last.preview || v.shown !== 'model') {
-      const p = previewOf(grid, settings);
-      rowMm = p?.px.y ?? 1;
-      v.setPreview(p);
-      previewShown();
-      size = v.size;
       last.preview = pk;
-      if (!p) { builder.cancel(); last.build = ''; return; }
+      if (clicker) {
+        // the fast preview can't show a clicker (cap, body, switch seats): what is shown stays until the model arrives
+        const f = artFrame(grid, settings);
+        if (!f) { v.clear(); size = null; builder.cancel(); last.build = ''; return; }
+        rowMm = f.px.y;
+      } else {
+        const p = previewOf(grid, settings);
+        rowMm = p?.px.y ?? 1;
+        v.setPreview(p);
+        previewShown();
+        size = v.size;
+        if (!p) { builder.cancel(); last.build = ''; return; }
+      }
     }
-    if (fresh) { lastSource = app.source; v.fitView(); }
+    if (fresh) {
+      lastSource = app.source;
+      // a clicker is framed when its model arrives
+      if (clicker) fitOnModel = true;
+      else v.fitView();
+    }
     if (!same || bk !== last.build || v.shown !== 'model') {
       scheduled = grid;
+      scheduledSwitches = settings.clicker.switches;
       last.build = bk;
       builder.schedule(grid, build);
     } else {
@@ -113,14 +132,21 @@
   $effect(() => { vp?.setCut(ui.cut); });
   $effect(() => { vp?.setGrid({ on: ui.grid.on, colour: ui.grid.colour, opacity: ui.grid.opacity, step: gridStep(unit) }); });
   $effect(() => {
-    const r = app.settings.rotation;
+    const r = app.settings.rotation, clicker = app.settings.make === 'clicker';
     if (!vp) return;
-    vp.setRotation([r[0], r[1], r[2]]);
+    // core ignores the rotation for a clicker: both parts print flat side down
+    vp.setRotation(clicker ? [0, 0, 0] : [r[0], r[1], r[2]]);
     size = vp.size;
   });
   $effect(() => {
     const g = app.grid, s = $state.snapshot(app.settings) as Settings;
-    vp?.setHandles(g ? handlesOf(g, s) : []);
+    vp?.setHandles(g && s.make !== 'clicker' ? handlesOf(g, s) : []);
+  });
+  $effect(() => {
+    const view = ui.clkView;
+    if (!vp) return;
+    vp.setClickerView(view);
+    size = vp.size;
   });
   $effect(() => { vp?.setCursor(ui.placing ? 'crosshair' : ''); });
 
@@ -216,7 +242,7 @@
   </div>
   <div class="mode" id="mode" style:display={ui.placing ? 'block' : 'none'}>Click the model to place a magnet. Press Esc to cancel.</div>
   {#if size}
-    <div class="dims" id="dims"><b>{fmt(toUnit(size.x, unit), unit)} × {fmt(toUnit(size.y, unit), unit)} × {fmt(toUnit(size.z, unit), unit)} {unit}</b>&nbsp; {#if buildError}<span class="warn">preview only, the model could not be built</span>{:else if count > 1}<span class="warn">{count} separate pieces</span>{:else}one piece{/if}</div>
+    <div class="dims" id="dims"><b>{fmt(toUnit(size.x, unit), unit)} × {fmt(toUnit(size.y, unit), unit)} × {fmt(toUnit(size.z, unit), unit)} {unit}</b>&nbsp; {#if buildError}<span class="warn">preview only, the model could not be built</span>{:else if count > 1}<span class="warn">{count} separate pieces</span>{:else if app.settings.make === 'clicker'}{ui.clkView === 'assembled' ? 'assembled, switch at rest' : 'cap and body'}{:else}one piece{/if}</div>
   {/if}
   <!-- not in the mockup: the grid's scale, so mm and inches can be told apart -->
   {#if ui.grid.on}<div class="gridscale" id="gridScale">{gridLabel(unit)}</div>{/if}

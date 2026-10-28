@@ -53,8 +53,7 @@ async function viewCentre(page: Page) {
 test.describe('model settings', () => {
   test('the settings column has the mockup sections in order', async ({ page }) => {
     await page.goto('/?test');
-    // Make (Flat model / Clicker) joins at the top with the clicker, Task 17
-    await expect(page.locator('aside.right section > h2')).toHaveText([/^Size/, /^Base/, /^Inside/, /^Sides/, /^Keychain/, /^Magnets/, /^Orientation/]);
+    await expect(page.locator('aside.right section > h2')).toHaveText([/^Make/, /^Size/, /^Base/, /^Inside/, /^Sides/, /^Keychain/, /^Magnets/, /^Orientation/]);
   });
 
   test('every size control is a slider plus a number box', async ({ page }) => {
