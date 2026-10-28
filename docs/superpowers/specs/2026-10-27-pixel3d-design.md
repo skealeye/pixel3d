@@ -52,7 +52,13 @@ Success means the user can drop in a sprite, adjust heights and colours, and get
 - Drag-and-drop anywhere on the window (a full-window "Drop an image to load it" overlay appears while dragging), the Open image button, paste from the clipboard, or a URL. Accepts PNG, JPG, WebP and GIF (first frame). Loading a new image can be undone.
 - Upscaled pixel art is detected automatically and shrunk back to native resolution. This includes different X and Y scales and a grid offset.
 - Pixels with alpha < 128 become transparent.
-- **Size cap raised from 256 to 512 px** on the longest side. Larger images are refused with a clear message.
+- **Size cap raised from 256 to 512 px** on the longest side for pixel art. Larger images are pixelated (below) instead of refused.
+- **Pixelate (new):** turns a photo, drawing or smooth artwork into pixel art.
+  - Turned on automatically when the image doesn't look like pixel art: more than 64 distinct colours, or larger than the cap after upscale detection. It can also be toggled by hand for any loaded image.
+  - **Pixels across** (8–128, default 32): the image is shrunk to this width by area averaging, with height following the aspect ratio.
+  - **Colours** (2–16, default 8): the shrunk pixels are reduced with seeded k-means, so the same image and settings always give the same palette.
+  - A solid background colour (all four corners within a tolerance of 40) is cleared at full resolution before shrinking, so edge pixels don't pick up a blended fringe.
+  - Both sliders update the model live. Pixelate settings are part of presets, so batch runs can convert photos too.
 - Crop tool, a source preview with zoom and pan, and a pixel-grid overlay.
 - **The image panel can be enlarged:** an Expand/Shrink button (about 45% of the window) and a draggable divider between the panel and the 3D view.
 

@@ -252,6 +252,11 @@
       <button class="btn">Crop</button>
     </div>
     <label class="check"><input type="checkbox" id="removeBg"> Remove background</label>
+    <label class="check"><input type="checkbox" id="pixelate"> Pixelate: turn a photo or drawing into pixel art</label>
+    <div id="pixRows">
+      <div class="sl"><label>Pixels across</label><input type="range" id="pixWR" min="8" max="128" step="1"><input class="num" id="pixW"><span class="unit">px</span></div>
+      <div class="sl"><label>Colours</label><input type="range" id="pixColoursR" min="2" max="16" step="1"><input class="num" id="pixColours"><span class="unit"></span></div>
+    </div>
   </section>
 
   <section>
@@ -416,7 +421,7 @@
   <span id="fcount"></span>
   <span class="spacer"></span>
   <span>Mockup, nothing is saved</span>
-  <span>v0.1.4</span>
+  <span>v0.1.5</span>
 </footer>
 
 <dialog id="batch">
@@ -465,7 +470,7 @@ const S = {
   grid: [], palette: [], sel: 0, tool: 'paint',
   heightMode: 'uniform', hMin: 1, hMax: 4, seed: 42, darkHigh: true, defH: 1,
   w: 40, h: 40, lock: true, base: true, baseH: 2, baseColor: '#2a2d33', bottom: 'solid', wall: 1.2,
-  sides: 'single', heightsOn: 'both', join: 'glue',
+  sides: 'single', heightsOn: 'both', join: 'glue', pixelate: false, pixW: 32, pixColours: 8,
   key: 'none', holeStyle: 'round', holeD: 4, hole: null,
   loopStyle: 'round', loopIn: 4, loopOut: 8, loopAngle: 0, loopColor: '#2a2d33',
   magnets: [], magSize: '8x3', magPos: 'bottom', placing: false,
@@ -648,9 +653,11 @@ $('reloadImg').onclick = () => {
 };
 
 // ---------- open or drop an image ----------
-// detects an upscaled sprite (every run of identical pixels is a multiple of the scale), keeps up to 16 colours,
-// and treats a solid corner colour as background when the image has no transparency
+// pixel art: detects an upscale (every run of identical pixels is a multiple of the scale) and keeps the exact pixels.
+// anything else (photo, drawing, smooth art): pixelate it, shrinking to a chosen width and reducing to a few colours.
+// a solid corner colour counts as background when the image has no transparency.
 const MAX_PX = 128, MAX_COLOURS = 16;
+let loaded = null; // { name, canvas, scale }
 function detectScale(d, w, h) {
   const same = (a, b) => d[a] === d[b] && d[a + 1] === d[b + 1] && d[a + 2] === d[b + 2] && d[a + 3] === d[b + 3];
   const gcd = (a, b) => b ? gcd(b, a % b) : a;
@@ -658,6 +665,94 @@ function detectScale(d, w, h) {
   for (let y = 0; y < h && g !== 1; y++) { let run = 1; for (let x = 1; x <= w; x++) { if (x < w && same((y * w + x) * 4, (y * w + x - 1) * 4)) run++; else { g = gcd(g, run); run = 1; } } }
   for (let x = 0; x < w && g !== 1; x++) { let run = 1; for (let y = 1; y <= h; y++) { if (y < h && same((y * w + x) * 4, ((y - 1) * w + x) * 4)) run++; else { g = gcd(g, run); run = 1; } } }
   return Math.max(1, g);
+}
+const toHex = (r, g, b) => '#' + [r, g, b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+// shrink in halving steps with smoothing on, so every output pixel is an average of the area it covers
+function shrink(canvas, w, h, smooth) {
+  let c = canvas;
+  while (smooth && c.width / 2 > w && c.height / 2 > h) {
+    const n = document.createElement('canvas'); n.width = Math.ceil(c.width / 2); n.height = Math.ceil(c.height / 2);
+    const x = n.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(c, 0, 0, n.width, n.height); c = n;
+  }
+  const o = document.createElement('canvas'); o.width = w; o.height = h;
+  const x = o.getContext('2d', { willReadFrequently: true }); x.imageSmoothingEnabled = smooth; x.imageSmoothingQuality = 'high'; x.drawImage(c, 0, 0, w, h);
+  return x.getImageData(0, 0, w, h).data;
+}
+// k-means in RGB with a fixed seed, so the same image and settings always give the same palette
+function kmeans(px, k) {
+  const rnd = mulberry32(7), cent = [px[Math.floor(rnd() * px.length)]];
+  while (cent.length < k) {
+    const d2 = px.map(p => Math.min(...cent.map(c => (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2 + (p[2] - c[2]) ** 2)));
+    let t = rnd() * d2.reduce((a, b) => a + b, 0), i = 0;
+    if (t === 0) break;
+    while ((t -= d2[i]) > 0) i++;
+    cent.push(px[i]);
+  }
+  const lab = new Array(px.length).fill(0);
+  for (let it = 0; it < 12; it++) {
+    px.forEach((p, i) => { let best = 0, bd = Infinity; cent.forEach((c, j) => { const d = (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2 + (p[2] - c[2]) ** 2; if (d < bd) { bd = d; best = j; } }); lab[i] = best; });
+    const sum = cent.map(() => [0, 0, 0, 0]);
+    px.forEach((p, i) => { const s = sum[lab[i]]; s[0] += p[0]; s[1] += p[1]; s[2] += p[2]; s[3]++; });
+    sum.forEach((s, j) => { if (s[3]) cent[j] = [s[0] / s[3], s[1] / s[3], s[2] / s[3]]; });
+  }
+  return { cent, lab };
+}
+// for pixelating: clear a solid corner background at full size first, so edge pixels don't blend into it
+function knockOut(c) {
+  knockOut.hit = false;
+  const o = document.createElement('canvas'); o.width = c.width; o.height = c.height;
+  const x = o.getContext('2d', { willReadFrequently: true }); x.drawImage(c, 0, 0);
+  const img = x.getImageData(0, 0, c.width, c.height), d = img.data, W = c.width, H = c.height;
+  const px = (i) => [d[i], d[i + 1], d[i + 2], d[i + 3]];
+  const cs = [0, (W - 1) * 4, (H - 1) * W * 4, ((H - 1) * W + W - 1) * 4].map(px);
+  const close = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) < 40;
+  if (cs.some(v => v[3] < 128) || !cs.every(v => close(v, cs[0]))) return c;
+  for (let i = 0; i < d.length; i += 4) if (close(px(i), cs[0])) d[i + 3] = 0;
+  x.putImageData(img, 0, 0); knockOut.hit = true; return o;
+}
+function convertLoaded(first) {
+  const { canvas: c, scale, name } = loaded;
+  const pix = S.pixelate;
+  let w, h;
+  if (pix) { w = Math.min(S.pixW, c.width); h = Math.max(1, Math.round(w * c.height / c.width)); }
+  else { w = Math.round(c.width / scale); h = Math.round(c.height / scale); }
+  let shrunk = false;
+  if (Math.max(w, h) > MAX_PX) { const k = MAX_PX / Math.max(w, h); w = Math.max(1, Math.round(w * k)); h = Math.max(1, Math.round(h * k)); shrunk = true; }
+  const d = shrink(pix ? knockOut(c) : c, w, h, pix);
+  const at = (x, y) => { const i = (y * w + x) * 4; return d[i + 3] < 128 ? null : [d[i], d[i + 1], d[i + 2]]; };
+  const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) < (pix ? 40 : 1);
+  const corners = [at(0, 0), at(w - 1, 0), at(0, h - 1), at(w - 1, h - 1)];
+  const bg = !corners.includes(null) && corners.every(v => near(v, corners[0])) ? corners[0] : null;
+  const solid = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const v = at(x, y); if (v && !(bg && near(v, bg))) solid.push([x, y, v]); }
+  if (!solid.length) { toast(`${name} is empty once the background is removed.`); return false; }
+  let hexes, labels, found;
+  if (pix) {
+    const { cent, lab } = kmeans(solid.map(s => s[2]), Math.min(S.pixColours, solid.length));
+    hexes = cent.map(c => toHex(...c)); labels = lab; found = 0;
+  } else {
+    const count = new Map(), hx = solid.map(s => toHex(...s[2]));
+    hx.forEach(v => count.set(v, (count.get(v) || 0) + 1));
+    hexes = [...count.keys()].sort((a, b) => count.get(b) - count.get(a)).slice(0, MAX_COLOURS);
+    found = count.size;
+    const pickNear = (v) => hexes.reduce((best, k) => dist(v, k) < dist(v, best) ? k : best, hexes[0]);
+    labels = hx.map(v => hexes.indexOf(pickNear(v)));
+  }
+  // drop palette entries nothing uses, keep indices tight
+  const used = [...new Set(labels)].sort((a, b) => a - b), remapI = new Map(used.map((u, i) => [u, i]));
+  N = Math.max(w, h);
+  const ox = Math.floor((N - w) / 2), oy = Math.floor((N - h) / 2);
+  S.palette = used.map(u => ({ hex: hexes[u], h: S.defH }));
+  S.grid = new Array(N * N).fill(-1);
+  solid.forEach(([x, y], i) => { S.grid[(y + oy) * N + x + ox] = remapI.get(labels[i]); });
+  S.sel = 0; S.hole = null; S.magnets = [];
+  $('removeBg').checked = !!bg || (pix && knockOut.hit);
+  ORIGINAL = JSON.stringify({ n: N, grid: S.grid, palette: S.palette });
+  $('fileInfo').innerHTML = `<b>${name}</b>&nbsp; ${w} × ${h} px` + (pix ? ', pixelated' : scale > 1 ? `, detected from a ${scale}× upscale` : '') + (shrunk ? ', scaled down to fit' : '');
+  if (S.lock) { const b = bbox(); S.h = round1(S.w * b.bh / b.bw); showH(); }
+  applyHeightMode(); refresh();
+  if (first) toast(`Loaded ${name}: ${S.palette.length} colours` + (pix ? ', pixelated. Adjust Pixels across and Colours to taste.' : found > MAX_COLOURS ? ` (reduced from ${found}).` : bg ? ', background removed.' : '.'));
+  return true;
 }
 function loadImage(file) {
   if (!file || !file.type.startsWith('image/')) { toast('That file is not an image. Use PNG, GIF, WebP, BMP or JPEG.'); return; }
@@ -667,41 +762,27 @@ function loadImage(file) {
     URL.revokeObjectURL(url);
     const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
     const cx = c.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0);
-    let d = cx.getImageData(0, 0, c.width, c.height).data;
-    const scale = detectScale(d, c.width, c.height);
-    let w = Math.round(c.width / scale), h = Math.round(c.height / scale), shrunk = false;
-    if (Math.max(w, h) > MAX_PX) { const k = MAX_PX / Math.max(w, h); w = Math.max(1, Math.round(w * k)); h = Math.max(1, Math.round(h * k)); shrunk = true; }
-    const s2 = document.createElement('canvas'); s2.width = w; s2.height = h;
-    const sx = s2.getContext('2d', { willReadFrequently: true }); sx.imageSmoothingEnabled = false; sx.drawImage(c, 0, 0, w, h);
-    d = sx.getImageData(0, 0, w, h).data;
-    const hexAt = (x, y) => { const i = (y * w + x) * 4; return d[i + 3] < 128 ? null : '#' + [d[i], d[i + 1], d[i + 2]].map(v => v.toString(16).padStart(2, '0')).join(''); };
-    let bg = null;
-    const corners = [hexAt(0, 0), hexAt(w - 1, 0), hexAt(0, h - 1), hexAt(w - 1, h - 1)];
-    if (!corners.includes(null) && corners.every(v => v === corners[0])) bg = corners[0];
-    // count colours, then fold the rarest into their nearest until 16 are left
-    const count = new Map();
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const v = hexAt(x, y); if (v && v !== bg) count.set(v, (count.get(v) || 0) + 1); }
-    if (!count.size) { toast(`${file.name} is empty once the background is removed.`); return; }
-    let keep = [...count.keys()].sort((a, b) => count.get(b) - count.get(a));
-    const reduced = keep.length > MAX_COLOURS; keep = keep.slice(0, MAX_COLOURS);
-    const near = (v) => keep.reduce((best, k) => dist(v, k) < dist(v, best) ? k : best, keep[0]);
+    const d = cx.getImageData(0, 0, c.width, c.height).data, scale = detectScale(d, c.width, c.height);
+    // looks like pixel art when it is small or upscaled and has few distinct colours
+    const colours = new Set(); for (let i = 0; i < d.length && colours.size <= 64; i += 4) if (d[i + 3] >= 128) colours.add((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]);
+    const isPixelArt = colours.size <= 64 && Math.max(c.width, c.height) / scale <= MAX_PX;
     commit();
-    N = Math.max(w, h);
-    const ox = Math.floor((N - w) / 2), oy = Math.floor((N - h) / 2);
-    S.palette = keep.map(hex => ({ hex, h: S.defH }));
-    S.grid = new Array(N * N).fill(-1);
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const v = hexAt(x, y); if (v && v !== bg) S.grid[(y + oy) * N + x + ox] = keep.indexOf(near(v)); }
-    S.sel = 0; S.hole = null; S.magnets = [];
-    $('removeBg').checked = !!bg;
-    ORIGINAL = JSON.stringify({ n: N, grid: S.grid, palette: S.palette });
+    loaded = { name: file.name, canvas: c, scale };
+    S.pixelate = !isPixelArt; $('pixelate').checked = S.pixelate;
+    if (S.pixelate) { S.pixW = Math.min(32, c.width); showPixW(); }
     $('name').value = file.name.replace(/\.[^.]+$/, '');
-    $('fileInfo').innerHTML = `<b>${file.name}</b>&nbsp; ${w} × ${h} px` + (scale > 1 ? `, detected from a ${scale}× upscale` : '') + (shrunk ? ', scaled down to fit' : '');
-    if (S.lock) { const b = bbox(); S.h = round1(S.w * b.bh / b.bw); showH(); }
-    applyHeightMode(); refresh(); fitView();
-    toast(`Loaded ${file.name}: ${keep.length} colours` + (reduced ? ` (reduced from ${count.size})` : '') + (bg ? ', background removed.' : '.'));
+    syncVisibility();
+    if (convertLoaded(true)) fitView();
   };
   img.src = url;
 }
+$('pixelate').onchange = () => {
+  if (!loaded) { $('pixelate').checked = false; toast('Open an image first, then pixelate it.'); return; }
+  commit(); S.pixelate = $('pixelate').checked; syncVisibility(); convertLoaded(false);
+};
+const reconvert = () => { if (loaded && S.pixelate) convertLoaded(false); };
+const showPixW = pair('pixW', 'pixW', null, reconvert);
+pair('pixColours', 'pixColours', null, reconvert);
 $('openImg').onclick = () => $('fileIn').click();
 $('fileIn').onchange = (e) => { loadImage(e.target.files[0]); e.target.value = ''; };
 let dragDepth = 0;
@@ -841,6 +922,7 @@ function syncVisibility() {
   show('monoRow', mono());
   show('applyRow', S.sides !== 'single');
   show('joinRow', S.sides === 'halves');
+  show('pixRows', S.pixelate);
   show('magPosRow', S.sides === 'single' || clicker());
   if ($('magPosOpen')) { $('magPosOpen').textContent = clicker() ? 'Open on face' : 'Pocket in bottom'; $('magPosSealed').textContent = clicker() ? 'Sealed under face' : 'Sealed in centre'; }
   if ($('fcount') && S.palette.length) $('fcount').textContent = mono() ? '1 filament' : `${S.palette.length + (S.base ? 1 : 0)} filaments`;
