@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { cornerTouches, pieces, type Grid } from '@pixel3d/core';
+  import { cornerTouches, type Grid } from '@pixel3d/core';
   import { app, toast, ui } from '../state.svelte';
   import { pieceCount, removeStrays } from '../actions.svelte';
   import { previewShown } from '../perf';
@@ -22,9 +22,9 @@
   /** Stray pixels (every piece but the largest) and corner-only contacts, for the note. */
   const strays = $derived.by(() => {
     const g = app.grid;
-    const parts = g ? pieces(g) : [];
-    if (!g || parts.length < 2) return null;
-    return { pixels: parts.slice(1).reduce((a, p) => a + p.length, 0), corners: cornerTouches(g) > 0 };
+    const parts = app.parts;
+    if (!g || count < 2 || parts.length < 2) return null;
+    return { n: parts.length, pixels: parts.slice(1).reduce((a, p) => a + p.length, 0), corners: cornerTouches(g) > 0 };
   });
 
   let builder: ModelBuilder | undefined;
@@ -93,11 +93,11 @@
     <button class="btn" id="cutBtn" class:on={ui.cut} title="Slice the model in half to see inside" onclick={() => (ui.cut = !ui.cut)}>Cut view</button>
   </div>
   <div class="note" id="note" style:display={ui.cut || strays ? 'block' : 'none'}>
-    {#if strays}
-      <span class="warn">{count} separate pieces. {strays.pixels} stray pixel{strays.pixels > 1 ? 's' : ''} (outlined in red in the image) don't share an edge with the rest, so they would print as loose parts.{strays.corners ? " Pixels that touch only at a corner don't count as joined." : ''} Paint pixels to connect them, or remove them.</span><br><button class="btn small" id="removeStrays" onclick={removeStrays}>Remove strays</button>
-      {#if ui.cut}<br>{/if}
-    {/if}
     {#if ui.cut}<b>Cut view.</b> Gold is solid material. Empty space shows what is hollow.{/if}
+    {#if strays}
+      {#if ui.cut}<br>{/if}
+      <span class="warn">{strays.n} separate pieces. {strays.pixels} stray pixel{strays.pixels > 1 ? 's' : ''} (outlined in red in the image) don't share an edge with the rest, so they would print as loose parts.{strays.corners ? " Pixels that touch only at a corner don't count as joined." : ''} Paint pixels to connect them, or remove them.</span><br><button class="btn small" id="removeStrays" onclick={removeStrays}>Remove strays</button>
+    {/if}
   </div>
   {#if size}
     <div class="dims" id="dims"><b>{size.x.toFixed(1)} × {size.y.toFixed(1)} × {size.z.toFixed(1)} mm</b>&nbsp; {#if buildError}<span class="warn">preview only, the model could not be built</span>{:else if count > 1}<span class="warn">{count} separate pieces</span>{:else}one piece{/if}</div>

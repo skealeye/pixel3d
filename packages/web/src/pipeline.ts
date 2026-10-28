@@ -134,6 +134,13 @@ export function computeGrid(src: Source, s: Settings, edits: Edit[], showBg = fa
   return { grid, dropped, meta: { base, pixelated, showBg, info, bg: bg.bg, how: bg.how, region, colours: exact.palette.length } };
 }
 
+/** The grid size pixelating gives at `across` pixels wide (as core `pixelate`: never wider than the region, aspect kept). */
+export function pixelatedSize(src: Source, across: number): { w: number; h: number } {
+  const r = src.crop ?? { w: src.img.width, h: src.img.height };
+  const w = Math.max(1, Math.min(clamp(across, 8, 128), r.w));
+  return { w, h: Math.max(1, Math.round((w * r.h) / r.w)) };
+}
+
 /** Opaque bounding box in y-up cell coordinates (as core mesh.ts), or null when nothing is opaque. */
 export function opaqueBox(g: Grid): { x0: number; y0: number; w: number; h: number } | null {
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;

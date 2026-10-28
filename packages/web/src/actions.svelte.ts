@@ -1,4 +1,4 @@
-import { DEFAULTS, pieces, type Edit } from '@pixel3d/core';
+import { DEFAULTS, type Edit } from '@pixel3d/core';
 import { cellsToCrop, computeGrid } from './pipeline';
 import { addEdits, app, change, toast, ui } from './state.svelte';
 
@@ -63,7 +63,7 @@ export function paintCells(cells: { x: number; y: number }[], push: boolean): nu
 export function removeStrays() {
   const g = app.grid;
   if (!g) return;
-  const edits: Edit[] = pieces(g).slice(1).flat().sort((a, b) => a - b)
+  const edits: Edit[] = app.parts.slice(1).flat().sort((a, b) => a - b)
     .map((k) => ({ kind: 'paint', x: k % g.w, y: Math.floor(k / g.w), hex: null }));
   if (addEdits(edits)) toast('Stray pixels removed. Press Ctrl+Z to undo.');
 }
@@ -78,14 +78,13 @@ export function restoreColours() {
   if (ok) toast('Original colours restored. Your heights were kept.');
 }
 
-/** Back to the original image: no crop, no edits, default heights and colour count. Undoable. */
+/** Back to the original image: no crop, no edits, the full colour count. The height mode stays and is applied again. Undoable. */
 export function reloadImage() {
   if (!app.source) { toast('Open an image first.'); return; }
   const src = app.source;
   const ok = change(() => {
     app.edits = [];
     app.source = { ...src, crop: null };
-    app.settings.heights = structuredClone(DEFAULTS.heights);
     app.settings.colours.max = DEFAULTS.colours.max;
   });
   if (ok) toast('Image reloaded. Press Ctrl+Z to undo.');
@@ -99,12 +98,9 @@ export function cropTo(c0: number, r0: number, c1: number, r1: number) {
   // the cropped grid's size: the same cells for pixel art, resampled when pixelating
   const r = computeGrid(next, $state.snapshot(app.settings), []);
   const kx = 'error' in r ? 1 : r.grid.w / (c1 - c0), ky = 'error' in r ? 1 : r.grid.h / (r1 - r0);
-  let lost = 0;
-  const edits = app.edits.flatMap((e): Edit[] => {
-    if (e.kind !== 'paint') return [e];
-    if (e.x < c0 || e.y < r0 || e.x >= c1 || e.y >= r1) { lost++; return []; }
-    return [{ ...e, x: Math.floor((e.x - c0 + 0.5) * kx), y: Math.floor((e.y - r0 + 0.5) * ky) }];
-  });
+  const inside = (e: Edit) => e.kind !== 'paint' || (e.x >= c0 && e.y >= r0 && e.x < c1 && e.y < r1);
+  const kept = app.edits.filter(inside), lost = app.edits.length - kept.length;
+  const edits = scalePaint(kept, c0, r0, kx, ky);
   ui.cropping = false;
   if (change(() => { app.source = next; app.edits = edits; }) && lost) toast('Painted pixels outside the crop were removed.');
 }
@@ -113,5 +109,10 @@ export function cropTo(c0: number, r0: number, c1: number, r1: number) {
 export function pieceCount(): number {
   const g = app.grid;
   if (!g) return 0;
-  return app.built?.grid === g ? app.built.pieces : pieces(g).length;
+  return app.built?.grid === g ? app.built.pieces : app.parts.length;
+}
+
+/** Painted cells moved onto a resampled grid: old cell (x, y), offset by (x0, y0), scaled by (kx, ky). */
+export function scalePaint(edits: Edit[], x0: number, y0: number, kx: number, ky: number): Edit[] {
+  return edits.map((e) => (e.kind !== 'paint' ? e : { ...e, x: Math.floor((e.x - x0 + 0.5) * kx), y: Math.floor((e.y - y0 + 0.5) * ky) }));
 }

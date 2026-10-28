@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { pieces } from '@pixel3d/core';
   import { change, app, ui } from '../state.svelte';
   import { colourAt } from '../pipeline';
   import { cropTo, paintCells } from '../actions.svelte';
@@ -17,8 +16,7 @@
     | { kind: 'paint'; i: number; j: number; pushed: boolean }
     | null = null;
   let sel = $state<{ c0: number; r0: number; c1: number; r1: number } | null>(null);
-  /** Pieces of the current grid, worked out once per grid rather than on every pan or zoom redraw. */
-  const parts = $derived(app.grid ? pieces(app.grid) : []);
+  const parts = $derived(app.parts);
 
   /** Layout of the grid on the canvas: cell size and top-left, CSS px. */
   function layout() {

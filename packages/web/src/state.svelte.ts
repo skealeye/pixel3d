@@ -1,4 +1,4 @@
-import { DEFAULTS, applyEdits, type Edit, type Grid, type Settings } from '@pixel3d/core';
+import { DEFAULTS, applyEdits, pieces, type Edit, type Grid, type Settings } from '@pixel3d/core';
 import { computeGrid, opaqueBox, type Meta, type Source } from './pipeline';
 
 /** One undo step: everything a load or an edit can change. Grids and sources are never mutated, so they are shared. */
@@ -20,6 +20,8 @@ class AppState {
   redo = $state.raw<Snapshot[]>([]);
   /** Piece count of the last core model and the grid it was built from (view-only, never undone). */
   built = $state.raw<{ grid: Grid; pieces: number } | null>(null);
+  /** The grid's 4-connected pieces, largest first: worked out once per grid and shared by every reader. */
+  parts = $derived(this.grid ? pieces(this.grid) : []);
 }
 
 export const app = new AppState();
@@ -104,10 +106,10 @@ export function recompute(notify = true): string | null {
   if ('error' in r) { if (notify) toast(r.error); return r.error; }
   app.grid = r.grid;
   app.meta = r.meta;
-  // edits that no longer apply are dropped (spec §4.10); a lost colour edit gets a notice
+  // edits that no longer apply are dropped, with a notice (spec §4.10)
   if (r.dropped.length) {
     app.edits = app.edits.filter((e) => !r.dropped.includes(e));
-    if (r.dropped.some((e) => e.kind !== 'paint')) toast('Edits for colours that no longer exist were removed.');
+    toast('Edits that no longer apply were removed.');
   }
   if (!r.meta.showBg) fitSize(r.grid);
   return null;

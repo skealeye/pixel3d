@@ -19,7 +19,10 @@
 <section>
   <h2>Colours and heights <small id="pcount">{count}</small><button class="btn small" id="restoreCols" title="Bring back deleted and recoloured colours. Heights are kept." onclick={restoreColours}>Restore colours</button></h2>
   <HeightModes />
-  <Slider id="colMax" label="Colours" min={2} max={16} value={app.settings.colours.max} {...colours} />
+  <!-- not in the mockup: the colour count. Pixelate has its own Colours slider, so this one hides while pixelating -->
+  {#if !app.meta?.pixelated}
+    <Slider id="colMax" label="Colours" min={2} max={16} value={app.settings.colours.max} {...colours} />
+  {/if}
   <ul class="pal" id="pal">
     {#each palette as p (p.hex)}
       <PaletteRow hex={p.hex} height={p.height} />

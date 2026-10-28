@@ -1,7 +1,9 @@
 <script lang="ts">
   import { change, live, recompute, stopPicking, app, toast, ui } from '../state.svelte';
   import { loadUrl } from '../load';
-  import { reloadImage } from '../actions.svelte';
+  import type { Edit } from '@pixel3d/core';
+  import { reloadImage, scalePaint } from '../actions.svelte';
+  import { pixelatedSize } from '../pipeline';
   import SourceCanvas from './SourceCanvas.svelte';
   import Slider from './Slider.svelte';
 
@@ -49,14 +51,27 @@
   function setPixelate(box: HTMLInputElement) {
     const on = box.checked;
     if (!loaded) { box.checked = false; toast('Open an image first, then pixelate it.'); return; }
-    change(() => { s.pixelate.enabled = on; });
+    // a new grid resolution sets a new pixel size (spec §4.5)
+    change(() => { s.pixelate.enabled = on; delete s.pixelMm; });
   }
 
   const pixelated = () => !!meta?.pixelated;
   // pixelating clears the background at a fixed tolerance (as batch runs do), so the slider only works on pixel art
   const tol = live(() => s.background.tolPct, (v) => (s.background.tolPct = v), () => !pixelated());
-  // a new pixel count sets a new pixel size (spec §4.5)
-  const across = live(() => s.pixelate.across, (v) => { s.pixelate.across = v; delete s.pixelMm; }, pixelated);
+  // a new pixel count sets a new pixel size (spec §4.5) and moves painted pixels onto the resampled grid, scaled
+  // from the grid and edits as they were when the drag began (not cumulatively)
+  let before: { edits: Edit[]; w: number; h: number } | null = null;
+  const acrossLive = live(() => s.pixelate.across, (v) => {
+    s.pixelate.across = v;
+    delete s.pixelMm;
+    if (!before || !app.source) return;
+    const n = pixelatedSize(app.source, v);
+    app.edits = scalePaint(before.edits, 0, 0, n.w / before.w, n.h / before.h);
+  }, pixelated);
+  const across = {
+    begin: () => { before = app.grid && { edits: app.edits, w: app.grid.w, h: app.grid.h }; acrossLive.begin(); },
+    set: acrossLive.set,
+  };
   const colours = live(() => s.pixelate.colours, (v) => (s.pixelate.colours = v), pixelated);
 </script>
 

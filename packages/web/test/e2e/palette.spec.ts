@@ -33,6 +33,8 @@ const opaque = async (page: Page) => (await snap(page)).grid!.opaque;
 /** Potion's colours with their pixel counts: 130 opaque cells, one piece, no corner-only contact. */
 const POTION = ['#7a4fd6', '#2b2135', '#bfd9e6', '#4e2f9e', '#9c6b3e', '#b394f2', '#f4fbff'];
 const CELLS = 130;
+/** Potion's heights in Random mode with seed 42, range 1–4 (core applyHeightMode). */
+const SEEDED = [2.8, 2.3, 3.6, 3, 1.5, 2.6, 1.8];
 
 async function loadPotion(page: Page) {
   await page.goto('/?test');
@@ -165,7 +167,7 @@ test.describe('colours and heights', () => {
     expect(await hexes(page)).toHaveLength(6);
   });
 
-  test('Reload image drops every edit and the height settings, and can be undone', async ({ page }) => {
+  test('Reload image drops every edit, keeps the height mode and applies it again, and can be undone', async ({ page }) => {
     await loadPotion(page);
     await page.locator('.seg[data-key=heightMode] button[data-v=random]').click();
     await row(page, '#2b2135').locator('input[type=range]').fill('6');
@@ -178,11 +180,12 @@ test.describe('colours and heights', () => {
     await expect(page.locator('.toast')).toHaveText('Image reloaded. Press Ctrl+Z to undo.');
     const s = await snap(page);
     expect(s.edits).toEqual([]);
-    expect(s.settings.heights.mode).toBe('uniform');
+    expect(s.settings.heights.mode).toBe('random');
     expect(s.grid!.opaque).toBe(CELLS);
     expect(s.grid!.palette.map((p) => p.hex)).toEqual(POTION);
-    expect(s.grid!.palette.every((p) => p.height === 1)).toBe(true);
-    await expect(page.locator('.seg[data-key=heightMode] button[data-v=uniform]')).toHaveClass(/\bon\b/);
+    // the seeded random heights again: the 6 mm height edit is gone
+    expect(s.grid!.palette.map((p) => p.height)).toEqual(SEEDED);
+    await expect(page.locator('.seg[data-key=heightMode] button[data-v=random]')).toHaveClass(/\bon\b/);
     await page.keyboard.press('Control+z');
     expect((await snap(page)).edits).toEqual(edited.edits);
   });
@@ -228,7 +231,7 @@ test.describe('colours and heights', () => {
     await loadPotion(page);
     await page.locator('.seg[data-key=heightMode] button[data-v=random]').click();
     await expect(page.locator('#seed')).toHaveValue('42');
-    const seeded = [2.8, 2.3, 3.6, 3, 1.5, 2.6, 1.8];
+    const seeded = SEEDED;
     expect(await heights(page)).toEqual(seeded);
     await page.locator('#reroll').click();
     await expect(page.locator('#seed')).not.toHaveValue('42');
@@ -237,6 +240,7 @@ test.describe('colours and heights', () => {
     await page.locator('#seed').press('Enter');
     expect(await heights(page)).toEqual(seeded);
     await page.locator('.seg[data-key=heightMode] button[data-v=uniform]').click();
+    await expect(page.locator('#defH')).toHaveValue('1.0');
     await page.locator('#defH').fill('2.5');
     await page.locator('#defH').press('Enter');
     await expect.poll(() => heights(page)).toEqual(POTION.map(() => 2.5));
@@ -263,7 +267,7 @@ test.describe('colours and heights', () => {
     await row(page, '#f4fbff').locator('input[type=range]').fill('5');
     await page.locator('#colMax').fill('6');
     await page.locator('#colMax').press('Enter');
-    await expect(page.locator('.toast')).toHaveText('Edits for colours that no longer exist were removed.');
+    await expect(page.locator('.toast')).toHaveText('Edits that no longer apply were removed.');
     expect((await snap(page)).edits).toEqual([]);
     await page.locator('#colMax').blur();
     await page.keyboard.press('Control+z');
@@ -287,5 +291,51 @@ test.describe('colours and heights', () => {
     await page.keyboard.press('Control+z');
     expect((await snap(page)).edits).toHaveLength(2);
     expect((await snap(page)).grid!.w).toBe(16);
+  });
+
+  test('a painted pixel that falls off the grid is dropped with a notice', async ({ page }) => {
+    await loadPotion(page);
+    await page.locator('#pixelate').check();
+    await expect(page.locator('#fileInfo')).toHaveText('potion.png 32 × 32 px, pixelated');
+    await page.locator('#pal li .sw').first().click();
+    await clickCell(page, 30, 30);
+    expect((await snap(page)).edits).toHaveLength(1);
+    await page.locator('#pixelate').uncheck();
+    await expect(page.locator('.toast')).toHaveText('Edits that no longer apply were removed.');
+    expect((await snap(page)).edits).toEqual([]);
+  });
+
+  test('toggling Pixelate keeps the width: it sets a new pixel size', async ({ page }) => {
+    await loadPotion(page);
+    await expect(page.locator('.dims')).toHaveText('40.0 × 53.3 × 3.0 mm one piece');
+    await expect(page.locator('#colMax')).toBeVisible();
+    await page.locator('#pixelate').check();
+    await expect(page.locator('#fileInfo')).toHaveText('potion.png 32 × 32 px, pixelated');
+    expect((await snap(page)).settings.size.width).toBe(40);
+    await expect(page.locator('.dims')).toContainText('40.0 ×');
+    // the colour count hides while Pixelate shows its own Colours slider
+    await expect(page.locator('#colMax')).toBeHidden();
+    await page.locator('#pixelate').uncheck();
+    await expect(page.locator('#fileInfo')).toHaveText('potion.png 16 × 16 px, detected from a 4× upscale');
+    expect((await snap(page)).settings.size.width).toBe(40);
+    await expect(page.locator('.dims')).toHaveText('40.0 × 53.3 × 3.0 mm one piece');
+  });
+
+  test('Pixels across moves painted pixels onto the resampled grid', async ({ page }) => {
+    await loadPotion(page);
+    await page.locator('#pixelate').check();
+    await expect(page.locator('#fileInfo')).toHaveText('potion.png 32 × 32 px, pixelated');
+    await page.locator('#pal li .sw').first().click();
+    const hex = (await snap(page)).grid!.palette[0]!.hex;
+    await clickCell(page, 3, 5);
+    expect((await snap(page)).edits).toEqual([{ kind: 'paint', x: 3, y: 5, hex }]);
+    await page.locator('#pixW').fill('16');
+    await page.locator('#pixW').press('Enter');
+    await expect(page.locator('#fileInfo')).toHaveText('potion.png 16 × 16 px, pixelated');
+    expect((await snap(page)).edits).toEqual([{ kind: 'paint', x: 1, y: 2, hex }]);
+    await page.locator('#pixW').fill('64');
+    await page.locator('#pixW').press('Enter');
+    await expect(page.locator('#fileInfo')).toHaveText('potion.png 64 × 64 px, pixelated');
+    expect((await snap(page)).edits).toEqual([{ kind: 'paint', x: 6, y: 10, hex }]);
   });
 });

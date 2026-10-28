@@ -40,7 +40,7 @@
     {/each}
   </div>
   {#if h.mode === 'uniform'}
-    <Slider id="defH" label="Pixel height" min={MIN} max={MAX} step={0.1} value={h.h} unit="mm" {...pixel} />
+    <Slider id="defH" label="Pixel height" min={MIN} max={MAX} step={0.1} value={h.h} unit="mm" format={(v) => v.toFixed(1)} {...pixel} />
   {:else}
     <div class="row" id="rangeRow">
       <label for="hMin">Range</label>
