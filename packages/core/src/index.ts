@@ -34,5 +34,5 @@ export { toSTL } from './export/stl';
 export { to3MF } from './export/threemf';
 export type { ThreeMFOptions, Slicer } from './export/threemf';
 export type { ManifoldToplevel } from './manifold';
-export { convert, inspect, safeName, ConvertError } from './convert';
+export { convert, exportModel, inspect, safeName, ConvertError } from './convert';
 export type { Report, ConvertResult, InspectResult } from './convert';

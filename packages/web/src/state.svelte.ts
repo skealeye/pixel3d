@@ -28,7 +28,13 @@ export const app = new AppState();
 
 /** View-only state: none of it is undone or saved. */
 export const ui = $state({
-  popover: null as null | 'grid',
+  popover: null as null | 'grid' | 'export',
+  /** The Batch and API dialog is open. */
+  batch: false,
+  /** The Export panel's file name (no extension); set from the image name when one loads. */
+  exportName: 'model',
+  /** The 3D view's size readout as plain text, e.g. `40.0 × 53.3 × 3.0 mm one piece` (the Export summary repeats it). */
+  dims: '',
   /** Pick mode: the background shows and the next click in the preview picks its colour. */
   picking: false,
   cropping: false,

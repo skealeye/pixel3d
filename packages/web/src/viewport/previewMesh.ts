@@ -54,6 +54,7 @@ export function previewMeshes(p: Preview, material: (hex: string) => THREE.Mater
   for (const [hex, list] of p.columns) {
     const n = list.length / 4;
     const mesh = new THREE.InstancedMesh(unit, material(hex), n);
+    mesh.userData.hex = hex;
     // bounds straight from the columns: three's computeBoundingBox walks every instance matrix, ~200 ms at 512²
     const box = new THREE.Box3();
     for (let i = 0; i < n; i++) {

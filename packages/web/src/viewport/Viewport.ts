@@ -52,6 +52,8 @@ export class Viewport {
   private uncut: THREE.Box3 | null = null;
   private ray = new THREE.Raycaster();
   private mats = new Map<string, THREE.MeshStandardMaterial>();
+  /** One colour (Export: One colour): every part shows in this colour; null shows each part's own. */
+  private mono: string | null = null;
   private cutPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private cut = false;
   private gridOpts: GridOptions = { on: true, colour: '#8a7446', opacity: 0.7, step: 10 };
@@ -115,6 +117,7 @@ export class Viewport {
       geo.computeVertexNormals();
       const m = new THREE.Mesh(geo, this.material(p.hex));
       m.userData.object = p.object;
+      m.userData.hex = p.hex;
       return m;
     });
     this.uncut = model.parts.length ? new THREE.Box3(new THREE.Vector3(...model.bounds.min), new THREE.Vector3(...model.bounds.max)) : null;
@@ -309,7 +312,22 @@ export class Viewport {
     this.render();
   }
 
-  private material(hex: string) {
+  /** Show every part in one colour (the Export panel's One colour), or null for each part's own colour. */
+  setMono(hex: string | null) {
+    if (hex === this.mono) return;
+    this.mono = hex;
+    const used = new Set<THREE.Material>();
+    for (const o of this.meshes) {
+      if (!(o instanceof THREE.Mesh) || typeof o.userData.hex !== 'string') continue;
+      o.material = this.material(o.userData.hex);
+      used.add(o.material);
+    }
+    for (const [k, m] of this.mats) if (!used.has(m)) { m.dispose(); this.mats.delete(k); }
+    this.dirty = true;
+  }
+
+  private material(part: string) {
+    const hex = this.mono ?? part;
     let m = this.mats.get(hex);
     if (!m) {
       m = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.55, flatShading: true });

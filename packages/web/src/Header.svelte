@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { app, undo, redo } from './state.svelte';
+  import { app, ui, undo, redo } from './state.svelte';
   import { loadFile } from './load';
+  import ExportPopover from './panels/ExportPopover.svelte';
+  import BatchDialog from './panels/BatchDialog.svelte';
 
   let fileIn: HTMLInputElement;
 </script>
@@ -13,9 +15,11 @@
   <div class="spacer"></div>
   <button class="btn icon" id="undo" title="Undo (Ctrl+Z)" disabled={!app.undo.length} onclick={undo}>↶</button>
   <button class="btn icon" id="redo" title="Redo (Ctrl+Y)" disabled={!app.redo.length} onclick={redo}>↷</button>
-  <button class="btn" id="openBatch" disabled>Batch and API</button>
+  <button class="btn" id="openBatch" onclick={() => { ui.popover = null; ui.batch = true; }}>Batch and API</button>
   <button class="btn" id="openImg" title="Open an image, or drop one anywhere on the window" onclick={() => fileIn.click()}>Open image</button>
   <input type="file" id="fileIn" accept="image/png,image/gif,image/webp,image/jpeg" hidden bind:this={fileIn}
     onchange={(e) => { const t = e.currentTarget; void loadFile(t.files?.[0]); t.value = ''; }}>
-  <button class="btn primary" id="exportBtn" disabled>Export</button>
+  <ExportPopover />
 </header>
+
+<BatchDialog />

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { CAP_ROOF, MX, fitTest, toSTL, type Settings } from '@pixel3d/core';
-  import { zipSync } from 'fflate';
+  import { CAP_ROOF, MX, type Settings } from '@pixel3d/core';
+  import { downloadFiles, runExport } from '../export/exporter';
   import { app, live, setting, toast, ui } from '../state.svelte';
   import { press } from '../viewport/press';
   import Slider from './Slider.svelte';
@@ -39,18 +39,12 @@
 
   let busy = $state(false);
 
-  /** The fit-test coupons (core `fitTest`) as one STL per coupon in a zip. Task 15's export takes this over. */
+  /** The fit-test coupons (core `fitTest`) as one STL per coupon in a zip, built in the export worker. */
   async function downloadFitTest() {
     if (busy) return;
     busy = true;
     try {
-      const model = await fitTest($state.snapshot(app.settings) as Settings);
-      const files = await toSTL(model, { mono: true, name: 'fit_test' });
-      const zip = zipSync(Object.fromEntries(files.map((f) => [f.name, f.bytes])), { level: 6 });
-      const url = URL.createObjectURL(new Blob([zip as BlobPart], { type: 'application/zip' }));
-      const a = Object.assign(document.createElement('a'), { href: url, download: 'pixel3d_fit_test.zip' });
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      downloadFiles(await runExport({ kind: 'fitTest', settings: $state.snapshot(app.settings) as Settings }), 'pixel3d_fit_test.zip');
     } catch (err) {
       toast(`Couldn't make the fit test: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -104,7 +98,7 @@
           onpointerdown={() => press.start()} onpointerup={() => press.stop()} onpointerleave={() => press.stop()} onpointercancel={() => press.stop()}>Press</button><span class="bginfo">Hold the button, or hold Space, to press the cap down.</span></div>
       {/if}
       <p class="hint" id="clkHint">Needs {c.switches} MX-style switch{c.switches > 1 ? 'es' : ''}. Press {c.switches > 1 ? 'each' : 'the'} switch into the body from above until it sits on the step, then push the cap on. {MX.travel} mm of travel. Both parts print flat side down, the cap art side up. The cap's backing is always at least {minBacking} mm thick, even with Base off, so it can hold the switch.</p>
-      <!-- not in the mockup: the fit test (spec §4.6b), here until Task 15's export panel takes it over -->
+      <!-- not in the mockup: the fit test (spec §4.6b). The mockup's Export panel has no place for it, so it stays here -->
       <div class="row"><button class="btn" id="fitTest" disabled={busy} onclick={downloadFitTest}>Download fit test</button></div>
       <p class="hint" id="fitHint">Print this first to check the switch fits your printer: a stem coupon and three shaft coupons, 0.1 mm tighter, as designed and 0.1 mm looser (1, 2 and 3 notches).</p>
     </div>

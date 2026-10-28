@@ -178,3 +178,26 @@ footer .bad { color: var(--danger); }
 .row > .lbl:first-child { flex: 1; color: var(--muted); }
 .row .seg { margin-top: 0; }
 .gridscale { position: absolute; bottom: 12px; right: 12px; color: var(--muted); font-size: 12px; pointer-events: none; }
+
+/* export panel, opened from the top bar (mockup) */
+.exportWrap { position: relative; }
+#exportPop {
+  position: absolute; right: 0; top: 44px; width: 300px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r-m); box-shadow: 0 12px 32px #0008; padding: 14px 16px 16px; display: none;
+}
+#exportPop.open { display: block; }
+#exportPop .btn.primary { width: 100%; padding: 9px; margin-top: 12px; }
+#name { flex: 1; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; min-width: 0; }
+.summary { margin-top: 10px; color: var(--muted); font-size: 12px; }
+
+dialog {
+  background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: var(--r-m);
+  width: min(640px, 92vw); padding: 20px;
+}
+dialog::backdrop { background: #0008; }
+dialog h3 { margin: 0 0 4px; font-size: 16px; }
+dialog p { color: var(--muted); margin: 0 0 12px; }
+pre {
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 10px 12px;
+  font: 12px/1.5 Consolas, monospace; overflow: auto; max-height: 260px; margin: 0 0 12px;
+}

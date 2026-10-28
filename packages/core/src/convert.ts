@@ -9,7 +9,7 @@ import { applyEdits } from './edits';
 import { applyHeightMode } from './heights';
 import { type Preset, colourRuleEdits, presetSettings } from './preset';
 import { type Settings, DEFAULTS, heightModeOf } from './settings';
-import { buildModel } from './mesh';
+import { type Model, buildModel } from './mesh';
 import { toSTL } from './export/stl';
 import { to3MF } from './export/threemf';
 
@@ -117,6 +117,17 @@ async function toReducedGrid(bytes: Uint8Array, s: Settings): Promise<{ grid: Gr
 }
 
 /**
+ * The export step of `convert`: the model as files for `s.export`, named after `name` (used as given; pass it through
+ * `safeName` first). The web app's Export calls this on its own grid, so its bytes equal a batch run's. Deterministic.
+ */
+export async function exportModel(model: Model, s: Settings, name: string): Promise<{ name: string; bytes: Uint8Array }[]> {
+  const ex = s.export;
+  return ex.format === 'stl'
+    ? toSTL(model, { mono: ex.mono, name })
+    : [{ name: `${name}.3mf`, bytes: await to3MF(model, { slicer: ex.slicer, mono: ex.mono, monoHex: ex.monoColour, pauseZ: model.pauseZ, name }) }];
+}
+
+/**
  * The one entry point for the CLI, HTTP API, MCP server and web export: the fixed pipeline of spec §4.10
  * (decode → scale → background → palette → height mode → colour rules → mesh → booleans → export).
  * Never throws: any failure comes back as `report.error` with no files.
@@ -147,10 +158,7 @@ export async function convert(bytes: Uint8Array, preset: Preset, name: string): 
     report.warnings.push(...model.warnings);
     if (model.pieces > 1) report.warnings.push(`${model.pieces} separate pieces`);
 
-    const ex = settings.export;
-    const files = ex.format === 'stl'
-      ? await toSTL(model, { mono: ex.mono, name: base })
-      : [{ name: `${base}.3mf`, bytes: await to3MF(model, { slicer: ex.slicer, mono: ex.mono, monoHex: ex.monoColour, pauseZ: model.pauseZ, name: base }) }];
+    const files = await exportModel(model, settings, base);
     report.files = files.map((f) => f.name);
     return { files, report };
   } catch (e) {

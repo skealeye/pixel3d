@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { cornerTouches, type Grid, type Settings } from '@pixel3d/core';
+  import { DEFAULTS, cornerTouches, type Grid, type Settings } from '@pixel3d/core';
   import { app, pushUndo, setting, toast, ui } from '../state.svelte';
   import { pieceCount, removeStrays } from '../actions.svelte';
   import { previewShown } from '../perf';
@@ -26,6 +26,16 @@
   let warnings = $state<string[]>([]);
 
   const count = $derived(pieceCount());
+  /** The size readout: the size in the display unit, then a note (one piece, a warning...). */
+  const dims = $derived.by(() => {
+    if (!size) return null;
+    const u = unit;
+    const note = buildError ? 'preview only, the model could not be built' : count > 1 ? `${count} separate pieces`
+      : app.settings.make === 'clicker' ? (ui.clkView === 'assembled' ? 'assembled, switch at rest' : 'cap and body') : 'one piece';
+    return { size: `${fmt(toUnit(size.x, u), u)} × ${fmt(toUnit(size.y, u), u)} × ${fmt(toUnit(size.z, u), u)} ${u}`, note, warn: !!buildError || count > 1 };
+  });
+  // the Export summary repeats the readout
+  $effect(() => { ui.dims = dims ? `${dims.size} ${dims.note}` : ''; });
   const unit = $derived(app.settings.size.unit);
   /** Stray pixels (every piece but the largest) and corner-only contacts, for the note. */
   const strays = $derived.by(() => {
@@ -61,8 +71,11 @@
   }
   /** The settings the preview uses (previewMesh.ts). */
   const previewKey = (s: Settings) => JSON.stringify([s.size.width, s.size.height, s.size.keepAspect, s.pixelMm, s.base, s.sides, s.heights.h]);
-  /** Core builds the model unrotated; the viewport turns it, and units are display-only. */
-  const forBuild = (s: Settings): Settings => ({ ...s, rotation: [0, 0, 0], size: { ...s.size, unit: 'mm' } });
+  /**
+   * Core builds the model unrotated; the viewport turns it, and units are display-only. The export settings don't
+   * change the model (One colour is a material, set below), so changing them doesn't rebuild it. Export builds afresh.
+   */
+  const forBuild = (s: Settings): Settings => ({ ...s, rotation: [0, 0, 0], size: { ...s.size, unit: 'mm' }, export: DEFAULTS.export });
 
   $effect(() => {
     const v = new Viewport(canvas, main);
@@ -136,6 +149,7 @@
   });
 
   $effect(() => { vp?.setCut(ui.cut); });
+  $effect(() => { const ex = app.settings.export; vp?.setMono(ex.mono ? ex.monoColour : null); });
   $effect(() => { vp?.setGrid({ on: ui.grid.on, colour: ui.grid.colour, opacity: ui.grid.opacity, step: gridStep(unit) }); });
   $effect(() => {
     const r = app.settings.rotation, clicker = app.settings.make === 'clicker';
@@ -247,8 +261,8 @@
     {/if}
   </div>
   <div class="mode" id="mode" style:display={ui.placing ? 'block' : 'none'}>Click the model to place a magnet. Press Esc to cancel.</div>
-  {#if size}
-    <div class="dims" id="dims"><b>{fmt(toUnit(size.x, unit), unit)} × {fmt(toUnit(size.y, unit), unit)} × {fmt(toUnit(size.z, unit), unit)} {unit}</b>&nbsp; {#if buildError}<span class="warn">preview only, the model could not be built</span>{:else if count > 1}<span class="warn">{count} separate pieces</span>{:else if app.settings.make === 'clicker'}{ui.clkView === 'assembled' ? 'assembled, switch at rest' : 'cap and body'}{:else}one piece{/if}</div>
+  {#if size && dims}
+    <div class="dims" id="dims"><b>{dims.size}</b>&nbsp; <span class:warn={dims.warn}>{dims.note}</span></div>
   {/if}
   <!-- not in the mockup: the grid's scale, so mm and inches can be told apart -->
   {#if ui.grid.on}<div class="gridscale" id="gridScale">{gridLabel(unit)}</div>{/if}

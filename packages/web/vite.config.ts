@@ -1,13 +1,33 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { VitePWA } from 'vite-plugin-pwa';
 
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 export default defineConfig({
   root: here('.'),
-  base: './',
-  plugins: [svelte()],
+  // a GitHub project page is served from /<repo>/: the Pages workflow sets BASE_PATH
+  base: process.env.BASE_PATH || '/',
+  plugins: [
+    svelte(),
+    // installable and offline (spec §3): precache the whole build, wasm included. The manifest is public/manifest.webmanifest.
+    VitePWA({
+      registerType: 'autoUpdate',
+      injectRegister: 'script-defer',
+      manifest: false,
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,wasm,png,webmanifest}'],
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+        // the Google Fonts stylesheet and font files, once seen, work offline too
+        runtimeCaching: [{
+          urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\//,
+          handler: 'StaleWhileRevalidate',
+          options: { cacheName: 'fonts', expiration: { maxEntries: 20 } },
+        }],
+      },
+    }),
+  ],
   resolve: {
     alias: {
       '@pixel3d/core': here('../core/src/index.ts'),
