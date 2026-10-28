@@ -89,7 +89,7 @@ export function lowestUsed(g: Grid): number {
  * The flat model's 2D shapes in mm (opaque box corner at the origin), shared by `buildModel` and the web preview:
  * - `art`: the art's footprint, holes and all;
  * - `tall`: where material stands at least as tall as the lowest color (the art, and the outline ring);
- * - `base`: the base's outline: the art, rounded by `smooth`, grown to hold the ring;
+ * - `base`: the base's outline: the art, rounded by `smooth`, plus the ring (the art's holes stay open);
  * - `ring`: the outline ring round the art's outer silhouette (holes filled), or null when it is off;
  * - `margin`: how far the base reaches past the art's pixel edge, mm (a keychain loop moves out by this much).
  * Every returned section belongs to `keep`.
@@ -104,10 +104,11 @@ export function flatShapes(wasm: Wasm, g: Grid, s: Settings, x0: number, y0: num
     ringOuter = grow(filled, s.outline.width, s.smooth, r, keep);
     ring = keep(ringOuter.subtract(filled));
   }
+  // the ring joins on outside the silhouette only: the art's own holes stay open in the base and in `tall`
   let base = s.smooth ? grow(art, r, true, r, keep) : art;
-  if (ringOuter) base = keep(wasm.CrossSection.union([base, ringOuter]));
-  const tall = ringOuter ? keep(wasm.CrossSection.union([art, ringOuter])) : art;
-  const margin = ringOn ? s.outline.width : s.smooth && s.base.enabled ? r : 0;
+  if (ring) base = keep(wasm.CrossSection.union([base, ring]));
+  const tall = ring ? keep(wasm.CrossSection.union([art, ring])) : art;
+  const margin = Math.max(ringOn ? s.outline.width : 0, s.smooth && s.base.enabled ? r : 0);
   return { art, tall, base, ring, margin };
 }
 

@@ -99,7 +99,7 @@ export async function buildModel(g: Grid, s: Settings): Promise<Model> {
     const tall = sh?.ring ? toPx(sh.tall) : outline;
     const ring = sh?.ring ? toPx(sh.ring) : null;
     const margin = sh?.margin ?? 0;
-    const outlines: Outlines = { tall, proxy: s.base.enabled ? baseOutline : tall, grown, out: margin };
+    const outlines: Outlines = { tall, base: s.base.enabled ? baseOutline : null, grown, out: margin };
 
     // a slab of `cs` from z0 to z0 + h, in mm with the opaque box at the origin
     const slab = (cs: CrossSection, z0: number, h: number): Manifold =>

@@ -9,6 +9,9 @@ import type { Grid, Model, Part, Settings } from '../src/index';
 import { initManifold } from '../src/manifold';
 import { traceLoops } from '../src/outline';
 import { assertManifold } from './util/assertManifold';
+import UPNG from 'upng-js';
+import { flatShapes } from '../src/shapes';
+import { edgeAtAngle } from '../src/features';
 
 // v0.2.35 (user request 2026-10-28): clicker piece counts, cap backing color, smooth edges and the outline ring.
 
@@ -186,9 +189,14 @@ describe('clicker piece counts (bug fix)', () => {
   });
 
   it('convert reports the named warning, not a bare "N separate pieces"', async () => {
-    const far = shape(30, 10, (x) => x < 10 || x >= 20);
-    const m = await buildModel(far, clicker((s) => { s.size.width = 60; }));
-    expect(m.warnings.some((w) => /separate pieces/.test(w))).toBe(false);
+    const W = 30, H = 10, px = new Uint8Array(W * H * 4);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (x < 10 || x >= 20) px.set([204, 51, 51, 255], (y * W + x) * 4);
+    const png = new Uint8Array(UPNG.encode([px.buffer as ArrayBuffer], W, H, 0));
+    const r = await convert(png, { version: 1, settings: { make: 'clicker', size: { width: 60 }, background: { enabled: false }, pixelate: { enabled: false } }, colorRules: [] }, 'far');
+    expect(r.report.error).toBeUndefined();
+    expect(r.report.pieces).toBe(2);
+    expect(r.report.warnings).toContain('The cap is in 2 pieces. Move the islands closer together or join them.');
+    expect(r.report.warnings.some((w) => /separate pieces/.test(w))).toBe(false);
   });
 });
 
@@ -408,6 +416,70 @@ describe('outline', () => {
     const cfg = strFromU8(zip['Metadata/model_settings.config']!);
     const slot = filamentColors(potion, own).indexOf('#ffffff') + 1;
     expect(cfg).toMatch(new RegExp(`name" value="outline"[\\s\\S]*?extruder" value="${slot}"`));
+  });
+
+  // a 24 x 24 donut with an 8 x 8 hole in the middle
+  const donut = () => shape(24, 24, (x, y) => !(x >= 8 && x < 16 && y >= 8 && y < 16));
+  const solidInfo = async (parts: Part[]) => {
+    const u = await solidOf(parts);
+    const comps = u.decompose();
+    const vols = comps.map((c) => c.volume());
+    const out = { genus: u.genus(), volume: u.volume(), voids: vols.filter((v) => v < -1e-3).length };
+    for (const o of [u, ...comps]) o.delete();
+    return out;
+  };
+
+  it("flat: the outline keeps the art's interior holes open (review fix)", async () => {
+    const px = 40 / 24;
+    for (const smooth of [false, true]) {
+      const plain = await buildModel(donut(), settings((s) => { s.smooth = smooth; }));
+      const m = await buildModel(donut(), settings((s) => { s.smooth = smooth; s.outline.on = true; }));
+      for (const p of m.parts) await assertManifold(p);
+      expect((await solidInfo(m.parts)).genus).toBe(1);
+      const hole = around(20, 20, 8 * px - 0.1, 8 * px - 0.1, -1, 10);
+      expect(await volumeIn(m.parts, ...hole)).toBeCloseTo(await volumeIn(plain.parts, ...hole), 4);
+      if (!smooth) expect(await volumeIn(m.parts, ...hole)).toBeCloseTo(0, 4);
+    }
+  });
+
+  it('flat: with a shell inside, the outlined donut still has a sealed void that stays out of the hole', async () => {
+    const m = await buildModel(donut(), settings((s) => { s.outline.on = true; s.inside.mode = 'shell'; s.base.height = 5; s.inside.wall = 1; }));
+    for (const p of m.parts) await assertManifold(p);
+    const info = await solidInfo(m.parts);
+    expect(info.voids).toBe(1);
+    const px = 40 / 24;
+    expect(await volumeIn(m.parts, ...around(20, 20, 8 * px - 0.1, 8 * px - 0.1, -1, 10))).toBeCloseTo(0, 4);
+  });
+
+  it('the loop moves out past the larger of the ring and the smoothed margin (5 mm pixels, 0.5 mm ring)', async () => {
+    const g = square(8);
+    const s = settings((s) => { s.size.width = 40; s.outline.on = true; s.outline.width = 0.5; s.smooth = true; s.keychain.type = 'loop'; });
+    const { initManifold: init } = await import('../src/manifold');
+    const wasm = await init();
+    const trash: { delete(): void }[] = [];
+    const sh = flatShapes(wasm, g, s, 0, 0, { x: 5, y: 5 }, (o) => { trash.push(o); return o; });
+    expect(sh.margin).toBeCloseTo(2.5, 9);
+    for (const o of trash) o.delete();
+    const m = await buildModel(g, s);
+    for (const p of m.parts) await assertManifold(p);
+    expect(m.pieces).toBe(1);
+    // the loop's hole (inner 4, outer 8: center R = 3 mm past the 2.5 mm margin) is clear of base, ring and loop
+    const e = edgeAtAngle(g, 0);
+    const cx = e.u * 5, top = e.v * 5;
+    expect(await volumeIn(m.parts, [cx - 0.5, top + 3.6, -1], [cx + 0.5, top + 7.4, 20])).toBeCloseTo(0, 4);
+  });
+
+  it('flat pieces: two squares touching at a corner, double sided, smooth, a magnet at the center (review fix)', async () => {
+    const g = shape(8, 8, (x, y) => (x < 4 && y < 4) || (x >= 4 && y >= 4));
+    // 3 mm pixels: the smoothed base's neck at the corner lies inside the 8 mm magnet, which cuts the whole base
+    const m = await buildModel(g, settings((s) => { s.size.width = 24; s.sides.mode = 'solid'; s.smooth = true; s.magnets.at = [{ fx: 0.5, fy: 0.5 }]; }));
+    for (const p of m.parts) await assertManifold(p);
+    const u = await solidOf(m.parts);
+    const comps = u.decompose();
+    const real = comps.filter((c) => c.volume() > 0).length;
+    for (const o of [u, ...comps]) o.delete();
+    expect(real).toBe(2);
+    expect(m.pieces).toBe(real);
   });
 
   it('clicker: the ring goes round the cap and the well and footprint grow to fit it', async () => {

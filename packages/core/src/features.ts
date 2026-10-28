@@ -193,8 +193,8 @@ export function addLoop(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: Cro
 export interface Outlines {
   /** Where material stands at least as tall as the lowest color: the art and any outline ring. Inside follows it. */
   tall: CrossSection;
-  /** The body's footprint through its thinnest stack, for counting pieces: the base, else `tall`. */
-  proxy: CrossSection;
+  /** The base's footprint (it may reach past the art), or null with no base: counted only over the base's height. */
+  base: CrossSection | null;
   /** The base reaches past the art's pixel edge (outline ring, smoothing), so the art's pieces are not the body's. */
   grown: boolean;
   /** How far past the pixel edge the base reaches, mm. */
@@ -224,8 +224,8 @@ export function cutBody(wasm: Wasm, g: Grid, s: Settings, f: Frame, o: Outlines,
 /**
  * Disconnected pieces of one body after its loop and cuts. `solids` (uncut) and `cutters` are placed; `place`
  * moves unmirrored geometry the same way. A 3D union of every color layer takes seconds on busy art, so this
- * counts a stand-in: the outline through the body's thinnest stack, plus the loop. Where a cutter reaches past
- * that stack (a pocket at least as deep as base + lowest color), the stand-in has no material left there, so
+ * counts a stand-in: the art (and ring) through the body's thinnest stack, the base over its own height (it may reach
+ * past the art), plus the loop. Where a cutter reaches past that stack (a pocket at least as deep as base + lowest color), the stand-in has no material left there, so
  * each color's own geometry inside the cutter's footprint is added back: a taller color island standing over
  * the pocket then shows as its own piece. Each cutter is then subtracted. It can still over-count where a pocket
  * severs the thinnest stack but taller colors bridge it. A sealed void is its own negative-volume component and
@@ -242,7 +242,9 @@ function bodyPieces(wasm: Wasm, g: Grid, s: Settings, f: Frame, o: Outlines, sol
       if (colors.includes(x)) { lo = Math.max(lo, b.min[2]!); hi = Math.min(hi, b.max[2]!); }
     }
     lo = Math.min(lo, 0); hi = Math.max(hi, side.baseT);
-    let proxy = k(k(k(outlineMm(o.proxy, f)).extrude(hi - lo)).translate([0, 0, lo]));
+    // the art and ring through the thinnest stack, and the base (which may reach further) only as tall as it is
+    let proxy = k(k(k(outlineMm(o.tall, f)).extrude(hi - lo)).translate([0, 0, lo]));
+    if (o.base && side.baseT > 0) proxy = k(proxy.add(k(k(outlineMm(o.base, f)).extrude(side.baseT))));
     if (hasLoop(s)) proxy = k(proxy.add(k(bodyLoop(wasm, g, s, f, side, solids.some((x) => x.name === 'base'), o.out))));
     let body = place(proxy); // for the front this is `proxy` itself, which `k` already frees
     for (const c of cutters) {

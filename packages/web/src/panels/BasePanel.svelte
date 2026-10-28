@@ -22,5 +22,5 @@
   <!-- not in the mockup (user request 2026-10-28): shown with the base off too, as it also rounds the outline and the clicker -->
   <label class="check"><input type="checkbox" id="smooth" checked={app.settings.smooth}
     onchange={(e) => { const on = e.currentTarget.checked; setting(() => (app.settings.smooth = on)); }}> Smooth edges</label>
-  <p class="hint" id="smoothHint">Rounds the stepped pixel edge of the base, outline and clicker body. The art keeps its pixels.</p>
+  <p class="hint" id="smoothHint">Rounds the stepped pixel edge of the base, outline and clicker cap and body. The art keeps its pixels.</p>
 </section>

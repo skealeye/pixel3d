@@ -6,7 +6,7 @@
   import Slider from './Slider.svelte';
 
   /**
-   * Outline (user request 2026-10-28, spec §4.7b): a ring round the art's outer edge, as tall as the lowest color, in
+   * Outline (user request 2026-10-28, spec §4.7b): a ring around the art's outer edge, as tall as the lowest color, in
    * its own color. Not in the mockup; laid out like the Base section.
    */
   const outline = $derived(app.settings.outline);
@@ -27,5 +27,5 @@
       <Favorites id="outlineFavs" value={outline.color} pick={(hex) => setting(() => (outline.color = hex))} />
     </div>
   {/if}
-  <p class="hint" id="outlineHint">A border round the outside of the art, as tall as its lowest color.</p>
+  <p class="hint" id="outlineHint">A border around the outside of the art, as tall as its lowest color.</p>
 </section>

@@ -107,14 +107,16 @@ export function cropTo(c0: number, r0: number, c1: number, r1: number) {
 
 /**
  * Pieces in what is shown: the core model's count once it matches the grid, the grid's own until then. A clicker's
- * backing bridges islands, so the grid's count means nothing there: until its model arrives the last clicker's count
- * stands (one before there is any).
+ * backing bridges islands, and an outline ring or a smoothed base can join them on a flat model, so the grid's count
+ * means nothing there: until the model arrives the last such model's count stands (one before there is any).
  */
 export function pieceCount(): number {
-  const g = app.grid, b = app.built;
+  const g = app.grid, b = app.built, s = app.settings;
   if (!g) return 0;
-  if (app.settings.make === 'clicker') return b?.make === 'clicker' ? b.pieces : 1;
-  return b?.grid === g && b.make === 'model' ? b.pieces : app.parts.length;
+  if (s.make === 'clicker') return b?.make === 'clicker' ? b.pieces : 1;
+  if (b?.grid === g && b.make === 'model') return b.pieces;
+  if (s.outline.on || (s.smooth && s.base.enabled)) return b?.make === 'model' ? b.pieces : 1;
+  return app.parts.length;
 }
 
 /** What is split, in plain words, or null for one piece: `3 separate pieces`, or on a clicker `cap in 3 pieces`. */
