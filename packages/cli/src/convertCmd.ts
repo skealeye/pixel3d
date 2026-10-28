@@ -10,7 +10,7 @@ import { emptyPresetDoc, parsePresetJson, PresetJsonError } from './presetLoad';
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp']);
 
 /** A usage or preset problem: printed as-is, exit code 2. */
-class UsageError extends Error {}
+export class UsageError extends Error {}
 
 /** statSync that treats an unreadable or vanished path as "neither a file nor a directory". */
 const kind = (p: string): 'file' | 'dir' | 'none' => {
@@ -23,7 +23,7 @@ const kind = (p: string): 'file' | 'dir' | 'none' => {
 };
 
 /** Files, directories (non-recursive, images only) and globs, as a sorted list without duplicates. */
-async function resolveInputs(args: string[]): Promise<string[]> {
+export async function resolveInputs(args: string[]): Promise<string[]> {
   const found = new Set<string>();
   for (const a of args) {
     if (kind(a) === 'dir') {
@@ -44,10 +44,11 @@ async function resolveInputs(args: string[]): Promise<string[]> {
   return [...found].sort();
 }
 
-/** Read the preset (if any), apply `--set` and `--format`, and validate. Throws `UsageError` with the printed message. */
-async function loadPreset(file: string | undefined, sets: string[], format: string | undefined): Promise<Preset> {
+/** Read a preset file, or take an inline preset document, apply `sets` and `format`, and validate. Throws `UsageError` with the printed message. */
+export async function loadPreset(source: { file?: string; inline?: unknown }, sets: string[], format: string | undefined): Promise<Preset> {
+  const { file } = source;
   const label = file ? `Preset ${basename(file)}` : 'Preset';
-  let raw: unknown = emptyPresetDoc();
+  let raw: unknown = source.inline ?? emptyPresetDoc();
   if (file) {
     let text: string;
     try {
@@ -61,6 +62,8 @@ async function loadPreset(file: string | undefined, sets: string[], format: stri
       if (e instanceof PresetJsonError) throw new UsageError(`${label} ${e.message}`);
       throw e;
     }
+  } else if (source.inline !== undefined) {
+    raw = structuredClone(source.inline); // setPath below must not mutate the caller's object
   }
   const doc = raw as Record<string, unknown> | null;
   const settings = doc && typeof doc === 'object' ? doc.settings ?? (doc.settings = {}) : undefined;
@@ -87,6 +90,82 @@ export function failed(name: string, error: string, detail?: string): Report {
   return { name, palette: [], applied: [], dropped: [], size: { x: 0, y: 0, z: 0 }, pieces: 0, warnings: [], files: [], grid: { w: 0, h: 0 }, error, ...(detail ? { detail } : {}) };
 }
 
+export interface ConvertRequest {
+  /** Files, directories (non-recursive) and globs. */
+  inputs: string[];
+  /** A preset JSON file, or an inline preset document (not both). */
+  presetPath?: string;
+  preset?: unknown;
+  out: string;
+  format?: 'stl' | '3mf';
+  /** `key=value` settings overrides by dotted path. */
+  sets?: string[];
+}
+
+/**
+ * The batch behind `px3d convert` and the MCP tools: expand inputs, convert each, write models and report.json into `out`.
+ * Throws `UsageError` for bad inputs or presets; a failing image is reported in `reports`, never thrown.
+ */
+export async function runConvert(req: ConvertRequest): Promise<{ reports: Report[]; failures: number }> {
+  const { out, format } = req;
+  if (req.presetPath !== undefined && req.preset !== undefined) throw new UsageError('Give either preset or presetPath, not both.');
+  const preset = await loadPreset({ file: req.presetPath, inline: req.preset }, req.sets ?? [], format);
+  const inputs = await resolveInputs(req.inputs);
+  if (!inputs.length) throw new UsageError('No images found (looking for .png .jpg .jpeg .gif .webp).');
+  try {
+    await mkdir(out, { recursive: true });
+  } catch (e) {
+    throw new UsageError(`Cannot use --out ${out}: ${(e as Error).message}`);
+  }
+  const reports: Report[] = [];
+  const used = new Set<string>();
+  let failures = 0;
+  try {
+    for (const input of inputs) {
+      const file = basename(input);
+      // two inputs with the same stem (a/x.png, b/x.png) must not overwrite each other's outputs
+      const base = basename(input, extname(input));
+      let stem = base;
+      for (let i = 2; used.has(stem.toLowerCase()); i++) stem = `${base}-${i}`;
+      used.add(stem.toLowerCase());
+
+      let result;
+      try {
+        result = await convert(new Uint8Array(await readFile(input)), preset, stem);
+      } catch (e) {
+        result = { files: [], report: failed(stem, 'The file could not be read.', (e as Error).message) };
+      }
+      let { report } = result;
+      if (!report.error) {
+        const written: string[] = [];
+        try {
+          for (const f of result.files) {
+            written.push(join(out, f.name));
+            await writeFile(join(out, f.name), f.bytes);
+          }
+        } catch (e) {
+          // one image's write failure must not stop the batch: drop its partial outputs and report it
+          await Promise.all(written.map((w) => rm(w, { force: true }).catch(() => undefined)));
+          const failedFile = basename(written[written.length - 1]!);
+          report = failed(report.name, `Could not write ${failedFile}: ${(e as Error).message}`, (e as Error).stack?.split('\n').slice(0, 6).join('\n'));
+        }
+      }
+      reports.push(report);
+      if (report.error) {
+        failures++;
+        console.error(`✗ ${file}: ${report.error}`);
+      } else {
+        const { x, y, z } = report.size;
+        console.error(`✓ ${file} → ${report.files.join(', ')} (${mm(x)} × ${mm(y)} × ${mm(z)} mm)`);
+      }
+      for (const w of report.warnings) console.error(`    warning: ${w}`);
+    }
+  } finally {
+    await writeFile(join(out, 'report.json'), JSON.stringify(reports, null, 2) + '\n');
+  }
+  return { reports, failures };
+}
+
 /** `px3d convert`: resolves to the exit code. */
 export async function convertCmd(argv: string[]): Promise<number> {
   try {
@@ -110,61 +189,7 @@ export async function convertCmd(argv: string[]): Promise<number> {
     if (format !== undefined && format !== 'stl' && format !== '3mf') throw new UsageError(`--format must be stl or 3mf, not "${format}".`);
     if (!parsed.positionals.length) throw new UsageError('Give at least one image, glob or folder to convert.');
 
-    const preset = await loadPreset(presetFile, parsed.values.set ?? [], format);
-    const inputs = await resolveInputs(parsed.positionals);
-    if (!inputs.length) throw new UsageError('No images found (looking for .png .jpg .jpeg .gif .webp).');
-    try {
-      await mkdir(out, { recursive: true });
-    } catch (e) {
-      throw new UsageError(`Cannot use --out ${out}: ${(e as Error).message}`);
-    }
-
-    const reports: Report[] = [];
-    const used = new Set<string>();
-    let failures = 0;
-    try {
-      for (const input of inputs) {
-        const file = basename(input);
-        // two inputs with the same stem (a/x.png, b/x.png) must not overwrite each other's outputs
-        const base = basename(input, extname(input));
-        let stem = base;
-        for (let i = 2; used.has(stem.toLowerCase()); i++) stem = `${base}-${i}`;
-        used.add(stem.toLowerCase());
-
-        let result;
-        try {
-          result = await convert(new Uint8Array(await readFile(input)), preset, stem);
-        } catch (e) {
-          result = { files: [], report: failed(stem, 'The file could not be read.', (e as Error).message) };
-        }
-        let { report } = result;
-        if (!report.error) {
-          const written: string[] = [];
-          try {
-            for (const f of result.files) {
-              written.push(join(out, f.name));
-              await writeFile(join(out, f.name), f.bytes);
-            }
-          } catch (e) {
-            // one image's write failure must not stop the batch: drop its partial outputs and report it
-            await Promise.all(written.map((w) => rm(w, { force: true }).catch(() => undefined)));
-            const failedFile = basename(written[written.length - 1]!);
-            report = failed(report.name, `Could not write ${failedFile}: ${(e as Error).message}`, (e as Error).stack?.split('\n').slice(0, 6).join('\n'));
-          }
-        }
-        reports.push(report);
-        if (report.error) {
-          failures++;
-          console.error(`✗ ${file}: ${report.error}`);
-        } else {
-          const { x, y, z } = report.size;
-          console.error(`✓ ${file} → ${report.files.join(', ')} (${mm(x)} × ${mm(y)} × ${mm(z)} mm)`);
-        }
-        for (const w of report.warnings) console.error(`    warning: ${w}`);
-      }
-    } finally {
-      await writeFile(join(out, 'report.json'), JSON.stringify(reports, null, 2) + '\n');
-    }
+    const { failures } = await runConvert({ inputs: parsed.positionals, presetPath: presetFile, out, format: format as 'stl' | '3mf' | undefined, sets: parsed.values.set ?? [] });
     return failures ? 1 : 0;
   } catch (e) {
     if (e instanceof UsageError) {

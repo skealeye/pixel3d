@@ -1,5 +1,6 @@
 import { VERSION } from '@pixel3d/core';
 import { convertCmd } from './convertCmd';
+import { mcpCmd } from './mcp';
 import { serveCmd } from './serve';
 
 export const USAGE = `px3d ${VERSION}: convert pixel art to 3D-print files
@@ -12,7 +13,9 @@ Usage:
   px3d serve [--port 7300] [--host 127.0.0.1] [--debug]
       HTTP API for scripts: POST /convert, POST /batch, GET /jobs/:id, GET /openapi.json.
       Binds to localhost by default. --debug includes error stack excerpts in responses.
-  px3d mcp       MCP server for Claude (coming in a later version)
+  px3d mcp
+      MCP server over stdio for Claude (tools: convert_image, convert_folder, inspect_image, list_presets).
+      Add it with: claude mcp add px3d -- px3d mcp
   px3d --version
   px3d --help
 `;
@@ -21,8 +24,8 @@ Usage:
 const commands: Record<string, (argv: string[]) => Promise<number>> = {
   convert: convertCmd,
   serve: serveCmd,
+  mcp: mcpCmd,
 };
-const planned = new Set(['mcp']);
 
 export async function main(argv: string[]): Promise<number> {
   const [cmd, ...rest] = argv;
@@ -40,7 +43,9 @@ export async function main(argv: string[]): Promise<number> {
   }
   const run = commands[cmd];
   if (run) return run(rest);
-  console.error(planned.has(cmd) ? `px3d ${cmd} is coming in a later version.` : `Unknown command "${cmd}".\n\n${USAGE}`);
+  console.error(`Unknown command "${cmd}".
+
+${USAGE}`);
   return 2;
 }
 

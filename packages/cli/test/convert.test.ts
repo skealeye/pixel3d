@@ -183,7 +183,8 @@ describe('px3d --version and --help', () => {
     expect(r.stdout).toMatch(/px3d convert/);
     expect(r.stdout).toMatch(/px3d serve \[--port/);
     expect(r.stdout).not.toMatch(/px3d serve[^\n]*later version/);
-    expect(r.stdout).toMatch(/px3d mcp[^\n]*later version/);
+    expect(r.stdout).toMatch(/px3d mcp/);
+    expect(r.stdout).not.toMatch(/px3d mcp[^\n]*later version/);
   });
 
   it('the built bundle runs --version', () => {
