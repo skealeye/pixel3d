@@ -316,6 +316,41 @@
 
 <aside class="right">
   <section>
+    <h2>Make</h2>
+    <div class="seg" data-key="make">
+      <button data-v="model">Flat model</button>
+      <button data-v="clicker">Clicker</button>
+    </div>
+    <p class="hint" id="makeHint"></p>
+  </section>
+
+  <section id="clkSec">
+    <h2>Clicker</h2>
+    <div id="clkRows">
+      <div class="row"><label>Body shape</label></div>
+      <div class="seg" data-key="clkShape">
+        <button data-v="outline">Outline</button>
+        <button data-v="circle">Circle</button>
+        <button data-v="square">Square</button>
+      </div>
+      <div class="sl"><label>Border</label><input type="range" id="clkBorderR" min="1.5" max="10" step="0.5"><input class="num" id="clkBorder"><span class="unit">mm</span></div>
+      <div class="sl"><label>Cap height</label><input type="range" id="clkProudR" min="0.5" max="4" step="0.5"><input class="num" id="clkProud"><span class="unit">mm</span></div>
+      <div class="sl"><label>Fit gap</label><input type="range" id="clkTolR" min="0.1" max="0.6" step="0.05"><input class="num" id="clkTol"><span class="unit">mm</span></div>
+      <div class="row"><label>Switches</label></div>
+      <div class="seg" data-key="clkSwitches">
+        <button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button>
+      </div>
+      <div class="row"><label>View</label></div>
+      <div class="seg" data-key="clkView">
+        <button data-v="apart">Apart (as printed)</button>
+        <button data-v="assembled">Assembled</button>
+      </div>
+      <div class="row" id="pressRow"><button class="btn" id="clkPress">Press</button><span class="bginfo">Hold the button, or hold Space, to press the cap down.</span></div>
+      <p class="hint" id="clkHint"></p>
+    </div>
+  </section>
+
+  <section>
     <h2>Size</h2>
     <div class="sl"><label>Width</label><input type="range" id="wR" min="5" max="200" step="0.5"><input class="num" id="w"><span class="unit">mm</span></div>
     <div class="sl"><label>Height</label><input type="range" id="hR" min="5" max="200" step="0.5"><input class="num" id="h"><span class="unit">mm</span></div>
@@ -356,32 +391,6 @@
         <button data-v="both" id="hoBoth">Both sides</button>
         <button data-v="top" id="hoTop">Top side only</button>
       </div>
-    </div>
-  </section>
-
-  <section>
-    <h2>Clicker <input type="checkbox" id="clickerOn" style="margin-left:auto"></h2>
-    <p class="hint" style="margin-top:0">Turns the art into a key cap that clicks on a mechanical keyboard switch (Cherry MX style). Prints as two parts: the cap and a body that holds the switch.</p>
-    <div id="clkRows">
-      <div class="row"><label>Body shape</label></div>
-      <div class="seg" data-key="clkShape">
-        <button data-v="outline">Outline</button>
-        <button data-v="circle">Circle</button>
-        <button data-v="square">Square</button>
-      </div>
-      <div class="sl"><label>Border</label><input type="range" id="clkBorderR" min="1.5" max="10" step="0.5"><input class="num" id="clkBorder"><span class="unit">mm</span></div>
-      <div class="sl"><label>Cap height</label><input type="range" id="clkProudR" min="0.5" max="4" step="0.5"><input class="num" id="clkProud"><span class="unit">mm</span></div>
-      <div class="sl"><label>Fit gap</label><input type="range" id="clkTolR" min="0.1" max="0.6" step="0.05"><input class="num" id="clkTol"><span class="unit">mm</span></div>
-      <div class="row"><label>Switches</label></div>
-      <div class="seg" data-key="clkSwitches">
-        <button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button>
-      </div>
-      <div class="row"><label>View</label></div>
-      <div class="seg" data-key="clkView">
-        <button data-v="apart">Apart (as printed)</button>
-        <button data-v="assembled">Assembled</button>
-      </div>
-      <p class="hint" id="clkHint"></p>
     </div>
   </section>
 
@@ -451,7 +460,7 @@
   <span id="fcount"></span>
   <span class="spacer"></span>
   <span>Mockup, nothing is saved</span>
-  <span>v0.1.8</span>
+  <span>v0.1.9</span>
 </footer>
 
 <dialog id="batch">
@@ -500,7 +509,7 @@ const S = {
   grid: [], palette: [], sel: 0, tool: 'paint',
   heightMode: 'uniform', hMin: 1, hMax: 4, seed: 42, darkHigh: true, defH: 1,
   w: 40, h: 40, lock: true, base: true, baseH: 2, baseColor: '#2a2d33', bottom: 'solid', wall: 1.2,
-  sides: 'single', heightsOn: 'both', clicker: false, clkShape: 'outline', clkBorder: 3, clkProud: 2, clkTol: 0.3, clkSwitches: 1, clkView: 'apart',
+  sides: 'single', heightsOn: 'both', make: 'model', clicker: false, clkShape: 'outline', clkBorder: 3, clkProud: 2, clkTol: 0.3, clkSwitches: 1, clkView: 'assembled',
   pixelate: false, pixW: 32, pixColours: 8,
   removeBg: true, bgTol: 10, bgPick: null, bgFound: null, bgHow: 'none', pickingBg: false, fileLoaded: false, px: null,
   key: 'none', holeStyle: 'round', holeD: 4, hole: null,
@@ -945,6 +954,7 @@ $('expand').onclick = () => {
 // ---------- controls ----------
 function setSeg(key, v) {
   S[key] = v;
+  if (key === 'make') S.clicker = v === 'clicker';
   document.querySelectorAll(`.seg[data-key=${key}] button`).forEach(b => b.classList.toggle('on', b.dataset.v === String(v)));
   syncVisibility();
 }
@@ -952,7 +962,7 @@ document.querySelectorAll('.seg').forEach(seg => {
   const key = seg.dataset.key;
   seg.querySelectorAll('button').forEach(b => b.onclick = () => {
     setSeg(key, key === 'clkSwitches' ? +b.dataset.v : b.dataset.v);
-    if (key === 'clkView' || key === 'clkShape') requestAnimationFrame(fitView);
+    if (key === 'clkView' || key === 'clkShape' || key === 'make') requestAnimationFrame(fitView);
     if (key === 'heightMode') { commit(); applyHeightMode(); renderPalette(); }
     if (key === 'key' && S.key === 'hole' && !S.hole) defaultHole();
     if (key === 'bottom' && S.bottom !== 'solid' && !S.cut) setCut(true);
@@ -988,7 +998,6 @@ const bindNum = (id, key) => $(id).oninput = () => { S[key] = +$(id).value; appl
 bindNum('hMin', 'hMin'); bindNum('hMax', 'hMax'); bindNum('seed', 'seed');
 $('darkHigh').onchange = () => { S.darkHigh = $('darkHigh').checked; applyHeightMode(); renderPalette(); build(); };
 $('reroll').onclick = () => { commit(); S.seed = Math.floor(Math.random() * 9999); $('seed').value = S.seed; setSeg('heightMode', 'random'); applyHeightMode(); renderPalette(); build(); };
-$('clickerOn').onchange = () => { S.clicker = $('clickerOn').checked; syncVisibility(); build(); fitView(); };
 pair('clkBorder', 'clkBorder', f1);
 pair('clkProud', 'clkProud', f1);
 pair('clkTol', 'clkTol', (v) => (+v).toFixed(2));
@@ -1025,7 +1034,9 @@ function syncVisibility() {
   show('pixRows', S.pixelate);
   show('bgRows', S.removeBg || S.pickingBg);
   show('magPosRow', S.sides === 'single');
-  show('clkRows', S.clicker);
+  show('clkSec', S.clicker);
+  if ($('makeHint')) $('makeHint').textContent = S.clicker ? 'Your art becomes a key cap that clicks on a mechanical keyboard switch (Cherry MX style). Prints as two parts: the cap and a body that holds the switch.' : 'A flat pixel model: keychain, magnet, fridge magnet or display piece.';
+  show('pressRow', S.clkView === 'assembled');
   document.querySelectorAll('aside section').forEach(sec => {
     const t = sec.querySelector('h2')?.firstChild?.textContent.trim();
     if (['Inside', 'Sides', 'Keychain', 'Magnets'].includes(t)) sec.classList.toggle('off', S.clicker);
@@ -1242,19 +1253,20 @@ function clickerParts(bt) {
     skirt.push(new THREE.BoxGeometry(SC.sx, SC.sy, MX.stemLen).translate((x + .5) * SC.sx, (y + .5) * SC.sy, -MX.stemLen / 2));
   }
   if (skirt.length) cap.add(new THREE.Mesh(mergeGeometries(skirt), mat(hex)));
+  const movers = [];
   if (S.clkView === 'assembled') {
     cap.position.z = capUnder;
     // the switch, as a see-through stand-in (not part of the model)
     for (const [x, y] of spots) {
       const sw = new THREE.Mesh(new THREE.BoxGeometry(MX.cut, MX.cut, 5 + 6.6).translate(x, y, plateTop - 5 + 3.3 - MX.plate / 2), ghostSwitch);
       const stem = new THREE.Mesh(new THREE.BoxGeometry(4, 4, stemTop - plateTop - 6.6).translate(x, y, (stemTop + plateTop + 6.6) / 2), ghostSwitch);
-      sw.userData.ghost = stem.userData.ghost = true; bodyG.add(sw, stem);
+      sw.userData.ghost = stem.userData.ghost = true; bodyG.add(sw, stem); movers.push(stem);
     }
   } else {
     const box = new THREE.Box3().setFromObject(bodyG);
     cap.position.set(box.max.x - box.min.x + 8, 0, MX.stemLen);
   }
-  return { bodyG, cap, size: { h: rimTop, travel: MX.travel } };
+  return { bodyG, cap, movers, rest: capUnder, size: { h: rimTop, travel: MX.travel } };
 }
 
 // one printable body. opts: mirror (back half), baseT, top/under pixel layers, topVary/underVary (colour heights or flat), cavity
@@ -1378,6 +1390,7 @@ function build() {
     back.position.x = N * SC.sx + 8;
     pivot.add(body({ baseT: bt / 2, idx: 0, magZ: -0.01 }), back);
   }
+  press.live = clk && S.clkView === 'assembled' ? clk : null; press.at = 0;
   pivot.rotation.set(...S.rot.map(r => r * Math.PI / 2));
   if (!drag) {
     holder.position.set(0, 0, 0); holder.updateMatrixWorld(true);
@@ -1494,7 +1507,36 @@ function resize() {
   renderer.render(scene, camera);
 }
 new ResizeObserver(resize).observe(canvas.parentElement);
-renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+// press preview: the cap and switch stem travel down and spring back; a click sounds where a real switch actuates (2 mm)
+const press = { live: null, at: 0, down: false, release: false, last: 0, clicked: false };
+let audio = null;
+function clickSound() {
+  audio = audio || new AudioContext();
+  const n = audio.createBuffer(1, audio.sampleRate * .03, audio.sampleRate), d = n.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audio.sampleRate * .003));
+  const src = audio.createBufferSource(), f = audio.createBiquadFilter(), g = audio.createGain();
+  f.type = 'highpass'; f.frequency.value = 1800; g.gain.value = .5;
+  src.buffer = n; src.connect(f).connect(g).connect(audio.destination); src.start();
+}
+function pressStep(t) {
+  const dt = Math.min(.05, (t - (press.last || t)) / 1000); press.last = t;
+  const c = press.live; if (!c) return;
+  const goal = press.down && !(press.release && press.at >= MX.travel * .97) ? MX.travel : 0;
+  if (press.release && press.at >= MX.travel * .97) { press.down = false; press.release = false; }
+  const before = press.at;
+  press.at += (goal - press.at) * Math.min(1, dt * (goal ? 28 : 16));
+  if (before < 2 && press.at >= 2) clickSound();
+  if (before > 1.6 && press.at <= 1.6) clickSound();
+  c.cap.position.z = c.rest - press.at;
+  c.movers.forEach(m => m.position.z = -press.at);
+}
+const pressDown = () => { press.down = true; press.release = false; };
+const pressUp = () => { press.release = true; };
+$('clkPress').onpointerdown = pressDown;
+$('clkPress').onpointerup = $('clkPress').onpointerleave = () => { if (press.down) pressUp(); };
+addEventListener('keydown', (e) => { if (e.code === 'Space' && press.live && !e.repeat && !/INPUT|SELECT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)) { e.preventDefault(); pressDown(); } });
+addEventListener('keyup', (e) => { if (e.code === 'Space' && press.down) pressUp(); });
+renderer.setAnimationLoop((t) => { pressStep(t); controls.update(); renderer.render(scene, camera); });
 
 // ---------- export & batch ----------
 function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2400); }

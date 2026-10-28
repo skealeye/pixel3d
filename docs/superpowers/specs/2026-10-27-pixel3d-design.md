@@ -129,7 +129,7 @@ A setting with three values, labelled in the UI as **One side / Double sided / T
 
 ### 4.6b Keycap clicker (new)
 A fidget clicker in the style of the Vostok Labs Clicker Generator (user's reference): the art becomes a key cap that clips onto a real **Cherry MX style keyboard switch**, and a printed body holds the switch. Pressing the cap gives a real keyboard click. No magnets are involved.
-- **Clicker** on/off section. When on, it replaces the Sides, Inside, Keychain and Magnets settings, which are greyed out and labelled "Not used on a clicker". Size, Base, colours and heights still apply to the cap.
+- Chosen with a **Make: Flat model / Clicker** switch at the very top of the settings panel, so it can't be missed. Choosing Clicker shows the Clicker settings directly below it. Sides, Inside, Keychain and Magnets are greyed out and labelled "Not used on a clicker". Size, Base, colours and heights still apply to the cap.
 - **Two printed parts:**
   - **Cap:** the art with its colour heights on its backing (the base, or the lowest colour height with no base). Underneath it has one stem per switch (5.5 mm round, with an MX cross socket 4.1 × 1.3 mm, 3.8 mm deep) and a skirt round its edge, 4.5 mm tall like the stems. It prints art side up, standing on the stems and skirt, so it needs no supports. The skirt skips the area around each switch.
   - **Body:** the footprint, with a **well** shaped like the cap outline plus the fit gap. In the well floor there's a 15.6 mm square column per switch, with a 1.5 mm plate holding a **14.0 mm square** socket the switch clips into, and 8.5 mm of clearance below for the switch body and pins, over a 1.2 mm floor. The well is deep enough for 4 mm of travel, so the cap can be pressed all the way down. It prints flat with no supports.
@@ -139,7 +139,8 @@ A fidget clicker in the style of the Vostok Labs Clicker Generator (user's refer
   - **Cap height:** 0.5–4 mm, default 2. How far the cap's backing stands above the body's rim at rest.
   - **Fit gap:** 0.1–0.6 mm, default 0.3. The clearance between the cap and the well wall.
   - **Switches:** 1, 2 or 3 (default 1). Multiple switches are spaced at keyboard pitch (19.05 mm) along the art's long side, centred.
-  - **View:** Apart (as printed, cap beside the body) or Assembled. Assembled shows the cap on a see-through stand-in switch at rest. Cut view works in both.
+  - **View:** Assembled (default) or Apart (as printed, cap beside the body). Assembled shows the cap seated in the body on a see-through stand-in switch. Cut view works in both.
+  - **Press preview** (Assembled only): hold the Press button, or hold Space, and the cap and the switch stem travel the full 4 mm down and spring back on release. A short click sound plays at the actuation point (2 mm) on the way down and again on the way up.
 - **Warnings:** art smaller than the switch column plus 2 mm (17.6 mm) can't cover the switch. The hint states how many switches are needed and how to assemble it: clip the switch into the body from above, then push the cap on.
 - **Export:** the cap and body as two objects in one 3MF (the cap multi-colour, the body in the base colour), or two STLs (`name_cap`, `name_body`).
 - **Fit:** the switch numbers above are nominal MX values. The builder confirms them against the Cherry MX datasheet and adds a small **fit-test** export (a socket coupon plus a stem coupon), so the user can tune the fit gap and stem fit on their own printer before printing a full clicker. The user prints on a Bambu printer and can test this.
