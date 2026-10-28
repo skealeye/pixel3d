@@ -63,7 +63,12 @@ Success means the user can drop in a sprite, adjust heights and colours, and get
 - **The image panel can be enlarged:** an Expand/Shrink button (about 45% of the window) and a draggable divider between the panel and the 3D view.
 
 ### 4.2 Background removal (parity)
-- An on/off toggle. The background colour is guessed from the image edges or picked with an eyedropper. Tolerance runs 0–50.
+- An on/off toggle, on by default.
+  - The background colour is found automatically when all four corners match within the tolerance. Otherwise the user can **Pick** it: removal switches off so the background shows, and the user clicks it in the image preview. The colour is read from the original image. A swatch shows the colour and how it was chosen: found in the corners, picked, or none found.
+  - **Tolerance** runs 0–50 % (default 10 %) of the full RGB distance.
+  - Removal is a **flood fill from the image edge**: only background touching the edge is cleared, so the same colour inside the art (eye whites, highlights) stays.
+  - When pixelating, removal runs at full resolution before shrinking, so edge pixels don't blend into a fringe.
+  - Changing any background setting keeps the pixel size, the hole and the magnets.
 - Only background connected to the image edges is removed.
 
 ### 4.3 Palette (parity + new)
@@ -93,6 +98,7 @@ Success means the user can drop in a sprite, adjust heights and colours, and get
 ### 4.5 Geometry & size (parity)
 - Width and height of the model's outline, in mm or inches, each set with a **slider plus a number box**.
   - "Keep aspect ratio" is on by default. Turned off, width and height scale independently, so pixels become rectangles.
+  - **Pixel size stays fixed while editing.** Width and height set the size of one pixel in mm. Painting or erasing pixels outside the current outline grows or shrinks the model and updates the Width and Height readouts; the model is never rescaled to fit. Moving a size slider, loading an image, or changing Pixels across sets a new pixel size.
 - Every size and thickness control in the app (base, wall, hole, loop, pixel height) is a slider with a number box.
 - Optional base with its own height and colour. The base follows the pixel outline. Base settings are hidden while the base is off.
 - **Favourite colours:** five slots, saved in the browser.
