@@ -16,7 +16,7 @@
   }
 </script>
 
-<section class:off={app.settings.make === 'clicker'} inert={app.settings.make === 'clicker'}>
+<section>
   <h2>Magnets <small id="magCount">{m.at.length} placed</small></h2>
   <div class="row" style="margin-top:0"><label for="magSize">Size</label>
     <!-- the mockup's three sizes; a custom size comes from presets -->

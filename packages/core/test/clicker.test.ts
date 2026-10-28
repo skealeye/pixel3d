@@ -334,13 +334,34 @@ describe('buildClicker', () => {
     expect(m.warnings.join(' ')).toMatch(/3 switches/);
   });
 
-  it('ignores keychain, magnets, sides and inside', async () => {
+  it('ignores a keychain hole, magnets, sides and inside', async () => {
     const plain = await buildClicker(potion, settings(() => {}));
     const busy = await buildClicker(potion, settings((s) => {
       s.keychain.type = 'hole'; s.magnets.at = [{ fx: 0.5, fy: 0.5 }]; s.sides.mode = 'halves'; s.inside.mode = 'hollow';
     }));
     expect(busy.parts.map((p) => [p.object, p.name, p.mesh.triVerts.length])).toEqual(plain.parts.map((p) => [p.object, p.name, p.mesh.triVerts.length]));
   });
+
+  for (const [shape, angle] of [['outline', 0], ['circle', 90], ['square', 225]] as const) {
+    it(`a keychain loop joins the body (${shape} body, ${angle}°): one piece, at the bed, cap unchanged`, async () => {
+      const plain = await buildClicker(potion, settings((s) => { s.clicker.shape = shape; }));
+      const m = await buildClicker(potion, settings((s) => {
+        s.clicker.shape = shape; s.keychain.type = 'loop'; s.keychain.loop.angle = angle; s.keychain.loop.style = angle === 90 ? 'pixel' : 'round';
+      }));
+      const body = (x: typeof m) => x.parts.find((p) => p.object === 'body')!;
+      for (const p of m.parts) await assertManifold(p);
+      expect(m.pieceCounts).toEqual({ cap: 1, body: 1 });
+      expect(m.parts.filter((p) => p.object === 'body').map((p) => p.name)).toEqual(['base']);
+      const vol = (x: typeof m) => volumeIn([body(x)], [-500, -500, -500], [500, 500, 500]);
+      expect(await vol(m)).toBeGreaterThan(await vol(plain));
+      const zs = (x: typeof m) => { const v = body(x).mesh.vertProperties; let lo = Infinity; for (let i = 2; i < v.length; i += 3) lo = Math.min(lo, v[i]!); return lo; };
+      expect(zs(m)).toBeCloseTo(0, 6);
+      // the loop sticks out on its side: at 0° the body grows upward (+Y)
+      if (angle === 0) expect(m.bounds.max[1]).toBeGreaterThan(plain.bounds.max[1] + 4);
+      const caps = (x: typeof m) => x.parts.filter((p) => p.object === 'cap').map((p) => p.mesh.triVerts.length);
+      expect(caps(m)).toEqual(caps(plain));
+    });
+  }
 
   it('the 3MF has two objects; toSTL gives name_cap and name_body', async () => {
     const m = await buildClicker(potion, settings(() => {}));

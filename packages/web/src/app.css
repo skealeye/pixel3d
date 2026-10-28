@@ -36,8 +36,6 @@ header {
 .file b { color: var(--text); font-weight: 500; }
 .dropzone { position: fixed; inset: 0; z-index: 50; display: none; place-items: center; background: rgba(27, 30, 35, .82); pointer-events: none; }
 .dropzone.show { display: grid; }
-section.off { opacity: .35; pointer-events: none; }
-section.off h2::after { content: 'Not used on a clicker'; margin-left: auto; font-size: 11px; font-weight: 400; color: var(--muted); }
 .bgsw { flex: none; width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--line); }
 .bginfo { flex: 1; color: var(--muted); font-size: 12px; }
 .dropzone div { padding: 40px 64px; border: 2px dashed var(--gold); border-radius: 12px; color: var(--text); font-size: 18px; background: var(--panel); }

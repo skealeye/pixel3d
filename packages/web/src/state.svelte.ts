@@ -31,7 +31,7 @@ export const app = new AppState();
 
 /** View-only state: none of it is undone or saved. */
 export const ui = $state({
-  popover: null as null | 'grid' | 'export',
+  popover: null as null | 'grid' | 'xray' | 'export',
   /** The Batch and API dialog is open. */
   batch: false,
   /** The Export panel's file name (no extension); set from the image name when one loads. */
@@ -49,6 +49,8 @@ export const ui = $state({
   /** Cut view switches on by itself only the first time Shell or Hollow is picked (spec §4.5). */
   cutAuto: false,
   grid: { on: true, color: '#8a7446', opacity: 0.7 },
+  /** X-ray: the model shows see-through at this opacity, so holes, pockets and hollows inside show. */
+  xray: { on: false, opacity: 0.3 },
   /** Image panel width, px. */
   left: 330,
   wide: false,

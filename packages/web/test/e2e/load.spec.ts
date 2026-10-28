@@ -20,7 +20,7 @@ const EYE = 'eye-on-white.png 10 × 6 px, detected from a 4× upscale';
 const EMPTY = 'Open an image, or drop one anywhere on the window';
 
 interface Snap { name: string | null; grid: { w: number; h: number; opaque: number; palette: { hex: string }[] } | null; settings: { background: { tolPct: number; enabled: boolean }; pixelate: { enabled: boolean | 'auto'; across: number } }; undo: number; redo: number; zoom: number }
-interface View { shown: 'none' | 'preview' | 'model'; cut: boolean; materials: number; clipped: number; buildError: string | null; grid: { on: boolean; color: string; opacity: number }; renders: number; size: { x: number; y: number; z: number } | null }
+interface View { shown: 'none' | 'preview' | 'model'; cut: boolean; materials: number; clipped: number; buildError: string | null; grid: { on: boolean; color: string; opacity: number }; xray: { opacity: number | null; clear: number }; renders: number; size: { x: number; y: number; z: number } | null }
 const snap = (page: Page) => page.evaluate(() => (window as unknown as { __pixel3d: { snapshot(): Snap } }).__pixel3d.snapshot());
 const view = (page: Page) => page.evaluate(() => (window as unknown as { __pixel3d: { viewport(): View } }).__pixel3d.viewport());
 const opaque = async (page: Page) => (await snap(page)).grid!.opaque;
@@ -182,6 +182,25 @@ test.describe('model', () => {
     await page.locator('#gridOpacity').fill('40');
     await expect(page.locator('#gridOpacityV')).toHaveText('40%');
     expect((await view(page)).grid).toMatchObject({ on: false, opacity: 0.4 });
+  });
+
+  test('X-ray makes the model see-through at the chosen opacity', async ({ page }) => {
+    await open(page);
+    await loadFile(page, 'potion.png');
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+    expect((await view(page)).xray).toEqual({ opacity: null, clear: 0 });
+    await page.locator('#xrayBtn').click();
+    await expect(page.locator('#xrayBtn')).toHaveClass(/\bon\b/);
+    await expect(page.locator('#xrayPop')).toBeVisible();
+    const on = await view(page);
+    expect(on.xray.opacity).toBeCloseTo(0.3, 5);
+    expect(on.xray.clear).toBeGreaterThan(0);
+    await page.locator('#xrayOpacity').fill('60');
+    await expect(page.locator('#xrayOpacityV')).toHaveText('60%');
+    expect((await view(page)).xray.opacity).toBeCloseTo(0.6, 5);
+    await page.locator('#xrayOn').uncheck();
+    await expect.poll(async () => (await view(page)).xray).toEqual({ opacity: null, clear: 0 });
+    await expect(page.locator('#xrayBtn')).not.toHaveClass(/\bon\b/);
   });
 });
 

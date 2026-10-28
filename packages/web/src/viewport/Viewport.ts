@@ -59,6 +59,8 @@ export class Viewport {
   private mono: string | null = null;
   /** The highlighted palette color (R26), or null. */
   private hl: string | null = null;
+  /** X-ray opacity, or null for solid. The highlighted color stays solid. */
+  private xray: number | null = null;
   private cutPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private cut = false;
   private gridOpts: GridOptions = { on: true, color: '#8a7446', opacity: 0.7, step: 10 };
@@ -340,6 +342,20 @@ export class Viewport {
     this.restyle();
   }
 
+  /** See-through parts at `opacity` (0–1) to show what is inside, or null for solid. */
+  setXray(opacity: number | null) {
+    if (opacity === this.xray) return;
+    this.xray = opacity;
+    this.restyle();
+  }
+
+  /** The X-ray opacity and how many shown meshes are see-through (for the e2e checks). */
+  xrayInfo() {
+    let clear = 0;
+    for (const o of this.meshes) if (o instanceof THREE.Mesh && (o.material as THREE.Material).transparent) clear++;
+    return { opacity: this.xray, clear };
+  }
+
   /** The highlighted color, and how many meshes are lit and dimmed (for the e2e checks). */
   highlight() {
     let lit = 0, dim = 0;
@@ -367,7 +383,8 @@ export class Viewport {
   private material(hex: string, part: string = hex) {
     const mode = this.mono ? 'normal' : !this.hl ? 'normal' : part.toLowerCase() === this.hl.toLowerCase() ? 'lit' : 'dim';
     const shown = this.mono ?? hex;
-    const key = `${mode}:${shown}`;
+    const xray = mode === 'lit' ? null : this.xray;
+    const key = `${mode}:${shown}:${xray ?? 'solid'}`;
     let m = this.mats.get(key);
     if (!m) {
       const color = new THREE.Color(shown);
@@ -376,8 +393,16 @@ export class Viewport {
       m = new THREE.MeshStandardMaterial({ color, roughness: 0.55, flatShading: true });
       if (mode === 'lit') { m.emissive = new THREE.Color(shown); m.emissiveIntensity = 0.35; }
       m.userData.mode = mode;
-      m.onBeforeCompile = capHook;
-      m.customProgramCacheKey = () => 'cap';
+      m.userData.xray = xray !== null;
+      if (xray !== null) {
+        // see-through, inside faces too; no gold cut caps, since every back face would turn gold
+        m.transparent = true;
+        m.opacity = xray;
+        m.depthWrite = false;
+      } else {
+        m.onBeforeCompile = capHook;
+        m.customProgramCacheKey = () => 'cap';
+      }
       this.styleCut(m);
       this.mats.set(key, m);
     }
@@ -386,7 +411,7 @@ export class Viewport {
 
   private styleCut(m: THREE.Material) {
     m.clippingPlanes = this.cut ? [this.cutPlane] : null;
-    m.side = this.cut ? THREE.DoubleSide : THREE.FrontSide;
+    m.side = this.cut || m.userData.xray ? THREE.DoubleSide : THREE.FrontSide;
     m.needsUpdate = true;
   }
 

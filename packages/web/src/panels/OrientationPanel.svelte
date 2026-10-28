@@ -9,8 +9,7 @@
   const to = (r: [number, number, number]) => { if (rot.some((v, i) => v !== r[i])) setting(() => (app.settings.rotation = r)); };
 </script>
 
-<!-- R24: a clicker always prints flat, so Orientation is grayed out like Sides, Inside, Keychain and Magnets -->
-<section class:off={app.settings.make === 'clicker'} inert={app.settings.make === 'clicker'}>
+<section>
   <h2>Orientation</h2>
   <div class="row" style="margin-top:0">
     <button class="btn" data-rot="0" onclick={() => turn(0)}>Rotate X</button>

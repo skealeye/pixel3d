@@ -23,7 +23,7 @@
   }
 </script>
 
-<section class:off={app.settings.make === 'clicker'} inert={app.settings.make === 'clicker'}>
+<section>
   <h2>Sides</h2>
   <div class="seg" data-key="sides">
     {#each modes as [v, label] (v)}

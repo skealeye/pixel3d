@@ -16,20 +16,24 @@
   const outer = live(() => key.loop.outer, (v) => { key.loop.outer = v; if (key.loop.inner > v - 2) key.loop.inner = v - 2; });
   const color = colorInput((hex) => (key.loop.color = hex));
 
-  const ownColor = $derived(!app.settings.base.enabled && !app.settings.export.mono);
-  const hint = $derived(key.type === 'hole'
+  /** A clicker's keychain is a loop on its body: a hole would cut into the switch. */
+  const clicker = $derived(app.settings.make === 'clicker');
+  const ownColor = $derived(!clicker && !app.settings.base.enabled && !app.settings.export.mono);
+  const hint = $derived(clicker
+    ? (key.type === 'hole' ? "A clicker can't have a hole: it would cut into the switch. Pick Loop to add one to the body." : 'The loop sticks out from the body at the bed, in the base color.')
+    : key.type === 'hole'
     ? 'Drag the gold marker on the model to move the hole. It cuts through every layer.'
     : app.settings.base.enabled ? 'The loop uses the base color.' : 'Move the slider to slide the loop around the edge.');
 </script>
 
-<section class:off={app.settings.make === 'clicker'} inert={app.settings.make === 'clicker'}>
+<section>
   <h2>Keychain</h2>
   <div class="seg" data-key="key">
     {#each types as [v, label] (v)}
-      <button data-v={v} class:on={key.type === v} onclick={() => key.type !== v && setting(() => (key.type = v))}>{label}</button>
+      <button data-v={v} class:on={key.type === v} disabled={clicker && v === 'hole'} title={clicker && v === 'hole' ? 'A hole would cut into the switch' : undefined} onclick={() => key.type !== v && setting(() => (key.type = v))}>{label}</button>
     {/each}
   </div>
-  {#if key.type === 'hole'}
+  {#if key.type === 'hole' && !clicker}
     <div id="holeRows">
       <div class="seg" data-key="holeStyle">
         <button data-v="round" class:on={key.hole.style === 'round'} onclick={() => key.hole.style !== 'round' && setting(() => (key.hole.style = 'round'))}>Round hole</button>

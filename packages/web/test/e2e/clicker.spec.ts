@@ -64,23 +64,31 @@ test.describe('keycap clicker', () => {
     expect((await settings(page)).make).toBe('clicker');
     await expect(page.locator('#makeHint')).toHaveText('Your art becomes a key cap that clicks on a mechanical keyboard switch (Cherry MX style). Prints as two parts: the cap and a body that holds the switch.');
     // the Clicker settings show directly below Make
-    await expect(page.locator('aside.right section > h2')).toHaveText([/^Make/, /^Clicker/, /^Size/, /^Base/, /^Outline/, /^Inside/, /^Sides/, /^Keychain/, /^Magnets/, /^Orientation/]);
+    await expect(page.locator('aside.right section > h2')).toHaveText([/^Make/, /^Clicker/, /^Size/, /^Base/, /^Outline/, /^Keychain/]);
   });
 
-  test('Clicker grays out Sides, Inside, Keychain, Magnets and Orientation with "Not used on a clicker"', async ({ page }) => {
+  test('Clicker hides Inside, Sides, Magnets and Orientation; Keychain stays', async ({ page }) => {
     await page.goto('/?test');
-    const sec = (name: string) => page.locator('aside.right section', { has: page.locator('h2', { hasText: new RegExp(`^${name}`) }) });
-    // Orientation too (R24): a clicker always prints flat
-    const off = ['Inside', 'Sides', 'Keychain', 'Magnets', 'Orientation'], on = ['Make', 'Size', 'Base'];
-    for (const n of [...off, ...on]) await expect(sec(n)).not.toHaveClass(/\boff\b/);
+    const heads = page.locator('aside.right section > h2');
+    const flat = [/^Make/, /^Size/, /^Base/, /^Outline/, /^Inside/, /^Sides/, /^Keychain/, /^Magnets/, /^Orientation/];
+    await expect(heads).toHaveText(flat);
     await seg(page, 'make', 'clicker').click();
-    for (const n of off) {
-      await expect(sec(n)).toHaveClass(/\boff\b/);
-      expect(await sec(n).locator('h2').evaluate((h) => getComputedStyle(h, '::after').content)).toBe('"Not used on a clicker"');
-    }
-    for (const n of [...on, 'Clicker']) await expect(sec(n)).not.toHaveClass(/\boff\b/);
+    await expect(heads).toHaveText([/^Make/, /^Clicker/, /^Size/, /^Base/, /^Outline/, /^Keychain/]);
     await seg(page, 'make', 'model').click();
-    for (const n of off) await expect(sec(n)).not.toHaveClass(/\boff\b/);
+    await expect(heads).toHaveText(flat);
+  });
+
+  test('a clicker keychain is a loop on the body; Hole is disabled', async ({ page }) => {
+    await loadClicker(page);
+    await expect(seg(page, 'key', 'hole')).toBeDisabled();
+    const before = (await clicker(page))!.body;
+    await seg(page, 'key', 'loop').click();
+    await expect(page.locator('#keyHint')).toHaveText('The loop sticks out from the body at the bed, in the base color.');
+    await expect(page.locator('#loopColor')).toHaveCount(0);
+    // at 0° the loop sticks out upward (+Y): from the bottle's shoulder, past the top of its cork
+    await expect.poll(async () => (await clicker(page))!.body.max[1] - before.max[1]).toBeGreaterThan(2);
+    await seg(page, 'make', 'model').click();
+    await expect(seg(page, 'key', 'hole')).toBeEnabled();
   });
 
   test('clicker settings: mockup controls, spec ranges, one undo step each; Make is undoable', async ({ page }) => {
@@ -206,7 +214,7 @@ test.describe('keycap clicker', () => {
     await page.keyboard.press('Control+z');
     await page.keyboard.press('Control+z');
     await expect.poll(async () => (await settings(page)).clicker).toMatchObject({ shape: 'outline', border: 3 });
-    await expect(page.locator('aside.right section.off')).toHaveCount(5);
+    await expect(page.locator('aside.right section > h2', { hasText: /^Magnets/ })).toHaveCount(0);
     await seg(page, 'make', 'model').click();
     await expect.poll(async () => (await view(page)).clicker).toBeNull();
     await expect.poll(async () => (await view(page)).shown).toBe('model');
@@ -216,11 +224,11 @@ test.describe('keycap clicker', () => {
     const back = await view(page);
     expect(back.size).toEqual(flat.size);
     expect(back.handles.length).toBe(1);
-    await expect(page.locator('aside.right section.off')).toHaveCount(0);
+    await expect(page.locator('aside.right section > h2', { hasText: /^Magnets/ })).toHaveCount(1);
     // undo goes back to the clicker, a second undo to the flat model; redo returns the clicker
     await page.keyboard.press('Control+z');
     await expect.poll(async () => (await clicker(page))?.view ?? null).toBe('assembled');
-    await expect(page.locator('aside.right section.off')).toHaveCount(5);
+    await expect(page.locator('aside.right section > h2', { hasText: /^Magnets/ })).toHaveCount(0);
     await page.keyboard.press('Control+z');
     await expect.poll(async () => (await view(page)).clicker).toBeNull();
     await expect.poll(async () => (await view(page)).shown).toBe('model');

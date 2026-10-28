@@ -5,6 +5,7 @@ import type { ManifoldToplevel } from './manifold';
 import { bounds, opaqueBox, pixelSize } from './mesh';
 import { bridge, fillHoles, grow, lowestUsed, nearestColors, regionCount, regionMm, smoothRadius } from './shapes';
 import type { Model, Part } from './mesh';
+import { loopSolid } from './features';
 
 type Manifold = InstanceType<ManifoldToplevel['Manifold']>;
 type CrossSection = InstanceType<ManifoldToplevel['CrossSection']>;
@@ -164,12 +165,37 @@ function seatCutter(wasm: ManifoldToplevel, x: number, y: number, shaft: [number
   ]));
 }
 
+/** loopSolid's frame for a point already in mm. */
+const MM_FRAME = { px: { x: 1, y: 1 }, x0: 0, y0: 0 };
+
+/**
+ * Where a keychain loop meets the body: the farthest crossing of the footprint's outline by a ray from its bounding
+ * box center at `deg` (0° up, clockwise, as the flat model's loop), facing along the ray.
+ */
+function footEdge(foot: CrossSection, deg: number) {
+  const b = foot.bounds();
+  const cx = (b.min[0]! + b.max[0]!) / 2, cy = (b.min[1]! + b.max[1]!) / 2;
+  const a = (deg * Math.PI) / 180, dx = Math.sin(a), dy = Math.cos(a);
+  let far = 0;
+  for (const poly of foot.toPolygons()) {
+    for (let i = 0; i < poly.length; i++) {
+      const [x0, y0] = poly[i]!, [x1, y1] = poly[(i + 1) % poly.length]!;
+      const ex = x1 - x0, ey = y1 - y0, den = dx * ey - dy * ex;
+      if (Math.abs(den) < 1e-12) continue;
+      const t = ((x0 - cx) * ey - (y0 - cy) * ex) / den, u = ((x0 - cx) * dy - (y0 - cy) * dx) / den;
+      if (t > far && u >= 0 && u <= 1) far = t;
+    }
+  }
+  return { u: cx + dx * far, v: cy + dy * far, nx: dx, ny: dy };
+}
+
 /**
  * The keycap clicker of spec §4.6b (per user reference, R22): a `cap` (the art on a solid backing whose flat
  * underside holds, per switch, the pocket, stem and cross socket) and a `body` (the footprint with a well shaped
  * like the cap plus the fit gap, and per switch the press-fit shaft, column and lead-in).
  * Both are laid out as printed, flat side down: the body on its underside, the cap underside down beside it on +X.
- * `model.clicker` says how to assemble them. Keychain, magnets, sides, inside and rotation are not used on a clicker.
+ * `model.clicker` says how to assemble them. A keychain loop joins the body (a hole would cut into a switch, so a
+ * hole keychain is ignored); magnets, sides, inside and rotation are not used on a clicker.
  */
 export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
   const wasm = await initManifold();
@@ -264,7 +290,12 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
         .translate([(x0 + x1) / 2, (y0 + y1) / 2, (za + zb) / 2]));
       cuts.push(slot(MX.column, L.seat, L.columnTop + 0.01), slot(MX.leadIn, L.columnTop, L.wellFloor + 0.01));
     }
-    const body = keep(keep(foot.extrude(L.rimTop)).subtract(keep(Manifold.union(cuts))));
+    // the keychain loop sticks out from the body's side at the bed, as thick as the base, before the cuts so it never
+    // fills the well
+    const solid = keep(foot.extrude(L.rimTop));
+    const keyLoop = s.keychain.type === 'loop' && s.keychain.loop.outer > s.keychain.loop.inner
+      ? keep(loopSolid(wasm, footEdge(foot, s.keychain.loop.angle), s, Math.min(s.base.height, L.rimTop), MM_FRAME)) : null;
+    const body = keep((keyLoop ? keep(solid.add(keyLoop)) : solid).subtract(keep(Manifold.union(cuts))));
 
     // ---- lay out as printed: the cap beside the body on +X
     const bb = body.boundingBox();

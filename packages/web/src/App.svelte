@@ -80,11 +80,16 @@
   <SizePanel />
   <BasePanel />
   <OutlinePanel />
-  <InsidePanel />
-  <SidesPanel />
+  <!-- a clicker uses none of these (it always prints flat, R24), so they are hidden for one; its keychain is a loop on the body -->
+  {#if app.settings.make !== 'clicker'}
+    <InsidePanel />
+    <SidesPanel />
+  {/if}
   <KeychainPanel />
-  <MagnetsPanel />
-  <OrientationPanel />
+  {#if app.settings.make !== 'clicker'}
+    <MagnetsPanel />
+    <OrientationPanel />
+  {/if}
 </aside>
 
 <Footer />

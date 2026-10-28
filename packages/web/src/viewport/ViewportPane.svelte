@@ -107,7 +107,7 @@
     const b = builder;
     const unregister = register({
       viewport: () => ({
-        shown: v.shown, cut: ui.cut, grid: { ...ui.grid }, renders: v.renders, size: v.size, buildError, ...v.stats(), highlight: v.highlight(),
+        shown: v.shown, cut: ui.cut, grid: { ...ui.grid }, renders: v.renders, size: v.size, buildError, ...v.stats(), highlight: v.highlight(), xray: v.xrayInfo(),
         bounds: v.bounds(), handles: v.handleScreen(), gridStep: v.gridStep, clicker: v.clicker(), camera: v.cameraAt(), parts: v.partNames(),
       }),
       failNextBuild: () => b.failNextBuild(),
@@ -172,6 +172,7 @@
     const sel = ui.sel, on = ui.tool === 'select' && !!sel && !!app.grid?.palette.some((p) => p.hex === sel);
     vp?.setHighlight(on ? sel : null);
   });
+  $effect(() => { vp?.setXray(ui.xray.on ? ui.xray.opacity : null); });
   $effect(() => { vp?.setGrid({ on: ui.grid.on, color: ui.grid.color, opacity: ui.grid.opacity, step: gridStep(unit) }); });
   $effect(() => {
     const r = app.settings.rotation, clicker = app.settings.make === 'clicker';
@@ -269,6 +270,14 @@
         <div class="sl"><label for="gridColor">Color</label><input type="color" id="gridColor" bind:value={ui.grid.color} style="width:100%"><span></span></div>
         <div class="sl"><label for="gridOpacity">Opacity</label><input type="range" id="gridOpacity" min="0" max="100"
           value={Math.round(ui.grid.opacity * 100)} oninput={(e) => (ui.grid.opacity = +e.currentTarget.value / 100)}><span class="unit" id="gridOpacityV">{Math.round(ui.grid.opacity * 100)}%</span></div>
+      </div>
+    </div>
+    <div style="position:relative">
+      <button class="btn" id="xrayBtn" class:on={ui.xray.on} title="See through the model to what is inside" onclick={() => { ui.xray.on = !ui.xray.on; ui.popover = ui.xray.on ? 'xray' : null; }}>X-ray</button>
+      <div class="pop" id="xrayPop" class:open={ui.popover === 'xray'}>
+        <label class="check"><input type="checkbox" id="xrayOn" bind:checked={ui.xray.on}> See through</label>
+        <div class="sl"><label for="xrayOpacity">Opacity</label><input type="range" id="xrayOpacity" min="5" max="90"
+          value={Math.round(ui.xray.opacity * 100)} oninput={(e) => (ui.xray.opacity = +e.currentTarget.value / 100)}><span class="unit" id="xrayOpacityV">{Math.round(ui.xray.opacity * 100)}%</span></div>
       </div>
     </div>
     <button class="btn" id="cutBtn" class:on={ui.cut} title="Slice the model in half to see inside" onclick={() => (ui.cut = !ui.cut)}>Cut view</button>
