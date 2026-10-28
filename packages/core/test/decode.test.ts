@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { decodeImage, VERSION } from '../src/index';
+import pkg from '../../../package.json' with { type: 'json' };
 
 const fx = (n: string) => new Uint8Array(readFileSync(new URL(`./fixtures/${n}`, import.meta.url)));
 
@@ -45,6 +46,6 @@ describe('decodeImage', () => {
   });
 
   it('reads VERSION from the root package.json', () => {
-    expect(VERSION).toBe('0.2.2');
+    expect(VERSION).toBe(pkg.version);
   });
 });

@@ -10,4 +10,12 @@ export type { BgOptions, BgResult, BgHow } from './background';
 export { pixelate } from './pixelate';
 export type { PixelateOptions } from './pixelate';
 
+export type { Grid, PaletteEntry } from './grid';
+export { toGrid, reducePalette } from './palette';
+export { applyEdits } from './edits';
+export type { Edit } from './edits';
+export { applyHeightMode } from './heights';
+export type { HeightMode } from './heights';
+export { pieces, cornerTouches } from './pieces';
+
 export const VERSION: string = pkg.version;
