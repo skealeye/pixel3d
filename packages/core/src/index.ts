@@ -26,5 +26,7 @@ export { parsePreset, resolvePreset, placeRelative, presetFromState, PresetError
 export type { Preset, ColourRule } from './preset';
 export { buildModel } from './mesh';
 export type { Model, Part } from './mesh';
+export { edgeAtAngle, loopSolid, holeCutter, magnetCutters, insideCutter } from './features';
+export type { Frame, Edge, Side } from './features';
 export { initManifold } from './manifold';
 export type { ManifoldToplevel } from './manifold';
