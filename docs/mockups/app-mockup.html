@@ -333,6 +333,13 @@
       <button data-v="solid">Double sided</button>
       <button data-v="halves">Two halves</button>
     </div>
+    <div id="joinRow">
+      <div class="row"><label>Halves join with</label></div>
+      <div class="seg" data-key="join">
+        <button data-v="glue">Glue</button>
+        <button data-v="clicker">Magnets (clicker)</button>
+      </div>
+    </div>
     <p class="hint" id="sidesHint"></p>
     <div id="applyRow">
       <div class="row"><label>Colour heights apply to</label></div>
@@ -380,8 +387,8 @@
     </div>
     <div id="magPosRow">
       <div class="seg" data-key="magPos">
-        <button data-v="bottom">Pocket in bottom</button>
-        <button data-v="centre">Sealed in centre</button>
+        <button data-v="bottom" id="magPosOpen">Pocket in bottom</button>
+        <button data-v="centre" id="magPosSealed">Sealed in centre</button>
       </div>
     </div>
     <div class="row"><button class="btn" id="placeMag">Place a magnet</button><button class="btn" id="clearMag">Clear all</button></div>
@@ -409,7 +416,7 @@
   <span id="fcount"></span>
   <span class="spacer"></span>
   <span>Mockup, nothing is saved</span>
-  <span>v0.1.3</span>
+  <span>v0.1.4</span>
 </footer>
 
 <dialog id="batch">
@@ -458,7 +465,7 @@ const S = {
   grid: [], palette: [], sel: 0, tool: 'paint',
   heightMode: 'uniform', hMin: 1, hMax: 4, seed: 42, darkHigh: true, defH: 1,
   w: 40, h: 40, lock: true, base: true, baseH: 2, baseColor: '#2a2d33', bottom: 'solid', wall: 1.2,
-  sides: 'single', heightsOn: 'both',
+  sides: 'single', heightsOn: 'both', join: 'glue',
   key: 'none', holeStyle: 'round', holeD: 4, hole: null,
   loopStyle: 'round', loopIn: 4, loopOut: 8, loopAngle: 0, loopColor: '#2a2d33',
   magnets: [], magSize: '8x3', magPos: 'bottom', placing: false,
@@ -540,6 +547,22 @@ function favRow(boxId, key, inputId) {
 const favRenderers = [];
 function renderFavs() { favRenderers.forEach(r => r()); }
 function saveFavs() { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); renderFavs(); }
+
+// ---------- fidget clicker ----------
+const SKIN = 0.4;
+const clicker = () => S.sides === 'halves' && S.join === 'clicker';
+// two magnets as far apart as the art allows along its long side, each with at least 1 mm of plastic around it
+function autoMagnets() {
+  const [md] = magDims(), b = bbox();
+  let cells = [];
+  for (let k = Math.ceil((md / 2 + 1) / Math.min(SC.sx, SC.sy)); k >= 0 && cells.length < 2; k--) cells = [...erode(k, holeTest())].map(c => c.split(',').map(Number));
+  if (cells.length < 2) { toast('The art is too small for two magnets. Try a smaller magnet.'); return; }
+  const long = b.bw * SC.sx >= b.bh * SC.sy ? 0 : 1, mid = long ? b.x0 + b.bw / 2 : b.y0 + b.bh / 2;
+  const score = (c, sign) => sign * c[long] - Math.abs(c[1 - long] + .5 - mid) * .01;
+  const pick = (sign) => cells.reduce((a, c) => score(c, sign) > score(a, sign) ? c : a);
+  S.magnets = [pick(-1), pick(1)].map(([x, y]) => ({ u: x + .5, v: y + .5 }));
+  build(); toast('Placed two magnet pairs. Drag them to move.');
+}
 
 // ---------- undo ----------
 const past = [], future = [];
@@ -756,6 +779,7 @@ document.querySelectorAll('.seg').forEach(seg => {
     if (key === 'bottom' && S.bottom !== 'solid' && !S.cut) setCut(true);
     if (key === 'sides') fixBottom();
     if (key !== 'tool') build();
+    if ((key === 'join' || key === 'sides') && clicker() && !S.magnets.length) autoMagnets();
   });
   setSeg(key, S[key]);
 });
@@ -816,21 +840,24 @@ function syncVisibility() {
   show('slicerRow', S.format === '3mf');
   show('monoRow', mono());
   show('applyRow', S.sides !== 'single');
-  show('magPosRow', S.sides === 'single');
+  show('joinRow', S.sides === 'halves');
+  show('magPosRow', S.sides === 'single' || clicker());
+  if ($('magPosOpen')) { $('magPosOpen').textContent = clicker() ? 'Open on face' : 'Pocket in bottom'; $('magPosSealed').textContent = clicker() ? 'Sealed under face' : 'Sealed in centre'; }
   if ($('fcount') && S.palette.length) $('fcount').textContent = mono() ? '1 filament' : `${S.palette.length + (S.base ? 1 : 0)} filaments`;
   if ($('hoBoth')) { $('hoBoth').textContent = S.sides === 'halves' ? 'Both halves' : 'Both sides'; $('hoTop').textContent = S.sides === 'halves' ? 'Front half only' : 'Top side only'; }
   const hints = {
     single: 'Pixels on the front only. Prints flat with no supports.',
     solid: 'Pixels on both faces in one piece. Needs supports when printed flat.',
     halves: 'Front and back as two flat-backed pieces. Print both, then glue. The cleanest finish.',
+    clicker: 'Front and back are two pieces held together by magnets. Pull them apart and they snap back with a click.',
   };
-  if ($('sidesHint')) $('sidesHint').textContent = hints[S.sides];
+  if ($('sidesHint')) $('sidesHint').textContent = hints[clicker() ? 'clicker' : S.sides];
   const bottomHints = {
     solid: 'Filled all the way through.',
     shell: 'Hollow inside with a closed floor, to save filament and weight. Use Cut view to see inside.',
     hollow: 'Hollow inside and open underneath, like an upside-down tray.',
   };
-  if ($('bottomHint')) $('bottomHint').textContent = S.sides === 'halves' ? 'Halves stay solid so the glue faces are flat.' : bottomHints[S.bottom];
+  if ($('bottomHint')) $('bottomHint').textContent = S.sides === 'halves' ? (clicker() ? 'Halves stay solid so the inside faces sit flat together.' : 'Halves stay solid so the glue faces are flat.') : bottomHints[S.bottom];
   if ($('keyHint')) $('keyHint').textContent = S.key === 'hole'
     ? 'Drag the gold marker on the model to move the hole. It cuts through every layer.'
     : (S.base ? 'The loop uses the base colour.' : 'Move the slider to slide the loop around the edge.');
@@ -1043,9 +1070,11 @@ function build() {
   if (S.sides === 'solid') pivot.add(body({ baseT: bt, under: true, underVary: both, idx: 0, cavity, magZ: (bt - mh) / 2 }));
   if (S.sides === 'halves') {
     // the back is printed flat side down, then flipped onto the front, so its art is mirrored. Pockets open on the glue face.
-    const back = body({ mirror: true, baseT: bt / 2, topVary: both, idx: 1, magZ: -0.01 });
+    // clicker: no glue; magnet pairs line up face to face. Sealed pockets sit under a 0.4 mm skin and need a pause.
+    const mz = clicker() && S.magPos === 'centre' ? SKIN : -0.01;
+    const back = body({ mirror: true, baseT: bt / 2, topVary: both, idx: 1, magZ: mz });
     back.position.x = N * SC.sx + 8;
-    pivot.add(body({ baseT: bt / 2, idx: 0, magZ: -0.01 }), back);
+    pivot.add(body({ baseT: bt / 2, idx: 0, magZ: mz }), back);
   }
   pivot.rotation.set(...S.rot.map(r => r * Math.PI / 2));
   if (!drag) {
@@ -1060,7 +1089,7 @@ function build() {
     cutPlane.constant = -mid.y;
   }
   const sz = modelBounds().getSize(new THREE.Vector3());
-  $('dims').innerHTML = `<b>${sz.x.toFixed(1)} × ${sz.y.toFixed(1)} × ${sz.z.toFixed(1)} mm</b>&nbsp; ${S.sides === 'halves' ? 'two pieces' : 'one piece'}`;
+  $('dims').innerHTML = `<b>${sz.x.toFixed(1)} × ${sz.y.toFixed(1)} × ${sz.z.toFixed(1)} mm</b>&nbsp; ${S.sides === 'halves' ? (clicker() ? 'two pieces that snap together' : 'two pieces') : 'one piece'}`;
   const notes = [];
   if (cavityMsg) notes.push(`<span class="warn">${cavityMsg}</span>`);
   if (S.cut) notes.push('<b>Cut view.</b> Gold is solid material. Empty space shows what is hollow.');
@@ -1068,14 +1097,17 @@ function build() {
   $('rotLabel').textContent = S.rot.some(Boolean) ? `X ${S.rot[0] * 90}°, Y ${S.rot[1] * 90}°, Z ${S.rot[2] * 90}°` : 'Flat';
   // magnets panel
   const [md] = magDims();
-  $('magCount').textContent = `${S.magnets.length} placed`;
+  $('magCount').textContent = clicker() ? `${S.magnets.length} pairs, ${S.magnets.length * 2} magnets` : `${S.magnets.length} placed`;
   $('magList').innerHTML = S.magnets.map((m, i) => `<li>Magnet ${i + 1}<button class="del" data-m="${i}" title="Remove">×</button></li>`).join('');
   $('magList').querySelectorAll('[data-m]').forEach(x => x.onclick = () => { commit(); S.magnets.splice(+x.dataset.m, 1); build(); });
-  const sealed = S.sides === 'solid' || (S.sides === 'single' && S.magPos === 'centre');
+  const sealed = S.sides === 'solid' || ((S.sides === 'single' || clicker()) && S.magPos === 'centre');
   const need = sealed ? mh + 1.2 : mh + 0.6, have = S.sides === 'halves' ? bt / 2 + minTop : bt;
+  const polarity = ' Put each pair in with opposite poles facing: let the two magnets snap together first, then press them in without flipping either.';
   $('magHint').innerHTML = S.magnets.length
     ? (have < need ? `<span class="warn">A ${md} × ${mh} mm magnet needs about ${round1(need)} mm here. Make the base thicker or pick a smaller magnet.</span>`
+      : clicker() ? (sealed ? `Each half pauses at the layer above its pockets so you can drop the magnets in, 0.4 mm under the face.` : 'Pockets open on the inside faces, flush, so the halves meet flat.') + polarity
       : sealed ? 'Sealed inside. The print pauses at this layer so you can drop the magnet in.' : 'Open on the bottom, so you can press the magnet in after printing. Drag to move.')
+    : clicker() ? '<span class="warn">Place at least two magnets so the halves line up when they snap together.</span>'
     : (S.sides === 'halves' ? 'Pockets open on the glue face, so the magnet ends up sealed inside.' : '');
   updateSummary();
 }

@@ -114,6 +114,11 @@ A setting with three values, labelled in the UI as **One side / Double sided / T
   - Each half gets half the base thickness, so the glued result equals the `solid` version.
   - Magnet pockets open onto the glue face and are mirrored on the two halves, so the magnet is hidden inside once the halves are glued. *(Claude's call.)*
   - For export: one 3MF with two plates or objects, or two STL files (`name_front`, `name_back`).
+- **Halves join with** (shown for Two halves): **Glue** (default) or **Magnets (clicker)**.
+  - Clicker: a fidget toy. The two halves are not glued; magnet pairs hold them face to face, and pulling them apart and letting go makes them snap back with a click.
+  - Turning it on with no magnets placed auto-places two pairs, as far apart as the art allows along its long side with at least 1 mm of plastic around each. With fewer than two pairs a warning asks for more, since two are needed for the halves to line up.
+  - Pockets are either **Open on face** (flush with the inside face, magnet pressed in, faces meet flat) or **Sealed under face** (0.4 mm skin, 3MF pause at the layer that closes the pocket). The magnet count reads as pairs, for example "2 pairs, 4 magnets".
+  - The UI reminds the user about polarity: let each pair snap together first, then press them in without flipping either, so the halves attract.
 
 ### 4.7 Keychain (parity, reworked)
 - **Hole:** **Round** (a cylinder) or **Square** (a square prism), 2–10 mm across, cut with a true boolean subtraction. It is not snapped to the pixel grid, so it can cut part-way through pixels. A flat gold marker on the model's top surface is dragged to move it. It cuts through every layer: base, pixels, and both faces or halves. Moving the hole never moves or lifts the model: handles are not counted in the model's size or position.
@@ -128,7 +133,7 @@ A setting with three values, labelled in the UI as **One side / Double sided / T
 - **Magnet pockets** are real cut-outs (boolean subtraction) in the model, with presets plus a custom size. Each pocket is a true cylinder matching the magnet, not a stack of whole pixels.
   - **Pocket in bottom:** open on the bed face, so the magnet is pressed in after printing.
   - **Sealed in centre:** an enclosed pocket inside the base. The 3MF includes a pause at the layer that closes the pocket, so the magnet can be dropped in during the print.
-  - Double sided always uses the sealed pocket. Halves always use pockets open on the glue face.
+  - Double sided always uses the sealed pocket. Glued halves always use pockets open on the glue face; clicker halves offer open or sealed (see 4.6).
   - A readout shows the material left above and below the pocket.
   - "Place a magnet" enters placement mode: click the model to drop one, or press Esc to cancel. Placed magnets can be dragged and removed one by one, and there is a Clear all.
   - A warning appears when the base is too thin for the chosen magnet.
