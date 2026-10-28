@@ -4,11 +4,12 @@ import { parseArgs } from 'node:util';
 import { serve } from '@hono/node-server';
 import { zipSync } from 'fflate';
 import { Hono } from 'hono';
-import type { MiddlewareHandler } from 'hono';
-import { bodyLimit } from 'hono/body-limit';
+import type { Context, MiddlewareHandler } from 'hono';
+import { HTTPException } from 'hono/http-exception';
 import { convert, parsePreset, PresetError, VERSION } from '@pixel3d/core';
 import type { Preset, Report } from '@pixel3d/core';
 import openapi from '../openapi.json';
+import { failed } from './convertCmd';
 import { JobStore } from './jobs';
 import type { Job } from './jobs';
 import { emptyPresetDoc, parsePresetJson, PresetJsonError } from './presetLoad';
@@ -20,11 +21,15 @@ export const DEFAULT_HOST = '127.0.0.1';
 export interface AppOptions {
   /** Include error stack excerpts (`detail`) in responses. */
   debug?: boolean;
+  /** Test seam: the conversion function. */
+  convert?: typeof convert;
+  /** Test seam: the job store. */
+  jobs?: JobStore;
 }
 
 /** A request problem answered with this status and JSON body. */
 class HttpError extends Error {
-  constructor(readonly status: 400 | 422, readonly body: Record<string, unknown>) { super(String(body.error)); }
+  constructor(readonly status: 400 | 422 | 503, readonly body: Record<string, unknown>) { super(String(body.error)); }
 }
 
 const enc = new TextEncoder();
@@ -49,7 +54,8 @@ async function presetFrom(field: unknown): Promise<Preset> {
 async function readForm(req: Request): Promise<FormData> {
   try {
     return await req.formData();
-  } catch {
+  } catch (e) {
+    if (e instanceof HTTPException) throw e;
     throw new HttpError(400, { error: 'Send the request as multipart/form-data.' });
   }
 }
@@ -81,52 +87,93 @@ async function drain(body: ReadableStream<Uint8Array> | null, max: number): Prom
 }
 
 const asBody = (b: Uint8Array) => b as unknown as ArrayBuffer;
-const reportHeader = (r: Report) => Buffer.from(JSON.stringify(r)).toString('base64');
+const MAX_REPORT_HEADER = 8 * 1024;
+
+/** `X-Pixel3d-Report`: base64 JSON, or omitted (with a marker) when it would be too large for HTTP clients. */
+const reportHeaders = (r: Report): Record<string, string> => {
+  const b64 = Buffer.from(JSON.stringify(r)).toString('base64');
+  return b64.length > MAX_REPORT_HEADER ? { 'X-Pixel3d-Report-Truncated': '1' } : { 'X-Pixel3d-Report': b64 };
+};
+
+/** Content-Disposition with an ASCII fallback name and the real name as RFC 5987 `filename*`. */
+const attachment = (name: string) => {
+  const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, '_');
+  const utf8 = encodeURIComponent(name).replace(/['()*]/g, (ch) => '%' + ch.charCodeAt(0).toString(16).toUpperCase());
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${utf8}`;
+};
 
 export function createApp(opts: AppOptions = {}): Hono {
   const debug = opts.debug === true;
-  const jobs = new JobStore();
   const app = new Hono();
-  const limit = bodyLimit({ maxSize: MAX_UPLOAD, onError: (c) => c.json({ error: 'Upload is larger than 50 MB.' }, 413) });
+  const convertFn = opts.convert ?? convert;
+  const jobs = opts.jobs ?? new JobStore();
+  const tooLarge = (c: Context) => c.json({ error: 'Upload is larger than 50 MB.' }, 413);
   // Replying before the client has finished sending makes it see a reset socket instead of the 413,
   // so swallow (a bounded amount of) the oversized body first.
   const tooBig: MiddlewareHandler = async (c, next) => {
-    if (Number(c.req.header('content-length')) > MAX_UPLOAD) {
-      await drain(c.req.raw.body, 2 * MAX_UPLOAD);
-      return c.json({ error: 'Upload is larger than 50 MB.' }, 413);
+    const body = c.req.raw.body;
+    if (!body) return next();
+    if (c.req.header('content-length') !== undefined && !c.req.header('transfer-encoding')) {
+      if (Number(c.req.header('content-length')) <= MAX_UPLOAD) return next();
+      await drain(body, 2 * MAX_UPLOAD);
+      return tooLarge(c);
     }
-    return limit(c, next);
+    // no usable Content-Length (chunked): count while buffering
+    const chunks: Uint8Array[] = [];
+    const reader = body.getReader();
+    let size = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > MAX_UPLOAD) {
+        for (let seen = size; seen < 2 * MAX_UPLOAD;) {
+          const r = await reader.read();
+          if (r.done) break;
+          seen += r.value.length;
+        }
+        await reader.cancel().catch(() => undefined);
+        return tooLarge(c);
+      }
+      chunks.push(value);
+    }
+    c.req.raw = new Request(c.req.raw, { body: new Blob(chunks as unknown as ArrayBuffer[]).stream(), duplex: 'half' } as RequestInit);
+    return next();
   };
 
   app.onError((e, c) => {
     if (e instanceof HttpError) return c.json(e.body, e.status);
+    if (e instanceof HTTPException && e.status === 413) return tooLarge(c);
     return c.json({ error: 'Internal error.', ...(debug ? { detail: e.stack } : {}) }, 500);
   });
 
   app.get('/health', (c) => c.json({ ok: true, version: VERSION }));
 
-  app.get('/openapi.json', (c) => c.json(openapi));
+  app.notFound((c) => c.json({ error: 'Not found.' }, 404));
+
+  // the document's version always matches the running server
+  app.get('/openapi.json', (c) => c.json({ ...openapi, info: { ...openapi.info, version: VERSION } }));
 
   app.post('/convert', tooBig, async (c) => {
     const form = await readForm(c.req.raw);
     const image = form.get('image');
     if (!isFile(image)) throw new HttpError(400, { error: 'Missing "image" file field.' });
     const preset = await presetFrom(form.get('preset'));
-    const { files, report: full } = await convert(new Uint8Array(await image.arrayBuffer()), preset, stemOf(image.name));
+    const { files, report: full } = await convertFn(new Uint8Array(await image.arrayBuffer()), preset, stemOf(image.name));
     const report = shown(full, debug);
     if (full.error) return c.json({ error: full.error, report }, 422);
     if (files.length === 1) {
       const f = files[0]!;
       return c.body(asBody(f.bytes), 200, {
         'Content-Type': f.name.endsWith('.stl') ? 'model/stl' : 'model/3mf',
-        'Content-Disposition': `attachment; filename="${f.name}"`,
-        'X-Pixel3d-Report': reportHeader(report),
+        'Content-Disposition': attachment(f.name),
+        ...reportHeaders(report),
       });
     }
     return c.body(asBody(zipOf(files, [report])), 200, {
       'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename="${full.name}.zip"`,
-      'X-Pixel3d-Report': reportHeader(report),
+      'Content-Disposition': attachment(`${full.name}.zip`),
+      ...reportHeaders(report),
     });
   });
 
@@ -137,12 +184,15 @@ export function createApp(opts: AppOptions = {}): Hono {
       let stem = input.stem;
       for (let i = 2; used.has(stem.toLowerCase()); i++) stem = `${input.stem}-${i}`;
       used.add(stem.toLowerCase());
-      const { files, report } = await convert(input.bytes, preset, stem);
-      job.report.push(shown(report, debug));
-      if (!report.error) job.files.push(...files);
+      try {
+        const { files, report } = await convertFn(input.bytes, preset, stem);
+        job.report.push(shown(report, debug));
+        if (!report.error) job.files.push(...files);
+      } catch (e) {
+        job.report.push(failed(stem, 'The conversion failed.', debug ? (e as Error).stack : undefined));
+      }
       job.completed++;
     }
-    job.status = 'done';
   }
 
   app.post('/batch', tooBig, async (c) => {
@@ -153,7 +203,8 @@ export function createApp(opts: AppOptions = {}): Hono {
     // read the uploads now: the request body is gone once we respond
     const inputs = await Promise.all(images.map(async (f) => ({ stem: stemOf(f.name), bytes: new Uint8Array(await f.arrayBuffer()) })));
     const job = jobs.create(inputs.length);
-    void runJob(job, inputs, preset);
+    if (!job) throw new HttpError(503, { error: 'Too many batch jobs are running. Try again when one has finished.' });
+    void runJob(job, inputs, preset).finally(() => jobs.finish(job));
     return c.json({ jobId: job.id }, 202);
   });
 
@@ -170,7 +221,7 @@ export function createApp(opts: AppOptions = {}): Hono {
     if (job.status !== 'done') return c.json({ error: 'Job is still running.' }, 409);
     return c.body(asBody(zipOf(job.files, job.report)), 200, {
       'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename="pixel3d-${job.id}.zip"`,
+      'Content-Disposition': attachment(`pixel3d-${job.id}.zip`),
     });
   });
 
@@ -230,6 +281,9 @@ export async function serveCmd(argv: string[]): Promise<number> {
     return 1;
   }
   console.error(`pixel3d ${VERSION} listening on ${server.url}`);
+  if (!['127.0.0.1', 'localhost', '::1'].includes(values.host ?? DEFAULT_HOST)) {
+    console.error('warning: this API has no authentication. Anyone who can reach this address can use it.');
+  }
   await new Promise<void>((resolve) => {
     process.once('SIGINT', resolve);
     process.once('SIGTERM', resolve);

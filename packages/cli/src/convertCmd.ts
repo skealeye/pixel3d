@@ -83,7 +83,7 @@ async function loadPreset(file: string | undefined, sets: string[], format: stri
 const mm = (n: number) => n.toFixed(1);
 
 /** A failed-image report. Core has no empty-report constructor, so this mirrors the shape of `Report` in core's convert.ts. */
-function failed(name: string, error: string, detail?: string): Report {
+export function failed(name: string, error: string, detail?: string): Report {
   return { name, palette: [], applied: [], dropped: [], size: { x: 0, y: 0, z: 0 }, pieces: 0, warnings: [], files: [], grid: { w: 0, h: 0 }, error, ...(detail ? { detail } : {}) };
 }
 

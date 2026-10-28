@@ -5,6 +5,7 @@ import { unzipSync } from 'fflate';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { convert, parsePreset, VERSION } from '@pixel3d/core';
 import type { Report } from '@pixel3d/core';
+import { JobStore } from '../src/jobs';
 import { createApp, startServer } from '../src/serve';
 import openapi from '../openapi.json';
 
@@ -49,7 +50,7 @@ describe('px3d serve', () => {
     const res = await post(server.url, '/convert', form({ image: png('potion.png'), preset: JSON.stringify(emptyPreset) }));
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('model/3mf');
-    expect(res.headers.get('content-disposition')).toBe('attachment; filename="potion.3mf"');
+    expect(res.headers.get('content-disposition')).toBe("attachment; filename=\"potion.3mf\"; filename*=UTF-8''potion.3mf");
     const report = JSON.parse(Buffer.from(res.headers.get('x-pixel3d-report')!, 'base64').toString('utf8')) as Report;
     expect(report.files).toEqual(['potion.3mf']);
     const direct = await convert(fixtureBytes('potion.png'), parsePreset(emptyPreset), 'potion');
@@ -176,4 +177,122 @@ describe('px3d serve', () => {
       child.kill();
     }
   }, 60_000);
+});
+
+describe('px3d serve hardening', () => {
+  const potion = () => form({ image: png('potion.png') });
+
+  it('a throwing conversion fails only that image; the job still finishes and the server stays up', async () => {
+    const calls: string[] = [];
+    const app = createApp({
+      convert: (bytes, preset, name) => {
+        calls.push(name);
+        if (name === 'eye-on-white') throw new Error('boom');
+        return convert(bytes, preset, name);
+      },
+    });
+    const images = ['potion.png', 'eye-on-white.png', 'corner-touch.png'].map(png);
+    const res = await app.request('/batch', { method: 'POST', body: form({ images }) });
+    expect(res.status).toBe(202);
+    const { jobId } = (await res.json()) as { jobId: string };
+    let job: { status: string; report: Report[] };
+    for (let i = 0; ; i++) {
+      job = (await (await app.request(`/jobs/${jobId}`)).json()) as typeof job;
+      if (job.status === 'done' || i > 200) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(job.status).toBe('done');
+    expect(job.report.map((r) => r.error)).toEqual([undefined, 'The conversion failed.', undefined]);
+    expect('detail' in job.report[1]!).toBe(false);
+    const zip = unzipSync(new Uint8Array(await (await app.request(`/jobs/${jobId}/download`)).arrayBuffer()));
+    expect(Object.keys(zip).sort()).toEqual(['corner-touch.3mf', 'potion.3mf', 'report.json']);
+    expect((await app.request('/health')).status).toBe(200);
+  }, 120_000);
+
+  it('non-ASCII names get an ASCII fallback plus filename*', async () => {
+    const f = new File([fixtureBytes('potion.png')], 'ポーション.png', { type: 'image/png' });
+    const res = await post(server.url, '/convert', form({ image: f }));
+    expect(res.status).toBe(200);
+    const cd = res.headers.get('content-disposition')!;
+    expect(cd).toMatch(/^attachment; filename="[\x20-\x7e]+\.3mf"; filename\*=UTF-8''.+\.3mf$/);
+    expect(cd).toContain(encodeURIComponent('ポ'));
+  }, 60_000);
+
+  it('a chunked upload over 50 MB without Content-Length gets 413', async () => {
+    const big = new File([new Uint8Array(51 * 1024 * 1024)], 'big.png', { type: 'image/png' });
+    const src = new Response(form({ image: big }));
+    const res = await fetch(server.url + '/convert', {
+      method: 'POST',
+      body: src.body,
+      headers: { 'content-type': src.headers.get('content-type')! },
+      duplex: 'half',
+    } as RequestInit);
+    expect(res.status).toBe(413);
+  }, 60_000);
+
+  it('a chunked upload under the limit still works', async () => {
+    const src = new Response(potion());
+    const res = await fetch(server.url + '/convert', {
+      method: 'POST',
+      body: src.body,
+      headers: { 'content-type': src.headers.get('content-type')! },
+      duplex: 'half',
+    } as RequestInit);
+    expect(res.status).toBe(200);
+  }, 60_000);
+
+  it('unknown routes return a JSON 404', async () => {
+    const res = await createApp().request('/nope');
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'Not found.' });
+  });
+
+  it('omits an oversized report header and says so', async () => {
+    const app = createApp({
+      convert: async (bytes, preset, name) => {
+        const r = await convert(bytes, preset, name);
+        r.report.warnings.push('x'.repeat(10_000));
+        return r;
+      },
+    });
+    const res = await app.request('/convert', { method: 'POST', body: potion() });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-pixel3d-report')).toBeNull();
+    expect(res.headers.get('x-pixel3d-report-truncated')).toBe('1');
+  }, 60_000);
+
+  it('openapi.json carries the running version', async () => {
+    const doc = (await (await createApp().request('/openapi.json')).json()) as typeof openapi;
+    expect(doc.info.version).toBe(VERSION);
+  });
+});
+
+describe('JobStore', () => {
+  it('expires jobs after the TTL measured from completion, and caps the store', () => {
+    let t = 0;
+    const store = new JobStore({ ttlMs: 1000, maxJobs: 2, now: () => t });
+    const a = store.create(1)!;
+    t = 900;
+    store.finish(a);
+    t = 1800; // 1800 > created + ttl, but only 900 since completion
+    expect(store.get(a.id)).toBe(a);
+    t = 1901;
+    expect(store.get(a.id)).toBeUndefined();
+
+    const b = store.create(1)!;
+    const c = store.create(1)!;
+    expect(store.create(1)).toBeUndefined(); // full of running jobs
+    store.finish(b);
+    const d = store.create(1)!; // evicts the oldest done job (b)
+    expect(d).toBeDefined();
+    expect(store.get(b.id)).toBeUndefined();
+    expect(store.get(c.id)).toBe(c);
+  });
+
+  it('POST /batch answers 503 when the store is full of running jobs', async () => {
+    const store = new JobStore({ maxJobs: 1 });
+    store.create(1);
+    const res = await createApp({ jobs: store }).request('/batch', { method: 'POST', body: form({ images: png('potion.png') }) });
+    expect(res.status).toBe(503);
+  });
 });

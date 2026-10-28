@@ -2,10 +2,10 @@
   "openapi": "3.1.0",
   "info": {
     "title": "pixel3d HTTP API",
-    "version": "0.2.14",
-    "description": "Local API behind `px3d serve`. Binds to 127.0.0.1:7300 by default. Uploads are capped at 50 MB per request."
+    "version": "0.2.15",
+    "description": "Local API behind `px3d serve`. info.version is patched to the running px3d version when served. Binds to 127.0.0.1:7300 by default. Uploads are capped at 50 MB per request."
   },
-  "servers": [{ "url": "http://127.0.0.1:7300" }],
+  "servers": [{ "url": "/", "description": "The server this document was fetched from (default http://127.0.0.1:7300)" }],
   "paths": {
     "/health": {
       "get": {
@@ -39,7 +39,8 @@
             "description": "The converted model",
             "headers": {
               "Content-Disposition": { "schema": { "type": "string" }, "description": "attachment; filename=\"<name>\"" },
-              "X-Pixel3d-Report": { "schema": { "type": "string", "contentEncoding": "base64" }, "description": "Base64 of the JSON Report." }
+              "X-Pixel3d-Report": { "schema": { "type": "string", "contentEncoding": "base64" }, "description": "Base64 of the JSON Report. Omitted when larger than 8 KB; then X-Pixel3d-Report-Truncated is 1." },
+              "X-Pixel3d-Report-Truncated": { "schema": { "type": "string", "const": "1" } }
             },
             "content": {
               "model/3mf": { "schema": { "type": "string", "format": "binary" } },
@@ -75,7 +76,8 @@
         "responses": {
           "202": { "description": "Job accepted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/JobCreated" } } } },
           "400": { "description": "No images, or a bad preset", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PresetError" } } } },
-          "413": { "description": "Upload larger than 50 MB", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+          "413": { "description": "Upload larger than 50 MB", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "503": { "description": "50 jobs are stored and all still running", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
         }
       }
     },

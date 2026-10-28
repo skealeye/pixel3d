@@ -4,6 +4,7 @@ import base64
 import json
 import re
 from pathlib import Path
+from urllib.parse import unquote
 
 import requests
 
@@ -21,11 +22,18 @@ def main() -> int:
         files["preset"] = (args.preset.name, args.preset.read_bytes(), "application/json")
     res = requests.post(f"{args.url}/convert", files=files, timeout=300)
     if not res.ok:
-        print(f"Failed ({res.status_code}): {res.json().get('error', res.text)}")
+        try:
+            message = res.json().get("error", res.text)
+        except ValueError:
+            message = res.text
+        print(f"Failed ({res.status_code}): {message}")
         return 1
 
     # filename comes from Content-Disposition: a .3mf/.stl, or a .zip when the preset makes two files
-    name = re.search(r'filename="([^"]+)"', res.headers["Content-Disposition"]).group(1)
+    disposition = res.headers["Content-Disposition"]
+    utf8 = re.search(r"filename\*=UTF-8''([^;]+)", disposition)
+    name = unquote(utf8.group(1)) if utf8 else re.search(r'filename="([^"]+)"', disposition).group(1)
+    name = Path(name).name  # never write outside --out
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / name).write_bytes(res.content)
     report = json.loads(base64.b64decode(res.headers["X-Pixel3d-Report"]))
