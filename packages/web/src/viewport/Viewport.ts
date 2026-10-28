@@ -118,12 +118,9 @@ export class Viewport {
       return m;
     });
     this.uncut = model.parts.length ? new THREE.Box3(new THREE.Vector3(...model.bounds.min), new THREE.Vector3(...model.bounds.max)) : null;
-    const was = !!this.clk;
     this.clk = model.clicker && this.uncut ? { info: model.clicker, printed: this.uncut.clone(), switches: opts.switches ?? 1 } : null;
     this.show(meshes, opts.row);
     this.shown = model.parts.length ? 'model' : 'none';
-    // a clicker and a flat model are framed very differently
-    if (was !== !!this.clk) this.fitView();
   }
 
   /** Assembled (the cap seated on the switch at rest, over a stand-in switch) or Apart (as printed, cap beside the body). */
@@ -274,6 +271,9 @@ export class Viewport {
     this.controls.update();
     this.dirty = true;
   }
+
+  /** The camera position, world space (for the e2e checks). */
+  cameraAt(): Vec3 { return this.camera.position.toArray(); }
 
   /** Materials in use and how many of them the cut plane clips (for the e2e checks). */
   stats() {
@@ -450,6 +450,7 @@ export class Viewport {
       this.uncut = c.printed.clone();
       return;
     }
+    press.travel = c.info.restZ - c.info.pressedZ;
     const [sx, sy] = c.info.capShift;
     const rest = new THREE.Box3(), cap = new THREE.Box3();
     for (const m of this.meshes) {
@@ -464,19 +465,21 @@ export class Viewport {
     // switches at keyboard pitch along the art's long side, centred (core clicker.ts switchSpots); the cap's box is the art's
     const w = cap.max.x - cap.min.x, h = cap.max.y - cap.min.y, long = w >= h;
     const cx = (cap.min.x + cap.max.x) / 2, cy = (cap.min.y + cap.max.y) / 2;
-    const seat = MX.floor + MX.depth, stemTop = seat + MX.above, top = seat + 6.6;
+    // the top housing steps in at seat + 4 so it stays inside the cap's pocket (ceiling 14.0) when pressed
+    const seat = MX.floor + MX.depth, stemTop = seat + MX.above, step = seat + 4, top = seat + 6.6;
     const box = (dx: number, dy: number, z0: number, z1: number, x: number, y: number) =>
       new THREE.BoxGeometry(dx, dy, z1 - z0).translate(x, y, (z0 + z1) / 2);
     for (let i = 0; i < c.switches; i++) {
       const o = (i - (c.switches - 1) / 2) * MX.pitch;
       const [x, y] = long ? [cx + o, cy] : [cx, cy + o];
-      // the lower housing in the shaft, the top housing above the seat, and the stem that rides down with the cap
+      // the lower housing in the shaft, the stepped top housing above the seat, and the stem that rides down with the cap
       const lower = new THREE.Mesh(box(14, 14, seat - 5, seat, x, y), this.ghostMat);
-      const upper = new THREE.Mesh(box(15.6, 15.6, seat, top, x, y), this.ghostMat);
+      const upper = new THREE.Mesh(box(15.6, 15.6, seat, step, x, y), this.ghostMat);
+      const crown = new THREE.Mesh(box(13.5, 13.5, step, top, x, y), this.ghostMat);
       const stem = new THREE.Mesh(box(4, 4, top, stemTop, x, y), this.ghostMat);
       stem.userData.stem = true;
       stem.position.z = -press.at;
-      this.ghostGroup.add(lower, upper, stem);
+      this.ghostGroup.add(lower, upper, crown, stem);
     }
   }
 

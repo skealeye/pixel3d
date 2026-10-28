@@ -45,6 +45,8 @@
   let scheduledSwitches = 1;
   /** Frame the view when the next model arrives (a new image shown as a clicker, which has no fast preview). */
   let fitOnModel = false;
+  /** What the view was last framed for: a flat model, or a clicker and its body shape. */
+  let lastFraming: string | null = null;
   /** What the last preview and the last build were made from, so a change neither uses skips it. */
   let last: { grid: Grid | null; preview: string; build: string } = { grid: null, preview: '', build: '' };
 
@@ -78,7 +80,7 @@
     const unregister = register({
       viewport: () => ({
         shown: v.shown, cut: ui.cut, grid: { ...ui.grid }, renders: v.renders, size: v.size, buildError, ...v.stats(),
-        bounds: v.bounds(), handles: v.handleScreen(), gridStep: v.gridStep, clicker: v.clicker(),
+        bounds: v.bounds(), handles: v.handleScreen(), gridStep: v.gridStep, clicker: v.clicker(), camera: v.cameraAt(),
       }),
       failNextBuild: () => b.failNextBuild(),
     });
@@ -95,6 +97,10 @@
     const build = forBuild(settings), pk = previewKey(settings), bk = JSON.stringify(build);
     last.grid = grid;
     const clicker = settings.make === 'clicker';
+    // a clicker and a flat model are framed very differently, and a new body shape changes the clicker's size
+    // (the mockup refits on Make and Body shape): frame the next model
+    const framing = clicker ? `clicker:${settings.clicker.shape}` : 'model';
+    if (framing !== lastFraming) { if (lastFraming !== null) fitOnModel = true; lastFraming = framing; }
     if (!same || fresh || pk !== last.preview || v.shown !== 'model') {
       last.preview = pk;
       if (clicker) {

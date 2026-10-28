@@ -9,8 +9,10 @@ const ACTUATE = 2, RESET = 1.6;
  * One shared instance: the Clicker panel drives it, the viewport reads `at` every frame.
  */
 class Press {
-  /** How far down the cap is, mm (0 at rest, `MX.travel` fully pressed). */
+  /** How far down the cap is, mm (0 at rest, `travel` fully pressed). */
   at = 0;
+  /** Full key travel, mm: the viewport sets it from core's `model.clicker` (restZ - pressedZ). */
+  travel: number = MX.travel;
   private down = false;
   private release = false;
 
@@ -22,9 +24,9 @@ class Press {
 
   /** Advance by `dt` seconds. Returns true when `at` changed. */
   step(dt: number): boolean {
-    const bottom = this.at >= MX.travel * 0.97;
+    const bottom = this.at >= this.travel * 0.97;
     if (this.release && bottom) this.down = this.release = false;
-    const goal = this.down ? MX.travel : 0;
+    const goal = this.down ? this.travel : 0;
     const before = this.at;
     this.at += (goal - this.at) * Math.min(1, dt * (goal ? 28 : 16));
     if (Math.abs(goal - this.at) < 1e-3) this.at = goal;

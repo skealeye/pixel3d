@@ -28,7 +28,8 @@
     }
   }
 
-  const pressable = (t: EventTarget | null) => !(t instanceof HTMLElement && /^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(t.tagName));
+  /** Space presses unless focus is in a control that uses it; the Press button itself is fine (it gets focus on a click). */
+  const pressable = (t: EventTarget | null) => !(t instanceof HTMLElement && t.id !== 'clkPress' && /^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(t.tagName));
   function keydown(e: KeyboardEvent) {
     if (e.code !== 'Space' || e.repeat || !on || ui.clkView !== 'assembled' || !pressable(document.activeElement)) return;
     e.preventDefault();
@@ -58,7 +59,8 @@
   }
 </script>
 
-<svelte:window onkeydown={keydown} onkeyup={keyup} />
+<!-- a lost focus never sends the keyup, so release then too -->
+<svelte:window onkeydown={keydown} onkeyup={keyup} onblur={() => press.stop()} />
 
 <section>
   <h2>Make</h2>

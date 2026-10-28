@@ -24,7 +24,10 @@ interface Settings {
   rotation: [number, number, number];
 }
 interface Snap { settings: Settings; undo: number }
-interface View { shown: 'none' | 'preview' | 'model'; cut: boolean; clipped: number; materials: number; clicker: Clicker | null; size: { x: number; y: number; z: number } | null }
+interface View {
+  shown: 'none' | 'preview' | 'model'; cut: boolean; clipped: number; materials: number; clicker: Clicker | null;
+  size: { x: number; y: number; z: number } | null; handles: { kind: string }[]; camera: Vec3;
+}
 type Hook = { snapshot(): Snap; viewport(): View };
 const snap = (page: Page) => page.evaluate(() => (window as unknown as { __pixel3d: Hook }).__pixel3d.snapshot());
 const settings = async (page: Page) => (await snap(page)).settings;
@@ -64,10 +67,11 @@ test.describe('keycap clicker', () => {
     await expect(page.locator('aside.right section > h2')).toHaveText([/^Make/, /^Clicker/, /^Size/, /^Base/, /^Inside/, /^Sides/, /^Keychain/, /^Magnets/, /^Orientation/]);
   });
 
-  test('Clicker greys out Sides, Inside, Keychain and Magnets with "Not used on a clicker"', async ({ page }) => {
+  test('Clicker greys out Sides, Inside, Keychain, Magnets and Orientation with "Not used on a clicker"', async ({ page }) => {
     await page.goto('/?test');
     const sec = (name: string) => page.locator('aside.right section', { has: page.locator('h2', { hasText: new RegExp(`^${name}`) }) });
-    const off = ['Inside', 'Sides', 'Keychain', 'Magnets'], on = ['Make', 'Size', 'Base', 'Orientation'];
+    // Orientation too (R24): a clicker always prints flat
+    const off = ['Inside', 'Sides', 'Keychain', 'Magnets', 'Orientation'], on = ['Make', 'Size', 'Base'];
     for (const n of [...off, ...on]) await expect(sec(n)).not.toHaveClass(/\boff\b/);
     await seg(page, 'make', 'clicker').click();
     for (const n of off) {
@@ -152,8 +156,8 @@ test.describe('keycap clicker', () => {
     await page.mouse.up();
     await expect.poll(async () => (await clicker(page))!.cap.min[2], { timeout: 3000 }).toBeCloseTo(rest, 1);
     // and holding Space does the same
-    // focus off the Press button (Space on a focused button clicks it instead)
-    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    // the Press button keeps focus after the click, and Space still presses
+    await expect(press).toBeFocused();
     await page.keyboard.down('Space');
     await expect.poll(async () => (await clicker(page))!.cap.min[2], { timeout: 3000 }).toBeCloseTo(rest - 4, 1);
     await page.keyboard.up('Space');
@@ -171,8 +175,59 @@ test.describe('keycap clicker', () => {
     expect(c.body.max[2] - c.body.min[2]).toBeLessThan(c.body.max[0] - c.body.min[0]);
     await page.locator('#cutBtn').click();
     await expect.poll(async () => (await view(page)).clipped).toBeGreaterThan(0);
-    const v = await view(page);
+    let v = await view(page);
     expect(v.clipped).toBe(v.materials);
+    // and in Apart
+    await seg(page, 'clkView', 'apart').click();
+    await expect.poll(async () => (await clicker(page))!.view).toBe('apart');
+    v = await view(page);
+    expect(v.clipped).toBeGreaterThan(0);
+    expect(v.clipped).toBe(v.materials);
+  });
+
+  test('Flat model → Clicker → Flat model, and undo/redo across Make, restore each view', async ({ page }) => {
+    await loadPotion(page);
+    await seg(page, 'key', 'hole').click();
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+    const flat = await view(page);
+    expect(flat.handles.length).toBe(1);
+    await seg(page, 'make', 'clicker').click();
+    await expect.poll(async () => (await clicker(page))?.view ?? null).toBe('assembled');
+    expect((await view(page)).handles).toEqual([]);
+    // the clicker is framed for its own size, and the flat model gets its framing back
+    await expect.poll(async () => (await view(page)).camera).not.toEqual(flat.camera);
+    // a new body shape refits too
+    const assembled = (await view(page)).camera;
+    await page.locator('#clkBorder').fill('10');
+    await page.locator('#clkBorder').press('Enter');
+    await seg(page, 'clkShape', 'circle').click();
+    await expect.poll(async () => (await view(page)).camera[0]).toBeGreaterThan(assembled[0]);
+    // back to the default clicker, so undo below steps across Make
+    await page.keyboard.press('Control+z');
+    await page.keyboard.press('Control+z');
+    await expect.poll(async () => (await settings(page)).clicker).toMatchObject({ shape: 'outline', border: 3 });
+    await expect(page.locator('aside.right section.off')).toHaveCount(5);
+    await seg(page, 'make', 'model').click();
+    await expect.poll(async () => (await view(page)).clicker).toBeNull();
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+    // to 0.1 mm: orbit damping leaves tiny float noise
+    const r1 = (v: Vec3) => v.map((n) => Math.round(n * 10) / 10);
+    await expect.poll(async () => r1((await view(page)).camera)).toEqual(r1(flat.camera));
+    const back = await view(page);
+    expect(back.size).toEqual(flat.size);
+    expect(back.handles.length).toBe(1);
+    await expect(page.locator('aside.right section.off')).toHaveCount(0);
+    // undo goes back to the clicker, a second undo to the flat model; redo returns the clicker
+    await page.keyboard.press('Control+z');
+    await expect.poll(async () => (await clicker(page))?.view ?? null).toBe('assembled');
+    await expect(page.locator('aside.right section.off')).toHaveCount(5);
+    await page.keyboard.press('Control+z');
+    await expect.poll(async () => (await view(page)).clicker).toBeNull();
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+    expect((await view(page)).size).toEqual(flat.size);
+    await page.keyboard.press('Control+y');
+    await expect.poll(async () => (await clicker(page))?.view ?? null).toBe('assembled');
+    expect((await settings(page)).make).toBe('clicker');
   });
 
   test('the fit-test export is offered and downloads one STL per coupon', async ({ page }) => {
