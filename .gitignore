@@ -8,3 +8,5 @@ __pycache__/
 ~RF*.TMP
 *.png.tmp
 out/
+test-results/
+playwright-report/

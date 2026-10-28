@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node", "svelte", "vite/client"],
+    "baseUrl": "../..",
+    "paths": { "@pixel3d/core": ["packages/core/src/index.ts"] }
+  },
+  "include": ["src", "test", "vite.config.ts", "playwright.config.ts"]
+}
