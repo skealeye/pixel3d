@@ -38,12 +38,13 @@ describe('decodeImage', () => {
     await expect(decodeImage(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]))).rejects.toThrow('Unsupported image format');
   });
 
-  it('reports webp as unsupported for now', async () => {
-    const riff = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]);
-    await expect(decodeImage(riff)).rejects.toThrow('Unsupported image format: webp');
+  it('decodes WebP', async () => {
+    const img = await decodeImage(fx('checker.webp'));
+    expect([img.width, img.height]).toEqual([8, 8]);
+    expect(Array.from(img.data.slice(0, 4))).toEqual([40, 40, 200, 255]);
   });
 
   it('reads VERSION from the root package.json', () => {
-    expect(VERSION).toBe('0.2.0');
+    expect(VERSION).toBe('0.2.1');
   });
 });

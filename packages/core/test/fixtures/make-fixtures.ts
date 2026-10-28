@@ -1,7 +1,8 @@
 // Deterministic fixture generator. Run from the repo root: npm run fixtures
 import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import UPNG from 'upng-js';
 import jpeg from 'jpeg-js';
 import { GifWriter } from 'omggif';
@@ -102,5 +103,17 @@ png('offset-grid.png', raster(1 + 3 * 6 + 2, 1 + 2 * 5 + 1, 3, 2, 1, 1, (cx, cy)
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) idx.push((x + y) % 2 ? 0 : 1);
   gw.addFrame(0, 0, w, h, idx);
   writeFileSync(join(dir, 'checker.gif'), buf.subarray(0, gw.end()));
+}
+// checker.webp: 8x8 lossless checker (Node needs the encoder wasm handed over)
+{
+  const enc = await import('@jsquash/webp/encode.js');
+  const { readFile } = await import('node:fs/promises');
+  const wasm = new URL('./codec/enc/webp_enc.wasm', pathToFileURL(createRequire(import.meta.url).resolve('@jsquash/webp/encode.js')));
+  await enc.init(await (globalThis as unknown as { WebAssembly: { compile(b: Uint8Array): Promise<never> } }).WebAssembly.compile(await readFile(fileURLToPath(wasm))));
+  const w = 8, h = 8, px = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++)
+    px.set((x + y) % 2 ? [200, 40, 40, 255] : [40, 40, 200, 255], (y * w + x) * 4);
+  const out = await enc.default({ data: px, width: w, height: h, colorSpace: 'srgb' } as never, { lossless: 1 });
+  writeFileSync(join(dir, 'checker.webp'), new Uint8Array(out));
 }
 console.log('fixtures written to', dir);

@@ -33,10 +33,28 @@ function decodeGif(bytes: Uint8Array): Img {
   return { width: reader.width, height: reader.height, data };
 }
 
+let webpReady: Promise<(buf: ArrayBuffer) => Promise<{ width: number; height: number; data: Uint8ClampedArray }>> | undefined;
 
-// @jsquash/webp fetches its wasm by URL and cannot load under Node/Vitest; wired up in the web package later.
-function unsupportedWebp(): never {
-  throw new Error('Unsupported image format: webp (decoder unavailable)');
+/** WebP via @jsquash/webp. The browser loads its wasm normally; Node has no fetch for file URLs, so hand it the bytes. */
+function webpDecoder() {
+  webpReady ??= (async () => {
+    const mod = await import('@jsquash/webp/decode.js');
+    if (typeof process !== 'undefined' && process.versions?.node) {
+      const { readFile } = await import('node:fs/promises');
+      const { fileURLToPath, pathToFileURL } = await import('node:url');
+      const { createRequire } = await import('node:module');
+      const wasm = new URL('./codec/dec/webp_dec.wasm', pathToFileURL(createRequire(import.meta.url).resolve('@jsquash/webp/decode.js')));
+      await mod.init(await (globalThis as unknown as { WebAssembly: { compile(b: Uint8Array): Promise<never> } }).WebAssembly.compile(await readFile(fileURLToPath(wasm))));
+    }
+    return mod.default;
+  })();
+  return webpReady;
+}
+
+async function decodeWebp(bytes: Uint8Array): Promise<Img> {
+  const decode = await webpDecoder();
+  const r = await decode(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
+  return { width: r.width, height: r.height, data: new Uint8ClampedArray(r.data) };
 }
 
 /** Decode PNG/JPEG/GIF (first frame)/WebP by magic bytes. Alpha below 128 becomes fully transparent (RGB zeroed). */
@@ -47,7 +65,7 @@ export async function decodeImage(bytes: Uint8Array): Promise<Img> {
     fmt === 'png' ? decodePng(bytes) :
     fmt === 'jpeg' ? decodeJpeg(bytes) :
     fmt === 'gif' ? decodeGif(bytes) :
-    unsupportedWebp();
+    await decodeWebp(bytes);
   const d = img.data;
   for (let i = 3; i < d.length; i += 4) {
     if (d[i]! < 128) { d[i - 3] = 0; d[i - 2] = 0; d[i - 1] = 0; d[i] = 0; }

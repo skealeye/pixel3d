@@ -1,3 +1,4 @@
+// Not runnable by raw Node (extensionless imports, .ts entry): core is consumed only via Vitest, Vite and an esbuild-bundled CLI.
 import pkg from '../../../package.json' with { type: 'json' };
 
 export type { RGBA, Img } from './image';

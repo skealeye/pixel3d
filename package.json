@@ -1,9 +1,8 @@
 {
   "name": "pixel3d",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*"],
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p packages/core --noEmit",
@@ -11,8 +10,16 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/omggif": "^1.0.5",
+    "@types/upng-js": "^2.1.5",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
+  },
+  "dependencies": {
+    "@jsquash/webp": "^1.4.0",
+    "jpeg-js": "^0.4.4",
+    "omggif": "^1.0.10",
+    "upng-js": "^2.1.0"
   }
 }
