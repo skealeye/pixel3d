@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { strFromU8, unzipSync } from 'fflate';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { buildModel, decodeImage, DEFAULTS, detectScale, downsampleNearest, to3MF, toGrid, toSTL } from '../src/index';
-import type { Grid, Model, Settings } from '../src/index';
+import type { Grid, Model, Part, Settings } from '../src/index';
 import { initManifold } from '../src/manifold';
 import { assertManifold } from './util/assertManifold';
 import { all, kid, kids, metaOf, parseXml } from './util/xml';
@@ -41,6 +41,12 @@ const weld = (corners: number[]) => {
   return { vertProperties: new Float32Array(vertProperties), triVerts: new Uint32Array(triVerts) };
 };
 /** Number of separate solids in an indexed mesh. */
+/** Volume of an indexed mesh, mm³. */
+const volume = async (mesh: { vertProperties: Float32Array; triVerts: Uint32Array }) => {
+  const { Manifold, Mesh } = await initManifold();
+  const m = new Manifold(new Mesh({ numProp: 3, ...mesh }));
+  try { return m.volume(); } finally { m.delete(); }
+};
 const bodies = async (mesh: { vertProperties: Float32Array; triVerts: Uint32Array }) => {
   const { Manifold, Mesh } = await initManifold();
   const m = new Manifold(new Mesh({ numProp: 3, ...mesh }));
@@ -121,40 +127,44 @@ beforeAll(async () => {
   main = await buildModel(potion, DEFAULTS);
 });
 
+/** An STL file must be one manifold body whose volume is the parts' total (the union of flush parts). */
+const expectOneBody = async (bytes: Uint8Array, parts: Part[], label: string) => {
+  const mesh = weld(readStl(bytes).corners);
+  await assertManifold({ name: label, mesh });
+  expect(await bodies(mesh), `${label}: bodies`).toBe(1);
+  const want = (await Promise.all(parts.map((p) => volume(p.mesh)))).reduce((a, b) => a + b, 0);
+  expect(Math.abs((await volume(mesh)) / want - 1), `${label}: volume`).toBeLessThan(0.005);
+};
+
 describe('toSTL', () => {
-  it('one binary STL per object, triangle count the sum of the parts, coordinates as built', async () => {
+  it('one binary STL per object: one manifold body, volume the sum of the parts', async () => {
     const files = await toSTL(main, { mono: false, name: 'potion' });
     expect(files.map((f) => f.name)).toEqual(['potion.stl']);
-    const { n, corners } = readStl(files[0]!.bytes);
-    expect(n).toBe(tris(main));
-    const p = main.parts[0]!, v = p.mesh.vertProperties, t = p.mesh.triVerts;
-    expect(corners.slice(0, 3)).toEqual([...v.slice(3 * t[0]!, 3 * t[0]! + 3)]);
+    await expectOneBody(files[0]!.bytes, main.parts, 'stl');
   });
 
-  it('halves: name_front and name_back, each its own parts', async () => {
+  it('halves: name_front and name_back, each one body', async () => {
     const m = await buildModel(potion, settings((s) => { s.sides.mode = 'halves'; }));
     const files = await toSTL(m, { mono: false, name: 'potion' });
     expect(files.map((f) => f.name)).toEqual(['potion_front.stl', 'potion_back.stl']);
-    expect(readStl(files[0]!.bytes).n).toBe(tris(m, 'front'));
-    expect(readStl(files[1]!.bytes).n).toBe(tris(m, 'back'));
+    await expectOneBody(files[0]!.bytes, m.parts.filter((p) => p.object === 'front'), 'front stl');
+    await expectOneBody(files[1]!.bytes, m.parts.filter((p) => p.object === 'back'), 'back stl');
   });
 
-  it('mono: one watertight body per object (a union of the parts)', async () => {
+  it('mono: one watertight body per object', async () => {
     const files = await toSTL(main, { mono: true, name: 'potion' });
     expect(files).toHaveLength(1);
-    const mesh = weld(readStl(files[0]!.bytes).corners);
-    await assertManifold({ name: 'mono stl', mesh });
-    expect(await bodies(mesh)).toBe(1);
+    await expectOneBody(files[0]!.bytes, main.parts, 'mono stl');
   });
 
-  it('mono with a loop and no base: the loop joins the outline in one body', async () => {
-    const m = await buildModel(potion, settings((s) => { s.base.enabled = false; s.keychain.type = 'loop'; }));
-    expect(m.parts.map((p) => p.name)).toContain('loop');
-    const [file] = await toSTL(m, { mono: true, name: 'potion' });
-    const mesh = weld(readStl(file!.bytes).corners);
-    await assertManifold({ name: 'mono loop stl', mesh });
-    expect(await bodies(mesh)).toBe(1);
-  });
+  for (const mono of [false, true]) {
+    it(`a loop and no base${mono ? ', mono' : ''}: the ring joins the outline in one body`, async () => {
+      const m = await buildModel(potion, settings((s) => { s.base.enabled = false; s.keychain.type = 'loop'; }));
+      expect(m.parts.map((p) => p.name)).toContain('loop');
+      const [file] = await toSTL(m, { mono, name: 'potion' });
+      await expectOneBody(file!.bytes, m.parts, 'loop stl');
+    });
+  }
 });
 
 describe('to3MF: Bambu', () => {
@@ -232,7 +242,8 @@ describe('to3MF: Bambu', () => {
     const layers = kids(plate, 'layer');
     expect(layers).toHaveLength(1);
     expect(layers[0]!.attrs.type).toBe('1');
-    expect(Number(layers[0]!.attrs.top_z)).toBeGreaterThan(1.4);
+    // just above the pocket top: the pause falls before the first layer over the pocket on any layer grid
+    expect(layers[0]!.attrs.top_z).toBe('1.41');
     const none = unzip(await to3MF(main, { slicer: 'bambu', mono: false, name: 'potion' }));
     expect(none.names).not.toContain('Metadata/custom_gcode_per_layer.xml');
   });
@@ -286,6 +297,17 @@ describe('to3MF: Prusa', () => {
     expect(next).toBe(tris(main));
   });
 
+  it('a sealed magnet writes a PausePrint at the same height; none without', async () => {
+    const z = unzip(await to3MF(main, { slicer: 'prusa', mono: false, name: 'potion', pauseZ: [1.4, 2.25] }));
+    const g = parseXml(z.text('Metadata/Prusa_Slicer_custom_gcode_per_print_z.xml'));
+    expect(g.tag).toBe('custom_gcodes_per_print_z');
+    const codes = kids(g, 'code');
+    expect(codes.map((c) => c.attrs.print_z)).toEqual(['1.41', '2.26']);
+    expect(codes.every((c) => c.attrs.type === '1')).toBe(true);
+    const none = unzip(await to3MF(main, { slicer: 'prusa', mono: false, name: 'potion' }));
+    expect(none.names).not.toContain('Metadata/Prusa_Slicer_custom_gcode_per_print_z.xml');
+  });
+
   it('mono: one volume', async () => {
     const z = unzip(await to3MF(main, { slicer: 'prusa', mono: true, name: 'potion' }));
     const cfg = parseXml(z.text('Metadata/Slic3r_PE_model.config'));
@@ -307,6 +329,11 @@ describe('to3MF: generic', () => {
     meshes.forEach((o, i) => { expect(o.attrs.pid).toBe(mats.attrs.id); expect(o.attrs.pindex).toBe(String(i)); });
     expect(kids(kid(assemblies[0]!, 'components'), 'component').map((c) => c.attrs.objectid)).toEqual(meshes.map((o) => o.attrs.id));
     expect(kids(kid(model, 'build'), 'item').map((i) => i.attrs.objectid)).toEqual([assemblies[0]!.attrs.id]);
+  });
+
+  it('no pause file, even with pause heights', async () => {
+    const z = unzip(await to3MF(main, { slicer: 'generic', mono: false, name: 'potion', pauseZ: [1.4] }));
+    expect(z.names.filter((n) => n.startsWith('Metadata/'))).toEqual([]);
   });
 
   it('mono: one base in the mono colour', async () => {

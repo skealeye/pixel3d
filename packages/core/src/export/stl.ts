@@ -56,14 +56,13 @@ export function stlBytes(meshes: Mesh[]): Uint8Array {
 
 /**
  * Single-colour binary STL, one file per printed object (`name.stl`, or `name_front.stl` / `name_back.stl`,
- * `name_cap.stl` / `name_body.stl`). Mono unions each object's parts into one watertight body; otherwise
- * the parts are written as they are (each already watertight, touching flush).
+ * `name_cap.stl` / `name_body.stl`). Each file is one watertight body: the manifold union of that object's
+ * parts, so a keychain ring with no base is joined to the outline. `mono` changes nothing here (STL has no colour).
  */
 export async function toSTL(model: Model, opts: { mono: boolean; name?: string }): Promise<{ name: string; bytes: Uint8Array }[]> {
   const out: { name: string; bytes: Uint8Array }[] = [];
   for (const o of objectsOf(model, opts.name ?? 'model')) {
-    const meshes = opts.mono ? [await unionParts(o.parts)] : o.parts.map((p) => p.mesh);
-    out.push({ name: `${o.name}.stl`, bytes: stlBytes(meshes) });
+    out.push({ name: `${o.name}.stl`, bytes: stlBytes([await unionParts(o.parts)]) });
   }
   return out;
 }

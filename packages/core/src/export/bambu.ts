@@ -1,5 +1,5 @@
-import { esc, IDENTITY, meshXml, NS_CORE, relsXml, translate } from './threemf';
-import type { Files, Scene } from './threemf';
+import { esc, IDENTITY, MATRIX, meshXml, NS_BAMBU, NS_CORE, NS_PROD, pauseAt, relsXml, translate } from './xml';
+import type { Files, Scene } from './xml';
 
 /**
  * Bambu Studio (and Orca Slicer, which reads the same files) project metadata, laid out as Bambu Studio 1.x
@@ -9,14 +9,9 @@ import type { Files, Scene } from './threemf';
  * slot colours; `custom_gcode_per_layer.xml` pauses for sealed magnets.
  */
 
-const NS_BAMBU = 'http://schemas.bambulab.com/package/2021';
-const NS_PROD = 'http://schemas.microsoft.com/3dmanufacturing/production/2015/06';
 /** Claim a released Bambu Studio version so the file is read as a Bambu project, not geometry only. */
 const APP = 'BambuStudio-01.09.00.00';
 const VERSION = '01.09.00.00';
-const MATRIX = '1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1';
-/** Half the 0.2 mm default layer: the pause lands before the first layer printed over the pocket, whatever the layer grid. */
-const HALF_LAYER = 0.1;
 
 const hex = (n: number, w: number) => n.toString(16).padStart(w, '0');
 const uuid = (n: number, tail: string) => `${hex(n, 8)}-${tail}`;
@@ -111,7 +106,7 @@ ${assemble.join('\n')}
 <custom_gcodes_per_layer>
 <plate>
 <plate_info id="1"/>
-${scene.pauseZ.map((z) => `<layer top_z="${Math.round((z + HALF_LAYER) * 1e4) / 1e4}" type="1" extruder="1" color="" extra="" gcode="M400 U1"/>`).join('\n')}
+${scene.pauseZ.map((z) => `<layer top_z="${pauseAt(z)}" type="1" extruder="1" color="" extra="" gcode="M400 U1"/>`).join('\n')}
 <mode value="MultiAsSingle"/>
 </plate>
 </custom_gcodes_per_layer>

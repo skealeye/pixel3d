@@ -1,12 +1,10 @@
-import { esc, meshXml, NS_CORE, translate } from './threemf';
-import type { Files, Scene } from './threemf';
-
-const NS_SLIC3R = 'http://schemas.slic3r.org/3mf/2017/06';
-const MATRIX = '1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1';
+import { esc, MATRIX, meshXml, NS_CORE, NS_SLIC3R, pauseAt, translate } from './xml';
+import type { Files, Scene } from './xml';
 
 /**
  * PrusaSlicer: one mesh object per printed object holding every part's triangles, split into volumes by
- * triangle index in `Metadata/Slic3r_PE_model.config`, each volume on its extruder.
+ * triangle index in `Metadata/Slic3r_PE_model.config`, each volume on its extruder. Sealed magnets get a
+ * PausePrint (`M601`) in `Metadata/Prusa_Slicer_custom_gcode_per_print_z.xml`.
  */
 export function prusaFiles(scene: Scene): Files {
   const objects: string[] = [], items: string[] = [], cfg: string[] = [];
@@ -31,7 +29,7 @@ export function prusaFiles(scene: Scene): Files {
 ${volumes.join('\n')}
  </object>`);
   });
-  return {
+  const files: Files = {
     '3D/3dmodel.model': `<?xml version="1.0" encoding="UTF-8"?>
 <model unit="millimeter" xml:lang="en-US" xmlns="${NS_CORE}" xmlns:slic3rpe="${NS_SLIC3R}">
  <metadata name="slic3rpe:Version3mf">1</metadata>
@@ -51,4 +49,13 @@ ${cfg.join('\n')}
 </config>
 `,
   };
+  if (scene.pauseZ.length) {
+    files['Metadata/Prusa_Slicer_custom_gcode_per_print_z.xml'] = `<?xml version="1.0" encoding="utf-8"?>
+<custom_gcodes_per_print_z>
+${scene.pauseZ.map((z) => `<code print_z="${pauseAt(z)}" type="1" extruder="1" color="" extra="" gcode="M601"/>`).join('\n')}
+<mode value="MultiAsSingle"/>
+</custom_gcodes_per_print_z>
+`;
+  }
+  return files;
 }

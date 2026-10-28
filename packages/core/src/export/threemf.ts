@@ -5,6 +5,10 @@ import { objectsOf, unionParts } from './stl';
 import type { Mesh } from './stl';
 import { bambuFiles } from './bambu';
 import { prusaFiles } from './prusa';
+import { esc, meshXml, NS_CORE, relsXml, translate } from './xml';
+import type { Files, OutObject, OutPart, Scene } from './xml';
+
+export type { Files, OutObject, OutPart, Scene } from './xml';
 
 export type Slicer = 'bambu' | 'orca' | 'prusa' | 'generic';
 export interface ThreeMFOptions {
@@ -18,43 +22,10 @@ export interface ThreeMFOptions {
   name?: string;
 }
 
-/** One part ready to write: its mesh in its object's own frame and its filament slot (1-based). */
-export interface OutPart { name: string; hex: string; slot: number; mesh: Mesh }
-/** One printed object: its parts, and where its frame sits on the plate (a translation, mm). */
-export interface OutObject { name: string; parts: OutPart[]; at: [number, number, number] }
-/** Everything a slicer writer needs. `colours[i]` is slot i + 1's colour, #RRGGBB. */
-export interface Scene { name: string; objects: OutObject[]; colours: string[]; pauseZ: number[] }
-export type Files = Record<string, string>;
-
 /** Bambu's 256 x 256 mm plate: the model is centred on it. */
 export const PLATE_CENTRE: [number, number] = [128, 128];
 const MTIME = new Date('2026-01-01T00:00:00Z');
 
-export const NS_CORE = 'http://schemas.microsoft.com/3dmanufacturing/core/2015/02';
-export const REL_3DMODEL = 'http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel';
-
-export const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-/** A coordinate, mm, to the micron. */
-const num = (v: number) => String(Math.round(v * 1e6) / 1e6 + 0);
-/** A 3MF row-major 3x4 transform that only translates. */
-export const translate = ([x, y, z]: readonly number[]) => `1 0 0 0 1 0 0 0 1 ${num(x!)} ${num(y!)} ${num(z!)}`;
-export const IDENTITY = translate([0, 0, 0]);
-
-/** A `<mesh>` element holding the given meshes as one (later meshes' indices offset past earlier vertices). */
-export function meshXml(meshes: Mesh[], indent = '    '): string {
-  const out: string[] = [`${indent}<mesh>`, `${indent} <vertices>`];
-  for (const { vertProperties: v } of meshes) {
-    for (let i = 0; i < v.length; i += 3) out.push(`${indent}  <vertex x="${num(v[i]!)}" y="${num(v[i + 1]!)}" z="${num(v[i + 2]!)}"/>`);
-  }
-  out.push(`${indent} </vertices>`, `${indent} <triangles>`);
-  let base = 0;
-  for (const { vertProperties: v, triVerts: t } of meshes) {
-    for (let i = 0; i < t.length; i += 3) out.push(`${indent}  <triangle v1="${t[i]! + base}" v2="${t[i + 1]! + base}" v3="${t[i + 2]! + base}"/>`);
-    base += v.length / 3;
-  }
-  out.push(`${indent} </triangles>`, `${indent}</mesh>`);
-  return out.join('\n');
-}
 
 const CONTENT_TYPES = `<?xml version="1.0" encoding="UTF-8"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -65,22 +36,15 @@ const CONTENT_TYPES = `<?xml version="1.0" encoding="UTF-8"?>
 </Types>
 `;
 
-/** A relationships part with one 3D model relationship per target. */
-export const relsXml = (targets: string[]) => `<?xml version="1.0" encoding="UTF-8"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-${targets.map((t, i) => ` <Relationship Target="${t}" Id="rel-${i + 1}" Type="${REL_3DMODEL}"/>`).join('\n')}
-</Relationships>
-`;
 
-/** XY bounding-box centre of some meshes, and their lowest Z. */
+/** XY bounding-box centre of some meshes. Z is left as built (min 0, seated by buildModel). */
 function footprint(meshes: Mesh[]) {
-  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const { vertProperties: v } of meshes) for (let i = 0; i < v.length; i += 3) {
     x0 = Math.min(x0, v[i]!); x1 = Math.max(x1, v[i]!);
     y0 = Math.min(y0, v[i + 1]!); y1 = Math.max(y1, v[i + 1]!);
-    z0 = Math.min(z0, v[i + 2]!);
   }
-  return { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, z0 };
+  return { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 };
 }
 
 const shift = (m: Mesh, dx: number, dy: number): Mesh => {
