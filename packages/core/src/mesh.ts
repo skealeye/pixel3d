@@ -14,8 +14,8 @@ type CrossSection = InstanceType<ManifoldToplevel['CrossSection']>;
 export interface Part {
   name: string;
   hex: string;
-  /** Printed object: one file / 3MF object each. `stem` and `socket` are the clicker fit-test coupons. */
-  object: 'main' | 'front' | 'back' | 'cap' | 'body' | 'stem' | 'socket';
+  /** Printed object: one file / 3MF object each. `stem` and `socket_<gap>` are the clicker fit-test coupons. */
+  object: 'main' | 'front' | 'back' | 'cap' | 'body' | 'stem' | `socket_${string}`;
   mesh: { vertProperties: Float32Array; triVerts: Uint32Array };
 }
 

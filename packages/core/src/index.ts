@@ -26,7 +26,7 @@ export { parsePreset, resolvePreset, presetSettings, colourRuleEdits, placeRelat
 export type { Preset, ColourRule } from './preset';
 export { buildModel } from './mesh';
 export type { Model, Part } from './mesh';
-export { MX, buildClicker, clickerLevels, fitTest } from './clicker';
+export { MX, TRAVEL_MARGIN, buildClicker, clickerLevels, fitTest, fitTestGaps } from './clicker';
 export { edgeAtAngle, loopSolid, holeCutter, magnetCutters, insideCutter } from './features';
 export type { Frame, Edge, Side } from './features';
 export { initManifold } from './manifold';
