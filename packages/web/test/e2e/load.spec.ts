@@ -327,7 +327,7 @@ test.describe('background', () => {
     await expect(page.locator('#bgTolR')).toHaveValue('9');
     for (const id of ['#bgTolR', '#bgTol']) {
       await expect(page.locator(id)).toHaveCSS('cursor', 'not-allowed');
-      await expect(page.locator(id)).toHaveAttribute('title', 'Fixed while pixelating. Untick Pixelate to adjust it.');
+      await expect(page.locator(id)).toHaveAttribute('title', 'Fixed while pixelating. Turn off Pixelate to adjust it.');
       expect(Number(await page.locator(id).evaluate((e) => getComputedStyle(e).opacity))).toBeLessThan(1);
     }
     expect(await page.locator('#bgTolR').evaluate((e) => getComputedStyle(e).accentColor)).not.toBe('rgb(217, 164, 65)');

@@ -36,9 +36,13 @@ def main() -> int:
     name = Path(name).name  # never write outside --out
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / name).write_bytes(res.content)
-    report = json.loads(base64.b64decode(res.headers["X-Pixel3d-Report"]))
-    for w in report["warnings"]:
-        print(f"warning: {w}")
+    header = res.headers.get("X-Pixel3d-Report")
+    if header is None:
+        # the server leaves the header out when the report is over 8 KB (X-Pixel3d-Report-Truncated: 1)
+        print("report omitted (too large); use /batch for the full report")
+    else:
+        for w in json.loads(base64.b64decode(header))["warnings"]:
+            print(f"warning: {w}")
     print(f"Saved {args.out / name}")
     return 0
 

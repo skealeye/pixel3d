@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { test as base, expect, type Page } from '@playwright/test';
+import UPNG from 'upng-js';
 
 const fixture = (name: string) => readFileSync(new URL(`../../../core/test/fixtures/${name}`, import.meta.url));
 
@@ -76,6 +77,33 @@ test.describe('colors and heights', () => {
     await expect.poll(async () => { const v = await view(page); return v.shown === 'model' ? v.size!.z : 0; }).toBeCloseTo(5, 3);
   });
 
+  test('a height slider on a 128 × 128, 16-color sprite updates the preview in under 50 ms (spec §7)', async ({ page }) => {
+    // 16 distinct colors in a pattern with no upscale, inside a transparent border
+    const N = 128, px = new Uint8Array(N * N * 4);
+    for (let y = 4; y < N - 4; y++) for (let x = 4; x < N - 4; x++) {
+      const k = (x * 7 + y * 13) % 16;
+      px.set([(k * 53) % 256, (k * 97 + 40) % 256, (k * 151 + 90) % 256, 255], (y * N + x) * 4);
+    }
+    const png = Buffer.from(UPNG.encode([px.buffer as ArrayBuffer], N, N, 0));
+    await page.goto('/?test');
+    await page.locator('#fileIn').setInputFiles({ name: 'big.png', mimeType: 'image/png', buffer: png });
+    await expect(page.locator('#fileInfo')).toHaveText('big.png 128 × 128 px');
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+    const s0 = await snap(page);
+    expect(s0.grid!.palette).toHaveLength(16);
+    const hex = s0.grid!.palette[0]!.hex;
+    const slider = row(page, hex).locator('input[type=range]');
+    for (const h of ['2', '2.5', '3', '3.5', '4', '4.5']) await slider.fill(h);
+    await expect(row(page, hex).locator('.hv')).toHaveText('4.5 mm');
+    const times = await latency(page);
+    expect(times.length).toBeGreaterThanOrEqual(6);
+    // the suite runs fully parallel, so one sample can catch another worker's CPU burst: the typical move must be under
+    // 50 ms (measured alone: 8.5–12.7 ms) and none may be far off it
+    const sorted = [...times].sort((a, b) => a - b);
+    expect(sorted[Math.floor(sorted.length / 2)]!, times.join(', ')).toBeLessThan(50);
+    expect(sorted.at(-1)!, times.join(', ')).toBeLessThan(100);
+  });
+
   test('recolor onto an existing color merges the two; onto a new one renames it', async ({ page }) => {
     await loadPotion(page);
     await expect(page.locator('#pcount')).toHaveText('7 of 7');
@@ -149,7 +177,9 @@ test.describe('colors and heights', () => {
     await clickCell(page, 1, 8);
     await clickCell(page, 14, 8);
     const after = await snap(page);
-    expect(after.settings.size.width).toBe(46.7);
+    // stored unrounded (R29), shown to 0.1 mm
+    expect(after.settings.size.width).toBeCloseTo(14 * (40 / 12), 9);
+    await expect(page.locator('#w')).toHaveValue('46.7');
     expect(after.settings.pixelMm).toEqual(before.settings.pixelMm);
     await expect(page.locator('.dims')).toHaveText('46.7 × 53.3 × 3.0 mm one piece');
     await expect.poll(async () => (await view(page)).size?.x).toBeCloseTo(46.667, 2);

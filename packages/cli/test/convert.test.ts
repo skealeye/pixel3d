@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { convert, parsePreset, VERSION } from '@pixel3d/core';
 import type { Report } from '@pixel3d/core';
+import { globPattern } from '../src/convertCmd';
 
 const root = join(import.meta.dirname, '..', '..', '..');
 const fixture = (n: string) => join(root, 'packages', 'core', 'test', 'fixtures', n);
@@ -85,6 +86,23 @@ describe('px3d convert', () => {
     expect(r.stderr).not.toMatch(/ExperimentalWarning/);
     expect(reportOf(out).map((x) => x.name)).toEqual(['a', 'b', 'c']);
   }, 120_000);
+
+  it('stems that sanitize to the same name get -2 instead of overwriting each other', () => {
+    const inDir = fresh('in');
+    copyFileSync(fixture('potion.png'), join(inDir, 'ab.png'));
+    copyFileSync(fixture('potion.png'), join(inDir, 'ab .png')); // safeName trims the trailing space: "ab"
+    const out = fresh('out');
+    const r = run(['convert', inDir, '--out', out]);
+    expect(r.status, r.stderr).toBe(0);
+    expect(reportOf(out).map((x) => x.name).sort()).toEqual(['ab', 'ab-2']);
+    expect(readdirSync(out).sort()).toEqual(['ab-2.3mf', 'ab.3mf', 'report.json']);
+  }, 120_000);
+
+  it('rewrites backslashes in globs only on Windows (elsewhere they escape glob characters)', () => {
+    expect(globPattern('dir\\*.png', 'win32')).toBe('dir/*.png');
+    expect(globPattern('dir/\\[a\\].png', 'linux')).toBe('dir/\\[a\\].png');
+    expect(globPattern('dir/\\[a\\].png', 'darwin')).toBe('dir/\\[a\\].png');
+  });
 
   it('--out pointing at an existing file is a usage error', () => {
     const f = join(fresh('f'), 'afile');
@@ -185,6 +203,15 @@ describe('px3d --version and --help', () => {
     expect(r.stdout).not.toMatch(/px3d serve[^\n]*later version/);
     expect(r.stdout).toMatch(/px3d mcp/);
     expect(r.stdout).not.toMatch(/px3d mcp[^\n]*later version/);
+  });
+
+  it('convert --help (and -h) prints the convert options and exits 0', () => {
+    for (const flag of ['--help', '-h']) {
+      const r = run(['convert', flag]);
+      expect(r.status, r.stderr).toBe(0);
+      expect(r.stdout).toMatch(/^Usage: px3d convert/);
+      expect(r.stdout).toMatch(/--set key=value/);
+    }
   });
 
   it('the built bundle runs --version', () => {

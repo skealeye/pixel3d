@@ -1,5 +1,5 @@
-import { DEFAULTS, applyEdits, pieces, type Edit, type Grid, type Settings } from '@pixel3d/core';
-import { computeGrid, opaqueBox, type Meta, type Source } from './pipeline';
+import { DEFAULTS, applyEdits, opaqueBox, pieces, placeRelative, type Anchor, type Edit, type Grid, type Settings } from '@pixel3d/core';
+import { computeGrid, type Meta, type Source } from './pipeline';
 
 /** One undo step: everything a load or an edit can change. Grids and sources are never mutated, so they are shared. */
 export interface Snapshot { source: Source | null; grid: Grid | null; meta: Meta | null; settings: Settings; edits: Edit[] }
@@ -85,7 +85,7 @@ function restore(s: Snapshot) {
   ui.picking = ui.cropping = false;
   // the restored grid is what these settings make: the next change compares against it (background included)
   last = s.source && s.grid
-    ? { src: s.source, edits: s.edits, picking: false, key: gridKey(s.settings), grid: s.grid, bg: bgKey(s.source, s.settings) }
+    ? { src: s.source, edits: s.edits, picking: false, key: gridKey(s.settings), grid: s.grid, bg: bgKey(s.source, s.settings), art: s.grid }
     : null;
 }
 
@@ -128,10 +128,10 @@ export function recompute(notify = true): string | null {
   }
   const r = computeGrid(src, settings, app.edits, ui.picking);
   if ('error' in r) { if (notify) toast(r.error); return r.error; }
-  // a background change moves the outline's box: size it afresh from Width (as a batch run does from the preset),
-  // in the same undo step, so the export stays byte-equal to convert()
+  // a background change keeps the pixel size (spec §4.2, R29): Width and Height follow the new box in fitSize, and the
+  // hole and magnets stay on the same spot of the art, in the same undo step
   const bg = bgKey(src, settings);
-  if (!ui.picking && last && last.src.img === src.img && last.bg !== bg) delete app.settings.pixelMm;
+  if (!ui.picking && !r.meta.showBg && last?.art && last.src.img === src.img && last.bg !== bg) keepAnchors(last.art, r.grid);
   app.grid = r.grid;
   app.meta = r.meta;
   // edits that no longer apply are dropped, with a notice (spec §4.10)
@@ -140,23 +140,40 @@ export function recompute(notify = true): string | null {
     toast('Edits that no longer apply were removed.');
   }
   if (!r.meta.showBg) fitSize(r.grid);
-  last = { src, edits: app.edits, picking: ui.picking, key, grid: r.grid, bg: ui.picking ? (last?.bg ?? bg) : bg };
+  last = { src, edits: app.edits, picking: ui.picking, key, grid: r.grid, bg: ui.picking ? (last?.bg ?? bg) : bg, art: r.meta.showBg ? (last?.art ?? null) : r.grid };
   return null;
 }
 
 /** The settings `computeGrid` reads. */
 const gridKey = (s: Settings) => JSON.stringify([s.background, s.pixelate, s.colours, s.heights]);
 /** What the last pipeline run was made from, and the grid it gave. */
-let last: { src: Source; edits: Edit[]; picking: boolean; key: string; grid: Grid; bg: string } | null = null;
+let last: { src: Source; edits: Edit[]; picking: boolean; key: string; grid: Grid; bg: string; art: Grid | null } | null = null;
 /** What decides which pixels are background. */
 const bgKey = (src: Source, s: Settings) => JSON.stringify([s.background, src.pick]);
 
-const round1 = (n: number) => Math.round(n * 10) / 10;
+/**
+ * Re-anchor the hole and magnets after the opaque box moved from `old`'s to `neu`'s (a background change), so each stays
+ * on the same spot of the art. Anchors are fractions of the box, so without this they would slide with it.
+ */
+function keepAnchors(old: Grid, neu: Grid) {
+  if (old.w !== neu.w || old.h !== neu.h) return;
+  const a = opaqueBox(old), b = opaqueBox(neu);
+  if (!a || !b || (a.x0 === b.x0 && a.y0 === b.y0 && a.w === b.w && a.h === b.h)) return;
+  const clamp = (v: number) => Math.min(1, Math.max(0, v));
+  const moved = (at: Anchor): Anchor => {
+    const p = placeRelative(at, old); // u right, v up, in cells
+    return { fx: clamp((p.u - b.x0) / b.w), fy: clamp((b.y0 + b.h - p.v) / b.h) };
+  };
+  const s = app.settings;
+  s.keychain.hole.at = moved(s.keychain.hole.at);
+  s.magnets.at = s.magnets.at.map(moved);
+}
 
 /**
  * Pixel size stays fixed while editing (spec §4.5): the first model sets it from Width and Height, then painting
- * outside the outline grows the model and the Width and Height readouts follow. Deleting `settings.pixelMm` (a size
- * slider, a new image, Pixels across) sets it again.
+ * outside the outline or changing the background grows the model and Width and Height follow. Deleting
+ * `settings.pixelMm` (a size slider, a new image, Pixels across) sets it again. Width and Height are stored unrounded
+ * (the panel rounds them for display), so a saved preset gives `convert()` this exact pixel size (R29).
  */
 function fitSize(g: Grid) {
   const box = opaqueBox(g);
@@ -164,7 +181,7 @@ function fitSize(g: Grid) {
   const s = app.settings;
   const keep = s.size.keepAspect;
   s.pixelMm ??= { x: s.size.width / box.w, y: keep ? s.size.width / box.w : s.size.height / box.h };
-  const w = round1(box.w * s.pixelMm.x), h = round1(box.h * s.pixelMm.y);
+  const w = box.w * s.pixelMm.x, h = box.h * s.pixelMm.y;
   if (s.size.width !== w) s.size.width = w;
   if (s.size.height !== h) s.size.height = h;
 }

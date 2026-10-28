@@ -1,7 +1,5 @@
 import * as THREE from 'three';
-import { placeRelative, type Anchor, type Grid, type Settings } from '@pixel3d/core';
-import { opaqueBox } from '../pipeline';
-import { magnetSize } from '../magnets';
+import { magnetSize, opaqueBox, pixelSize, placeRelative, type Anchor, type Grid, type Settings } from '@pixel3d/core';
 
 /**
  * Drag handles for the keychain hole and the magnets, and the conversions between the model frame and settings
@@ -15,11 +13,11 @@ export interface Handle { kind: 'hole' | 'magnet'; i: number; x: number; y: numb
 export function artFrame(g: Grid, s: Settings) {
   const box = opaqueBox(g);
   if (!box) return null;
-  const px = s.pixelMm ?? { x: s.size.width / box.w, y: s.size.keepAspect ? s.size.width / box.w : s.size.height / box.h };
+  const px = pixelSize(s, box);
   return { box, px, w: box.w * px.x, h: box.h * px.y };
 }
 
-/** Where core puts an anchor: the center of the opaque cell nearest to it, in the model frame (mm). */
+/** Where core puts an anchor (exactly, when on the art; else the nearest opaque cell center), in the model frame (mm). */
 export function anchorToModel(a: Anchor, g: Grid, s: Settings): { x: number; y: number } | null {
   const f = artFrame(g, s);
   if (!f) return null;

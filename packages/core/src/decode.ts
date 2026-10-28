@@ -14,6 +14,71 @@ function sniff(b: Uint8Array): Format | null {
   return null;
 }
 
+/**
+ * Largest image decoded: 8192 px a side and 40 megapixels. Decoding holds the RGBA frame (4 bytes a pixel) plus the
+ * decoder's own buffers, so 40 MP is ~160 MB of pixels and a few hundred MB peak: fine on a phone or a small server.
+ * Anything over 512 px is pixelated down to at most 128 cells anyway (spec §4.1), so larger inputs add nothing, and
+ * this still admits 4K/5K screenshots and most phone photos (12–24 MP). Without it a 389 KB PNG claiming 20000²
+ * took 2.5 GB and 9 s (final review, finding 1).
+ */
+export const MAX_SIDE = 8192;
+export const MAX_MEGAPIXELS = 40;
+
+/** Thrown before decoding when the header declares an image over the cap; its message is a sentence for the user. */
+export class ImageTooLargeError extends Error {
+  constructor(readonly width: number, readonly height: number) {
+    super(`The image is too large (${width} × ${height} px). The limit is ${MAX_SIDE} px per side and ${MAX_MEGAPIXELS} megapixels.`);
+    this.name = 'ImageTooLargeError';
+  }
+}
+
+const u16be = (b: Uint8Array, i: number) => (b[i]! << 8) | b[i + 1]!;
+const u16le = (b: Uint8Array, i: number) => b[i]! | (b[i + 1]! << 8);
+const u24le = (b: Uint8Array, i: number) => b[i]! | (b[i + 1]! << 8) | (b[i + 2]! << 16);
+const u32be = (b: Uint8Array, i: number) => ((b[i]! << 24) >>> 0) + ((b[i + 1]! << 16) | (b[i + 2]! << 8) | b[i + 3]!);
+
+/** JPEG: walk the marker segments to the first SOFn (not DHT C4, JPG C8 or DAC CC). */
+function jpegSize(b: Uint8Array): { w: number; h: number } | null {
+  let i = 2;
+  while (i + 9 < b.length) {
+    if (b[i] !== 0xff) return null;
+    const m = b[i + 1]!;
+    if (m === 0xff) { i++; continue; }
+    if (m === 0xd8 || m === 0x01 || (m >= 0xd0 && m <= 0xd7)) { i += 2; continue; }
+    if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { h: u16be(b, i + 5), w: u16be(b, i + 7) };
+    if (m === 0xd9 || m === 0xda) return null;
+    i += 2 + u16be(b, i + 2);
+  }
+  return null;
+}
+
+/** WebP: the first chunk is VP8X (canvas size), VP8L (14-bit sizes) or VP8 (key-frame header). */
+function webpSize(b: Uint8Array): { w: number; h: number } | null {
+  if (b.length < 30) return null;
+  const tag = String.fromCharCode(b[12]!, b[13]!, b[14]!, b[15]!);
+  if (tag === 'VP8X') return { w: u24le(b, 24) + 1, h: u24le(b, 27) + 1 };
+  if (tag === 'VP8L' && b[20] === 0x2f) {
+    const bits = b[21]! | (b[22]! << 8) | (b[23]! << 16) | (b[24]! << 24);
+    return { w: (bits & 0x3fff) + 1, h: ((bits >>> 14) & 0x3fff) + 1 };
+  }
+  if (tag === 'VP8 ' && b[23] === 0x9d && b[24] === 0x01 && b[25] === 0x2a) return { w: u16le(b, 26) & 0x3fff, h: u16le(b, 28) & 0x3fff };
+  return null;
+}
+
+/** The size the header declares, read without decoding; null when the header can't be read (the decoder then reports it). */
+function headerSize(b: Uint8Array, fmt: Format): { w: number; h: number } | null {
+  switch (fmt) {
+    case 'png': return b.length >= 24 ? { w: u32be(b, 16), h: u32be(b, 20) } : null;
+    case 'gif': return b.length >= 10 ? { w: u16le(b, 6), h: u16le(b, 8) } : null;
+    case 'jpeg': return jpegSize(b);
+    case 'webp': return webpSize(b);
+  }
+}
+
+function checkSize(w: number, h: number): void {
+  if (w > MAX_SIDE || h > MAX_SIDE || w * h > MAX_MEGAPIXELS * 1e6) throw new ImageTooLargeError(w, h);
+}
+
 function decodePng(bytes: Uint8Array): Img {
   const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   const png = UPNG.decode(buf);
@@ -22,7 +87,8 @@ function decodePng(bytes: Uint8Array): Img {
 }
 
 function decodeJpeg(bytes: Uint8Array): Img {
-  const r = jpeg.decode(bytes, { useTArray: true, formatAsRGBA: true });
+  // jpeg-js's own limits back up the header check (e.g. a SOF hidden behind a malformed segment)
+  const r = jpeg.decode(bytes, { useTArray: true, formatAsRGBA: true, maxResolutionInMP: MAX_MEGAPIXELS, maxMemoryUsageInMB: 512 });
   return { width: r.width, height: r.height, data: new Uint8ClampedArray(r.data) };
 }
 
@@ -57,15 +123,21 @@ async function decodeWebp(bytes: Uint8Array): Promise<Img> {
   return { width: r.width, height: r.height, data: new Uint8ClampedArray(r.data) };
 }
 
-/** Decode PNG/JPEG/GIF (first frame)/WebP by magic bytes. Alpha below 128 becomes fully transparent (RGB zeroed). */
+/**
+ * Decode PNG/JPEG/GIF (first frame)/WebP by magic bytes. Alpha below 128 becomes fully transparent (RGB zeroed).
+ * Throws `ImageTooLargeError` before decoding when the header declares more than `MAX_SIDE` / `MAX_MEGAPIXELS`.
+ */
 export async function decodeImage(bytes: Uint8Array): Promise<Img> {
   const fmt = sniff(bytes);
   if (!fmt) throw new Error('Unsupported image format');
+  const size = headerSize(bytes, fmt);
+  if (size) checkSize(size.w, size.h);
   const img =
     fmt === 'png' ? decodePng(bytes) :
     fmt === 'jpeg' ? decodeJpeg(bytes) :
     fmt === 'gif' ? decodeGif(bytes) :
     await decodeWebp(bytes);
+  checkSize(img.width, img.height);
   const d = img.data;
   for (let i = 3; i < d.length; i += 4) {
     if (d[i]! < 128) { d[i - 3] = 0; d[i - 2] = 0; d[i - 1] = 0; d[i] = 0; }

@@ -49,7 +49,9 @@
     ui.popover = null;
     const done = `Exported ${fileNames}` + (ex.mono ? ' in one color.' : ex.format === '3mf' ? `, filaments 1 to ${filaments} assigned for ${slicerLabel}.` : '.');
     try {
-      const settings = $state.snapshot(app.settings) as Settings;
+      // the pixel size from Width and Height, as convert() works it out from a saved preset (which never holds
+      // pixelMm), so the bytes match a batch run exactly; Width and Height are kept unrounded for this (R29)
+      const { pixelMm: _pixelMm, ...settings } = $state.snapshot(app.settings) as Settings;
       downloadFiles(await runExport({ kind: 'model', grid, settings, name }), `${name}.zip`);
       toast(done);
     } catch (err) {

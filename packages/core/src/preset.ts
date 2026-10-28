@@ -28,8 +28,9 @@ const colourRuleSchema = z.object({
 
 const presetSchema = z.object({
   version: z.literal(1),
-  settings: deepPartial(settingsSchema),
-  colourRules: z.array(colourRuleSchema),
+  // both may be left out (R30): a hand-written {"version": 1} is the defaults
+  settings: deepPartial(settingsSchema).default({}),
+  colourRules: z.array(colourRuleSchema).default([]),
 }).strict();
 
 export type ColourRule = z.output<typeof colourRuleSchema>;
@@ -51,13 +52,26 @@ export class PresetError extends Error {
   }
 }
 
-/** Validate untrusted JSON. Throws `PresetError` for the first problem. */
+/**
+ * Validate untrusted JSON. Throws `PresetError` for the first problem. `settings` and `colourRules` may be left out,
+ * and `colorRules` (US spelling) is accepted as `colourRules` (R30); the result always says `colourRules`.
+ */
 export function parsePreset(json: unknown): Preset {
-  const r = presetSchema.safeParse(json);
+  let doc = json;
+  let alias = false;
+  if (doc && typeof doc === 'object' && !Array.isArray(doc) && 'colorRules' in doc) {
+    const { colorRules, ...rest } = doc as Record<string, unknown>;
+    if ('colourRules' in rest) throw new PresetError('colorRules', 'give colourRules or colorRules, not both');
+    doc = { ...rest, colourRules: colorRules };
+    alias = true;
+  }
+  const r = presetSchema.safeParse(doc);
   if (r.success) return r.data as Preset;
   const issue = r.error.issues[0]!;
+  const path = issue.path.map(String);
+  if (alias && path[0] === 'colourRules') path[0] = 'colorRules';
   // Unknown keys are reported on their parent object.
-  throw new PresetError(issue.path.join('.'), issue.message);
+  throw new PresetError(path.join('.'), issue.message);
 }
 
 function merge<T>(base: T, over: unknown): T {
@@ -106,16 +120,10 @@ export function colourRuleEdits(rules: ColourRule[], g: Grid): { edits: Edit[]; 
 }
 
 /**
- * Merge a preset over DEFAULTS and turn color rules into edits for `g`'s (reduced) palette.
- * Rules override general rules: apply `edits` after the height mode.
- */
-export function resolvePreset(p: Preset, g: Grid): { settings: Settings; edits: Edit[]; applied: string[] } {
-  return { settings: presetSettings(p), ...colourRuleEdits(p.colourRules, g) };
-}
-
-/**
- * Cell center `{u, v}` in pixel units nearest to an anchor, snapped to an opaque cell.
- * `v` is measured up from the bottom of the grid (cell (x, y-up) spans [x, x+1]).
+ * Where an anchor lands, `{u, v}` in pixel units, `v` measured up from the bottom of the grid (cell (x, y-up) spans
+ * [x, x+1]). An x,y anchor that falls on an opaque cell is used exactly, so the hole and magnets can sit part-way
+ * across pixels (spec §4.7); one that falls off the art snaps to the nearest opaque cell center. The named anchors
+ * (`top-center`, `top-left`) always land on the nearest opaque cell center, so they sit on the art, not on its edge.
  */
 export function placeRelative(anchor: Anchor, g: Grid): { u: number; v: number } {
   const [fx, fy] = anchor === 'top-center' ? [0.5, 0] : anchor === 'top-left' ? [0, 0] : [anchor.fx, anchor.fy];
@@ -130,6 +138,10 @@ export function placeRelative(anchor: Anchor, g: Grid): { u: number; v: number }
   if (x1 < 0) return { u: g.w / 2, v: g.h / 2 };
   const tx = x0 + fx * (x1 - x0 + 1);
   const ty = y0 + fy * (y1 - y0 + 1); // measured down from the top
+  if (typeof anchor === 'object') {
+    const cx = Math.floor(tx), cy = Math.floor(ty);
+    if (cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1 && g.cells[cy * g.w + cx]! >= 0) return { u: tx, v: g.h - ty };
+  }
   let best = { x: x0, y: y0 }, bd = Infinity;
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     if (g.cells[y * g.w + x]! < 0) continue;

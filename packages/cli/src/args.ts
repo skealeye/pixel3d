@@ -4,6 +4,7 @@ export const CONVERT_OPTIONS = {
   out: { type: 'string', short: 'o' },
   format: { type: 'string' },
   set: { type: 'string', multiple: true },
+  help: { type: 'boolean', short: 'h' },
 } as const;
 
 const FORBIDDEN = new Set(['__proto__', 'constructor', 'prototype']);

@@ -3,7 +3,7 @@
   "info": {
     "title": "pixel3d HTTP API",
     "version": "0.2.15",
-    "description": "Local API behind `px3d serve`. info.version is patched to the running px3d version when served. Binds to 127.0.0.1:7300 by default. Uploads are capped at 50 MB per request."
+    "description": "Local API behind `px3d serve`. info.version is patched to the running px3d version when served. Binds to 127.0.0.1:7300 by default. Uploads are capped at 50 MB per request, and images at 8192 px per side and 40 megapixels (larger ones get 422). Requests that carry a browser Origin other than localhost, 127.0.0.1 or [::1] get 403; when bound to a loopback address, so do requests whose Host is not a loopback name (DNS rebinding). Clients that send no Origin, such as curl or Python, are unaffected."
   },
   "servers": [{ "url": "/", "description": "The server this document was fetched from (default http://127.0.0.1:7300)" }],
   "paths": {
@@ -28,7 +28,7 @@
                 "required": ["image"],
                 "properties": {
                   "image": { "type": "string", "format": "binary", "description": "PNG, JPEG, GIF or WebP." },
-                  "preset": { "description": "Preset JSON as a string, or a file containing it. Defaults are used when omitted.", "oneOf": [{ "type": "string" }, { "type": "string", "format": "binary" }] }
+                  "preset": { "description": "Preset JSON as a string, or a file containing it: {version: 1, settings?, colourRules?} (colorRules is accepted for colourRules). Defaults are used when omitted.", "oneOf": [{ "type": "string" }, { "type": "string", "format": "binary" }] }
                 }
               }
             }
@@ -67,7 +67,7 @@
                 "required": ["images"],
                 "properties": {
                   "images": { "type": "array", "items": { "type": "string", "format": "binary" }, "description": "Repeat the field once per image." },
-                  "preset": { "description": "Preset JSON as a string, or a file containing it.", "oneOf": [{ "type": "string" }, { "type": "string", "format": "binary" }] }
+                  "preset": { "description": "Preset JSON as a string, or a file containing it: {version: 1, settings?, colourRules?} (colorRules is accepted for colourRules). Defaults are used when omitted.", "oneOf": [{ "type": "string" }, { "type": "string", "format": "binary" }] }
                 }
               }
             }

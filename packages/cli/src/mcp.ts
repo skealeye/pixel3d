@@ -24,19 +24,20 @@ const guarded = async (fn: () => Promise<ToolResult>): Promise<ToolResult> => {
 };
 
 const presetShape = {
-  preset: z.record(z.string(), z.unknown()).optional().describe('Inline preset object: {version: 1, settings: {...}, colourRules: [...]}. Give this or presetPath, not both.'),
+  preset: z.record(z.string(), z.unknown()).optional().describe('Inline preset object: {version: 1, settings: {...}, colourRules: [...]}. settings and colourRules may be left out (defaults); colorRules is accepted for colourRules. Give this or presetPath, not both.'),
   presetPath: z.string().optional().describe('Path to a preset JSON file. Give this or preset, not both.'),
   out: z.string().describe('Output folder for the models and report.json. Created if missing.'),
   format: z.enum(['stl', '3mf']).optional().describe('Overrides the preset export format.'),
 };
 
-const isDir = (p: string) => {
+const statOf = (p: string) => {
   try {
-    return statSync(p).isDirectory();
+    return statSync(p);
   } catch {
-    return false;
+    return null;
   }
 };
+const isDir = (p: string) => statOf(p)?.isDirectory() === true;
 
 /** One line describing what a preset does, e.g. "base 2 mm, halves, loop, 3 color rules". */
 export function presetSummary(p: Preset): string {
@@ -59,6 +60,10 @@ export function createMcpServer(): McpServer {
       inputSchema: { path: z.string().describe('Path to the image.'), ...presetShape },
     },
     async (a) => guarded(async () => {
+      // one image only: a folder or glob would convert many but report just the first
+      const st = statOf(a.path);
+      if (!st) throw new UsageError(`No such file: ${a.path}. convert_image takes one image path (no globs); use convert_folder for a folder.`);
+      if (!st.isFile()) throw new UsageError(`Not an image file: ${a.path}. Use convert_folder for folders.`);
       const { reports, failures } = await runConvert({ inputs: [a.path], presetPath: a.presetPath, preset: a.preset, out: a.out, format: a.format });
       const r = reports[0] as Report;
       const summary = failures ? `${basename(a.path)} failed: ${r.error}` : `${basename(a.path)} converted: ${r.files.join(', ')} written to ${resolve(a.out)}`;

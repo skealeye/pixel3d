@@ -106,4 +106,33 @@ describe('the Batch dialog snippets run', () => {
       expect(same(join(dir, 'models', 'ghost.3mf'), ghost)).toBe(true);
     }, 120_000);
   });
+
+  it.skipIf(!has('python', ['-c', 'import requests']))('python convert.py copes with an omitted report header (report over 8 KB)', async () => {
+    const { createServer } = await import('node:http');
+    // a stand-in for px3d serve that answers as it does when the report is too large for a header
+    const stub = createServer((req, res) => {
+      req.resume();
+      req.on('end', () => {
+        res.writeHead(200, { 'Content-Type': 'model/3mf', 'Content-Disposition': 'attachment; filename="big.3mf"', 'X-Pixel3d-Report-Truncated': '1' });
+        res.end('3mf');
+      });
+    });
+    await new Promise<void>((r) => stub.listen(0, '127.0.0.1', r));
+    try {
+      const port = (stub.address() as { port: number }).port;
+      const out = join(dir, 'omitted');
+      const r = await new Promise<{ status: number | null; out: string }>((resolve) => {
+        const p = spawn('python', [join(root, 'examples', 'python', 'convert.py'), 'ghost.png', '-o', out, '--url', `http://127.0.0.1:${port}`], { cwd: dir });
+        let text = '';
+        p.stdout.on('data', (d) => (text += d));
+        p.stderr.on('data', (d) => (text += d));
+        p.on('exit', (status) => resolve({ status, out: text }));
+      });
+      expect(r.status, r.out).toBe(0);
+      expect(r.out).toMatch(/report omitted \(too large\); use \/batch for the full report/);
+      expect(readFileSync(join(out, 'big.3mf'), 'utf8')).toBe('3mf');
+    } finally {
+      await new Promise((r) => stub.close(r));
+    }
+  }, 60_000);
 });

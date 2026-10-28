@@ -1,6 +1,6 @@
 <script lang="ts">
   import { app, live, setting } from '../state.svelte';
-  import { opaqueBox } from '../pipeline';
+  import { opaqueBox } from '@pixel3d/core';
   import { fmt, fromUnit, toUnit, type Unit } from '../units';
   import Slider from './Slider.svelte';
 

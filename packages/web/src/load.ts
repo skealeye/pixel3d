@@ -1,4 +1,4 @@
-import { decodeImage } from '@pixel3d/core';
+import { decodeImage, ImageTooLargeError } from '@pixel3d/core';
 import { describe, type Source } from './pipeline';
 import { change, app, toast, ui } from './state.svelte';
 
@@ -9,8 +9,8 @@ export async function loadBytes(name: string, bytes: Uint8Array): Promise<boolea
   let img;
   try {
     img = await decodeImage(bytes);
-  } catch {
-    toast(`Couldn't read ${name}. Try saving it as a PNG.`);
+  } catch (e) {
+    toast(e instanceof ImageTooLargeError ? `Couldn't load ${name}. ${e.message}` : `Couldn't read ${name}. Try saving it as a PNG.`);
     return false;
   }
   const source: Source = { name, img, ...describe(img), pick: null, crop: null };

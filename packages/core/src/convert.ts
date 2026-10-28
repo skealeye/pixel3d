@@ -1,5 +1,5 @@
 import type { Img } from './image';
-import { decodeImage } from './decode';
+import { decodeImage, ImageTooLargeError } from './decode';
 import { type Scale, detectScale, downsampleNearest } from './scale';
 import { looksLikePixelArt, removeBackground } from './background';
 import { pixelate } from './pixelate';
@@ -38,14 +38,25 @@ export interface Report {
 
 export interface ConvertResult { files: { name: string; bytes: Uint8Array }[]; report: Report }
 
+// Shared with the web app's pipeline (packages/web/src/pipeline.ts), so the app and batch runs make the same grid.
 /** Longest side, in native pixels, kept as pixel art; anything bigger is pixelated (spec §4.1). */
-const CAP = 512;
+export const CAP = 512;
 /** Corner tolerance for the full-resolution background pass before pixelating: 40 RGB (spec §4.1). */
-const PIXELATE_BG_TOL_PCT = (40 / 441.7) * 100;
+export const PIXELATE_BG_TOL_PCT = (40 / 441.7) * 100;
 /** Colors kept exactly before palette reduction merges the closest pairs. */
-const EXACT_COLOURS = 64;
+export const EXACT_COLOURS = 64;
 
-const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(n)));
+/** `n` rounded and clamped to lo..hi (the pixelate `across` and `colours` settings). */
+export const clampInt = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(n)));
+const clamp = clampInt;
+
+/** Whether an image area of `w` × `h` full-resolution pixels at this upscale is over the pixel-art cap, so it is pixelated. */
+export const overCap = (w: number, h: number, scale: Scale) => Math.max(Math.round(w / scale.sx), Math.round(h / scale.sy)) > CAP;
+
+/** A report for `name` with nothing in it yet: the shape every failed image reports. */
+export function emptyReport(name: string): Report {
+  return { name, palette: [], applied: [], dropped: [], size: { x: 0, y: 0, z: 0 }, pieces: 0, warnings: [], files: [], grid: { w: 0, h: 0 } };
+}
 /** Colors `inspect` lists, most frequent first. */
 const INSPECT_COLOURS = 64;
 const MAX_NAME = 100;
@@ -80,6 +91,7 @@ async function decode(bytes: Uint8Array): Promise<Img> {
   try {
     return await decodeImage(bytes);
   } catch (e) {
+    if (e instanceof ImageTooLargeError) throw new ConvertError(e.message);
     throw new ConvertError('The file could not be read as an image (PNG, JPEG, GIF or WebP).', e);
   }
 }
@@ -97,7 +109,7 @@ async function toReducedGrid(bytes: Uint8Array, s: Settings): Promise<{ grid: Gr
   if (!opaqueCount(img)) throw new ConvertError('The image is fully transparent, so there is nothing to convert.');
   const warnings: string[] = [];
   const scale = detectScale(img);
-  const tooBig = Math.max(Math.round(img.width / scale.sx), Math.round(img.height / scale.sy)) > CAP;
+  const tooBig = overCap(img.width, img.height, scale);
   let doPixelate = s.pixelate.enabled === 'auto' ? !looksLikePixelArt(img, scale) : s.pixelate.enabled;
   if (tooBig) {
     doPixelate = true;
@@ -133,9 +145,7 @@ export async function exportModel(model: Model, s: Settings, name: string): Prom
  * Never throws: any failure comes back as `report.error` with no files.
  */
 export async function convert(bytes: Uint8Array, preset: Preset, name: string): Promise<ConvertResult> {
-  const report: Report = {
-    name: 'model', palette: [], applied: [], dropped: [], size: { x: 0, y: 0, z: 0 }, pieces: 0, warnings: [], files: [], grid: { w: 0, h: 0 },
-  };
+  const report = emptyReport('model');
   try {
     const base = (report.name = safeName(name));
     const settings = presetSettings(preset);
@@ -153,7 +163,9 @@ export async function convert(bytes: Uint8Array, preset: Preset, name: string): 
 
     const model = await buildModel(grid, settings);
     if (!model.parts.length) throw new ConvertError('The image is empty once the background is removed.');
-    report.size = model.size;
+    // to 0.01 mm: the model's float32 sizes carry noise (60.33333334326744); the geometry itself is untouched
+    const r2 = (n: number) => Math.round(n * 100) / 100;
+    report.size = { x: r2(model.size.x), y: r2(model.size.y), z: r2(model.size.z) };
     report.pieces = model.pieces;
     report.warnings.push(...model.warnings);
     if (model.pieces > 1) report.warnings.push(`${model.pieces} separate pieces`);

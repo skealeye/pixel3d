@@ -40,7 +40,6 @@ const weld = (corners: number[]) => {
   }
   return { vertProperties: new Float32Array(vertProperties), triVerts: new Uint32Array(triVerts) };
 };
-/** Number of separate solids in an indexed mesh. */
 /** Volume of an indexed mesh, mm³. */
 const volume = async (mesh: { vertProperties: Float32Array; triVerts: Uint32Array }) => {
   const { Manifold, Mesh } = await initManifold();

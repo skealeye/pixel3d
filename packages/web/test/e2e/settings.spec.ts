@@ -208,6 +208,30 @@ test.describe('model settings', () => {
     expect(after.size!.z).toBeCloseTo(before.size!.z, 6);
   });
 
+  test('the hole marker follows the pointer smoothly over the art, not cell to cell (spec §4.7)', async ({ page }) => {
+    await loadPotion(page);
+    await seg(page, 'key', 'hole').click();
+    await model(page);
+    const h = (await view(page)).handles.find((x) => x.kind === 'hole')!;
+    // start well inside the art: one cell (2.5 mm) is many screen pixels, so snapping would show as steps
+    const start = { x: h.x, y: h.y + 60 };
+    await page.mouse.move(h.x, h.y);
+    await page.mouse.down();
+    await page.mouse.move(start.x, start.y, { steps: 4 });
+    const at = async () => (await view(page)).handles.find((x) => x.kind === 'hole')!;
+    const first = await at();
+    const seen: number[] = [];
+    for (let i = 1; i <= 6; i++) {
+      await page.mouse.move(start.x + i * 3, start.y);
+      const p = await at();
+      seen.push(p.x - first.x);
+      expect(Math.abs(p.y - first.y)).toBeLessThan(1.5);
+    }
+    await page.mouse.up();
+    // every 3 px pointer step moves the marker about 3 px (snapping would hold it still, then jump a whole cell)
+    seen.forEach((dx, i) => expect(Math.abs(dx - (i + 1) * 3), `step ${i + 1}: ${seen.join(', ')}`).toBeLessThan(1.5));
+  });
+
   test('loop: Position slider at 60°; the loop color row appears only with no base', async ({ page }) => {
     await loadPotion(page);
     await seg(page, 'key', 'loop').click();

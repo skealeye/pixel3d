@@ -102,7 +102,7 @@
     </div>
     <!-- R27: while pixelating the tolerance in force is fixed (spec §4.1); show that value, dimmed, with the reason in the row -->
     <Slider id="bgTol" label="Tolerance" min={0} max={50} value={meta?.pixelated ? Math.round(PIXELATE_BG_TOL_PCT) : s.background.tolPct} unit="%"
-      disabled={!!meta?.pixelated} title={meta?.pixelated ? 'Fixed while pixelating. Untick Pixelate to adjust it.' : undefined}
+      disabled={!!meta?.pixelated} title={meta?.pixelated ? 'Fixed while pixelating. Turn off Pixelate to adjust it.' : undefined}
       note={meta?.pixelated ? { id: 'tolHint', text: 'Fixed while pixelating.' } : undefined} {...tol} />
     <p class="hint">Only background touching the image edge is removed, so the same color inside the art stays.</p>
   </div>

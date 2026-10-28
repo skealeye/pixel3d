@@ -1,8 +1,10 @@
 import {
-  applyEdits, applyHeightMode, detectScale, downsampleNearest, findCornerBg, heightModeOf, looksLikePixelArt, pixelate,
-  reducePalette, removeBackground, toGrid,
+  applyEdits, applyHeightMode, clampInt, detectScale, downsampleNearest, EXACT_COLOURS, findCornerBg, heightModeOf,
+  looksLikePixelArt, overCap, pixelate, PIXELATE_BG_TOL_PCT, reducePalette, removeBackground, toGrid,
   type BgHow, type Edit, type Grid, type Img, type Scale, type Settings,
 } from '@pixel3d/core';
+
+export { PIXELATE_BG_TOL_PCT };
 
 /** A rectangle in full-resolution image pixels. */
 export interface Rect { x: number; y: number; w: number; h: number }
@@ -37,15 +39,9 @@ export interface Meta {
   colours: number;
 }
 
-// These mirror core convert.ts (toReducedGrid) so the app and batch runs make the same grid.
-/** Longest side, in native pixels, kept as pixel art; anything bigger is pixelated (spec §4.1). */
-const CAP = 512;
-/** Corner tolerance for the full-resolution background pass before pixelating: 40 RGB (spec §4.1). */
-export const PIXELATE_BG_TOL_PCT = (40 / 441.7) * 100;
-/** Colors kept exactly before palette reduction merges the closest pairs. */
-const EXACT_COLOURS = 64;
-
-const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(n)));
+// The cap, the pixelate background tolerance and the exact-color count come from core convert.ts (toReducedGrid),
+// so the app and batch runs make the same grid.
+const clamp = clampInt;
 
 function opaque(img: Img): boolean {
   for (let i = 3; i < img.data.length; i += 4) if (img.data[i]! >= 128) return true;
@@ -87,10 +83,9 @@ function background(img: Img, on: boolean, tolPct: number, pick: string | null):
 
 /** Whether this source is pixelated with these settings: `auto` follows the image, and anything over the cap always is. */
 export function isPixelated(src: Source, s: Settings): boolean {
-  const { scale } = src;
-  const area = src.crop ?? cellArea(src.img, scale);
-  const tooBig = Math.max(Math.round(area.w / scale.sx), Math.round(area.h / scale.sy)) > CAP;
-  return tooBig || (s.pixelate.enabled === 'auto' ? !src.pixelArt : s.pixelate.enabled);
+  // the same test as convert(): the whole image (or the crop) against the cap
+  const area = src.crop ?? { w: src.img.width, h: src.img.height };
+  return overCap(area.w, area.h, src.scale) || (s.pixelate.enabled === 'auto' ? !src.pixelArt : s.pixelate.enabled);
 }
 
 export function upscaleText(s: Scale): string {
@@ -139,17 +134,6 @@ export function pixelatedSize(src: Source, across: number): { w: number; h: numb
   const r = src.crop ?? { w: src.img.width, h: src.img.height };
   const w = Math.max(1, Math.min(clamp(across, 8, 128), r.w));
   return { w, h: Math.max(1, Math.round((w * r.h) / r.w)) };
-}
-
-/** Opaque bounding box in y-up cell coordinates (as core mesh.ts), or null when nothing is opaque. */
-export function opaqueBox(g: Grid): { x0: number; y0: number; w: number; h: number } | null {
-  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-  for (let k = 0; k < g.cells.length; k++) {
-    if (g.cells[k]! < 0) continue;
-    const x = k % g.w, y = g.h - 1 - (k - x) / g.w;
-    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
-  }
-  return x0 > x1 ? null : { x0, y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
 }
 
 /** The full-resolution pixel under grid cell (i, j), as #rrggbb. */

@@ -9,7 +9,7 @@ import { HTTPException } from 'hono/http-exception';
 import { convert, parsePreset, PresetError, VERSION } from '@pixel3d/core';
 import type { Preset, Report } from '@pixel3d/core';
 import openapi from '../openapi.json';
-import { failed } from './convertCmd';
+import { failed, outputKey } from './convertCmd';
 import { JobStore } from './jobs';
 import type { Job } from './jobs';
 import { emptyPresetDoc, parsePresetJson, PresetJsonError } from './presetLoad';
@@ -25,6 +25,23 @@ export interface AppOptions {
   convert?: typeof convert;
   /** Test seam: the job store. */
   jobs?: JobStore;
+  /**
+   * Answer only requests whose Host is a loopback name (blocks DNS rebinding). Default true; `startServer` turns it
+   * off when bound to a non-loopback address, where the Host is whatever name the LAN uses.
+   */
+  loopbackOnly?: boolean;
+}
+
+const LOOPBACK_NAMES = ['localhost', '127.0.0.1', '[::1]'];
+/** `localhost`, `127.0.0.1` or `[::1]`, with an optional port, as in a Host header or an origin's host. */
+const isLoopbackHost = (host: string) => LOOPBACK_NAMES.includes(host.toLowerCase().replace(/:\d+$/, ''));
+/** A bind address that only this machine can reach. */
+export const isLoopbackBind = (host: string) => ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(host.toLowerCase());
+
+/** The Origin header names a page on this machine: `http(s)://localhost|127.0.0.1|[::1](:port)`. */
+function isLoopbackOrigin(origin: string): boolean {
+  const m = /^https?:\/\/([^/]+)$/i.exec(origin);
+  return m !== null && isLoopbackHost(m[1]!);
 }
 
 /** A request problem answered with this status and JSON body. */
@@ -141,6 +158,17 @@ export function createApp(opts: AppOptions = {}): Hono {
     return next();
   };
 
+  // A multipart POST is a CORS "simple request", so any page the user visits could fire one blind. Browsers always
+  // send Origin on those; curl and Python send none, so only a foreign Origin is refused.
+  const loopbackOnly = opts.loopbackOnly ?? true;
+  app.use('*', async (c, next) => {
+    const origin = c.req.header('origin');
+    if (origin !== undefined && !isLoopbackOrigin(origin)) return c.json({ error: 'Requests from web pages on other sites are not allowed.' }, 403);
+    const host = c.req.header('host');
+    if (loopbackOnly && host !== undefined && !isLoopbackHost(host)) return c.json({ error: 'This server only answers requests addressed to localhost.' }, 403);
+    return next();
+  });
+
   app.onError((e, c) => {
     if (e instanceof HttpError) return c.json(e.body, e.status);
     if (e instanceof HTTPException && e.status === 413) return tooLarge(c);
@@ -182,8 +210,8 @@ export function createApp(opts: AppOptions = {}): Hono {
     for (const input of inputs) {
       // images with the same name must not overwrite each other's outputs
       let stem = input.stem;
-      for (let i = 2; used.has(stem.toLowerCase()); i++) stem = `${input.stem}-${i}`;
-      used.add(stem.toLowerCase());
+      for (let i = 2; used.has(outputKey(stem)); i++) stem = `${input.stem}-${i}`;
+      used.add(outputKey(stem));
       try {
         const { files, report } = await convertFn(input.bytes, preset, stem);
         job.report.push(shown(report, debug));
@@ -243,7 +271,7 @@ export interface RunningServer {
 export function startServer(opts: ServerOptions = {}): Promise<RunningServer> {
   const host = opts.host ?? DEFAULT_HOST;
   return new Promise((resolve, reject) => {
-    const server = serve({ fetch: createApp(opts).fetch, port: opts.port ?? DEFAULT_PORT, hostname: host });
+    const server = serve({ fetch: createApp({ loopbackOnly: isLoopbackBind(host), ...opts }).fetch, port: opts.port ?? DEFAULT_PORT, hostname: host });
     server.once('error', reject);
     server.once('listening', () => {
       const address = server.address() as AddressInfo;
@@ -281,7 +309,7 @@ export async function serveCmd(argv: string[]): Promise<number> {
     return 1;
   }
   console.error(`pixel3d ${VERSION} listening on ${server.url}`);
-  if (!['127.0.0.1', 'localhost', '::1'].includes(values.host ?? DEFAULT_HOST)) {
+  if (!isLoopbackBind(values.host ?? DEFAULT_HOST)) {
     console.error('warning: this API has no authentication. Anyone who can reach this address can use it.');
   }
   await new Promise<void>((resolve) => {

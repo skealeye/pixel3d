@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { strFromU8, unzipSync } from 'fflate';
 import { test as base, expect, type Download, type Page } from '@playwright/test';
-import { convert, parsePreset } from '../../../core/src/index';
+import { convert, decodeImage, parsePreset, placeRelative, type Settings as CoreSettings } from '../../../core/src/index';
+import { computeGrid, describe } from '../../src/pipeline';
 import { batchSnippets } from '../../src/snippets';
 
 const fixture = (name: string) => readFileSync(new URL(`../../../core/test/fixtures/${name}`, import.meta.url));
@@ -183,7 +184,7 @@ test.describe('export', () => {
     await expect(page.locator('#fcount')).toHaveText('8 filaments');
   });
 
-  test('changing the background sizes the model afresh, so export still equals convert()', async ({ page }) => {
+  test('changing the background keeps the pixel size (spec §4.2, R29), and export still equals convert()', async ({ page }) => {
     await page.goto('/?test');
     await page.locator('#fileIn').setInputFiles({ name: 'eye.png', mimeType: 'image/png', buffer: fixture('eye-on-white.png') });
     await expect.poll(async () => (await view(page)).shown).toBe('model');
@@ -192,29 +193,51 @@ test.describe('export', () => {
     await expect.poll(async () => (await snap(page)).undo).toBe(before.undo + 1);
     await expect.poll(async () => (await view(page)).shown).toBe('model');
     const after = await snap(page);
-    // the box is now the whole image: a new pixel size from the same Width, in the same undo step
-    expect(after.settings.pixelMm).not.toEqual(before.settings.pixelMm);
+    // the box is now the whole image: the same pixel size, so Width grows to fit it, in one undo step
+    expect(after.settings.pixelMm).toEqual(before.settings.pixelMm);
     expect(after.undo).toBe(before.undo + 1);
+    const size = (s: Snap) => s.settings.size as { width: number; height: number };
+    expect(size(after).width).toBeGreaterThan(size(before).width);
+    // the readout rounds; the setting keeps the exact size, so the saved preset reproduces the pixel size
+    await expect(page.locator('#w')).toHaveValue(size(after).width.toFixed(1));
     const preset = parsePreset(JSON.parse(await savePreset(page, 'eye.json')));
     const ref = await convert(new Uint8Array(fixture('eye-on-white.png')), preset, 'eye');
     expect(same(await bytesOf(await exportFile(page)), ref.files[0]!.bytes)).toBe(true);
     await page.keyboard.press('Control+z');
-    expect((await snap(page)).settings.pixelMm).toEqual(before.settings.pixelMm);
+    const back = await snap(page);
+    expect(back.settings.pixelMm).toEqual(before.settings.pixelMm);
+    expect(size(back).width).toBe(size(before).width);
   });
 
-  test('after undo, the same background change sizes the model afresh again', async ({ page }) => {
+  test('a background change keeps the hole on the same spot of the art; redoing it after undo agrees', async ({ page }) => {
     await page.goto('/?test');
     await page.locator('#fileIn').setInputFiles({ name: 'eye.png', mimeType: 'image/png', buffer: fixture('eye-on-white.png') });
     await expect.poll(async () => (await view(page)).shown).toBe('model');
+    await seg(page, 'key', 'hole').click();
     const before = await snap(page);
     await page.locator('#removeBg').uncheck();
     await expect.poll(async () => (await snap(page)).undo).toBe(before.undo + 1);
-    const off = (await snap(page)).settings.pixelMm;
-    expect(off).not.toEqual(before.settings.pixelMm);
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+    const off = await snap(page);
+    expect(off.settings.pixelMm).toEqual(before.settings.pixelMm);
+    // where the hole sits on the art, in grid cells, worked out by core from each state's grid and anchor
+    const img = await decodeImage(new Uint8Array(fixture('eye-on-white.png')));
+    const spot = (s: Snap) => {
+      const settings = s.settings as unknown as CoreSettings;
+      const r = computeGrid({ name: 'eye.png', img, ...describe(img), pick: null, crop: null }, settings, []);
+      if ('error' in r) throw new Error(r.error);
+      return placeRelative(settings.keychain.hole.at, r.grid);
+    };
+    const [a, b] = [spot(before), spot(off)];
+    expect(b.u).toBeCloseTo(a.u, 6);
+    expect(b.v).toBeCloseTo(a.v, 6);
     await page.keyboard.press('Control+z');
     await expect.poll(async () => (await snap(page)).settings.pixelMm).toEqual(before.settings.pixelMm);
     await page.locator('#removeBg').uncheck();
-    await expect.poll(async () => (await snap(page)).settings.pixelMm).toEqual(off);
+    await expect.poll(async () => (await snap(page)).undo).toBe(before.undo + 1);
+    const again = await snap(page);
+    expect(again.settings.pixelMm).toEqual(before.settings.pixelMm);
+    expect((again.settings as unknown as CoreSettings).keychain.hole.at).toEqual((off.settings as unknown as CoreSettings).keychain.hole.at);
     await expect.poll(async () => (await view(page)).shown).toBe('model');
     const preset = parsePreset(JSON.parse(await savePreset(page, 'eye.json')));
     const ref = await convert(new Uint8Array(fixture('eye-on-white.png')), preset, 'eye');

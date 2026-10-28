@@ -1,8 +1,4 @@
-import type { Settings } from '@pixel3d/core';
-
-/** Magnet sizes, mm (core features.ts MAGNETS). */
-const SIZES = { '8x3': { d: 8, h: 3 }, '6x2': { d: 6, h: 2 }, '10x3': { d: 10, h: 3 } } as const;
-export const magnetSize = (s: Settings) => (typeof s.magnets.size === 'string' ? SIZES[s.magnets.size] : s.magnets.size);
+import { magnetSize, type Settings } from '@pixel3d/core';
 
 const r1 = (n: number) => (Math.round(Math.max(0, n) * 10) / 10).toFixed(1);
 

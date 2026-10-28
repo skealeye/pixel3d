@@ -129,6 +129,12 @@ describe('convert: report', () => {
     expect(report.warnings).toEqual([]);
   });
 
+  it('rounds report sizes to 0.01 mm (no float32 noise)', async () => {
+    const { report } = await convert(fixture('potion.png'), preset(), 'p');
+    for (const v of [report.size.x, report.size.y, report.size.z]) expect(Math.round(v * 100) / 100).toBe(v);
+    expect(report.size.y).toBe(53.33);
+  });
+
   it('a rule whose color an earlier rule recolored away is dropped with a readable line', async () => {
     const { palette } = await inspect(fixture('potion.png'));
     const hex = palette[0]!.hex;

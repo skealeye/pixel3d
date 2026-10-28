@@ -22,10 +22,13 @@ export function applyHeightMode(g: Grid, m: HeightMode): Grid {
     const rnd = mulberry32(m.seed);
     for (const p of out.palette) p.height = clampHeight(round1(m.min + rnd() * (m.max - m.min)));
   } else {
-    for (const p of out.palette) {
-      const l = luminance(p.hex);
+    // the palette's own darkest..lightest maps onto min..max (spec §4.4); all equally bright → the midpoint
+    const lum = out.palette.map((p) => luminance(p.hex));
+    const lo = Math.min(...lum), span = Math.max(...lum) - lo;
+    out.palette.forEach((p, i) => {
+      const l = span > 1e-9 ? (lum[i]! - lo) / span : 0.5;
       p.height = clampHeight(round1(m.min + (m.darkHigh ? 1 - l : l) * (m.max - m.min)));
-    }
+    });
   }
   return out;
 }

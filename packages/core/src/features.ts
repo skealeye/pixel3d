@@ -102,8 +102,10 @@ export function holeCutter(wasm: Wasm, g: Grid, s: Settings, f: Frame): Manifold
   });
 }
 
-const MAGNETS = { '8x3': { d: 8, h: 3 }, '6x2': { d: 6, h: 2 }, '10x3': { d: 10, h: 3 } } as const;
-const magnetSize = (s: Settings) => (typeof s.magnets.size === 'string' ? MAGNETS[s.magnets.size] : s.magnets.size);
+/** Magnet sizes by name: diameter and height, mm. */
+export const MAGNETS = { '8x3': { d: 8, h: 3 }, '6x2': { d: 6, h: 2 }, '10x3': { d: 10, h: 3 } } as const;
+/** The magnet's diameter and height, mm, for a named or custom size. */
+export const magnetSize = (s: Settings) => (typeof s.magnets.size === 'string' ? MAGNETS[s.magnets.size] : s.magnets.size);
 
 /** Each magnet's disc footprint in mm. */
 function magnetShapes(wasm: Wasm, g: Grid, s: Settings, f: Frame): CrossSection[] {

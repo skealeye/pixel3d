@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import type { Grid, Settings } from '@pixel3d/core';
-import { opaqueBox } from '../pipeline';
+import { opaqueBox, pixelSize, type Grid, type Settings } from '@pixel3d/core';
 
 /** The preview in the same frame as core `buildModel`: mm, the opaque box at the origin, +Y up the image, +Z off the bed. */
 export interface Preview {
@@ -20,7 +19,7 @@ export interface Preview {
 export function previewOf(g: Grid, s: Settings): Preview | null {
   const box = opaqueBox(g);
   if (!box) return null;
-  const px = s.pixelMm ?? { x: s.size.width / box.w, y: s.size.keepAspect ? s.size.width / box.w : s.size.height / box.h };
+  const px = pixelSize(s, box);
   const bt = s.base.enabled ? s.base.height : 0;
   const under = s.sides.mode === 'solid';
   const vary = (h: number) => (under && s.sides.heightsOn === 'top' ? s.heights.h : h);

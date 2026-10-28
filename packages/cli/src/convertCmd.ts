@@ -2,10 +2,21 @@ import { existsSync, statSync } from 'node:fs';
 import { glob, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { convert, parsePreset, PresetError } from '@pixel3d/core';
+import { convert, emptyReport, parsePreset, PresetError, safeName } from '@pixel3d/core';
 import type { Preset, Report } from '@pixel3d/core';
 import { CONVERT_OPTIONS, setPath } from './args';
 import { emptyPresetDoc, parsePresetJson, PresetJsonError } from './presetLoad';
+
+/** `px3d convert --help`. */
+export const CONVERT_USAGE = `Usage: px3d convert <files|globs|dirs...> --out|-o <dir> [--preset p.json] [--format stl|3mf] [--set key=value ...]
+
+Convert images (.png .jpg .jpeg .gif .webp) to models. Writes the models and report.json into <dir>.
+  --out, -o <dir>     Output folder (created if missing).
+  --preset <file>     A preset JSON file saved from the app (default: the app's defaults).
+  --format stl|3mf    Overrides the preset's export format.
+  --set key=value     Sets a settings value by dotted path, e.g. --set base.height=3 (JSON values allowed). Repeatable.
+  --help, -h          Shows this help.
+Exit code: 0 all converted, 1 some image failed, 2 usage or preset error.`;
 
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp']);
 
@@ -22,6 +33,15 @@ const kind = (p: string): 'file' | 'dir' | 'none' => {
   }
 };
 
+/**
+ * A glob as `glob()` wants it. On Windows, PowerShell passes `dir\*.png` literally and glob() wants forward slashes;
+ * elsewhere a backslash escapes a glob character (`\[`), so it is left alone.
+ */
+export const globPattern = (a: string, platform: string = process.platform) => (platform === 'win32' ? a.replaceAll('\\', '/') : a);
+
+/** Output-name key: two stems collide when their sanitized names match, ignoring case (Windows and macOS file systems). */
+export const outputKey = (stem: string) => safeName(stem).toLowerCase();
+
 /** Files, directories (non-recursive, images only) and globs, as a sorted list without duplicates. */
 export async function resolveInputs(args: string[]): Promise<string[]> {
   const found = new Set<string>();
@@ -31,9 +51,8 @@ export async function resolveInputs(args: string[]): Promise<string[]> {
     } else if (existsSync(a)) {
       found.add(a);
     } else if (/[*?[\]{}]/.test(a)) {
-      // PowerShell passes dir\*.png literally; glob() wants forward slashes
       let any = false;
-      for await (const f of glob(a.replaceAll('\\', '/'))) {
+      for await (const f of glob(globPattern(a))) {
         if (kind(f) === 'file') { found.add(f); any = true; }
       }
       if (!any) throw new UsageError(`No files match ${a}`);
@@ -85,9 +104,9 @@ export async function loadPreset(source: { file?: string; inline?: unknown }, se
 
 const mm = (n: number) => n.toFixed(1);
 
-/** A failed-image report. Core has no empty-report constructor, so this mirrors the shape of `Report` in core's convert.ts. */
+/** A failed-image report: core's empty report plus the error. */
 export function failed(name: string, error: string, detail?: string): Report {
-  return { name, palette: [], applied: [], dropped: [], size: { x: 0, y: 0, z: 0 }, pieces: 0, warnings: [], files: [], grid: { w: 0, h: 0 }, error, ...(detail ? { detail } : {}) };
+  return { ...emptyReport(name), error, ...(detail ? { detail } : {}) };
 }
 
 export interface ConvertRequest {
@@ -126,8 +145,8 @@ export async function runConvert(req: ConvertRequest): Promise<{ reports: Report
       // two inputs with the same stem (a/x.png, b/x.png) must not overwrite each other's outputs
       const base = basename(input, extname(input));
       let stem = base;
-      for (let i = 2; used.has(stem.toLowerCase()); i++) stem = `${base}-${i}`;
-      used.add(stem.toLowerCase());
+      for (let i = 2; used.has(outputKey(stem)); i++) stem = `${base}-${i}`;
+      used.add(outputKey(stem));
 
       let result;
       try {
@@ -178,6 +197,10 @@ export async function convertCmd(argv: string[]): Promise<number> {
       });
     } catch (e) {
       throw new UsageError((e as Error).message);
+    }
+    if (parsed.values.help) {
+      console.log(CONVERT_USAGE);
+      return 0;
     }
     const { preset: presetFile, out, format } = parsed.values;
     if (!out) throw new UsageError('Missing --out <dir> (or -o <dir>).');

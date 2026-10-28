@@ -91,6 +91,20 @@ describe('px3d mcp (in-process)', () => {
     expect(r.text).toMatch(/not both/i);
   });
 
+  it('convert_image refuses a folder or a glob (one image only) and names convert_folder', async () => {
+    const client = await connect();
+    const dir = fresh('in');
+    copyFileSync(fixture('potion.png'), join(dir, 'a.png'));
+    copyFileSync(fixture('potion.png'), join(dir, 'b.png'));
+    for (const path of [dir, join(dir, '*.png')]) {
+      const out = fresh('out');
+      const r = await call(client, 'convert_image', { path, out });
+      expect(r.isError, path).toBe(true);
+      expect(r.text).toMatch(path === dir ? /^Not an image file: .*Use convert_folder for folders\.$/ : /^No such file: .*use convert_folder for a folder\./);
+      expect(readdirSync(out)).toEqual([]);
+    }
+  });
+
   it('convert_image marks a failed image isError', async () => {
     const client = await connect();
     const bad = join(fresh('bad'), 'bad.png');

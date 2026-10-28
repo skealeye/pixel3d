@@ -35,6 +35,20 @@ describe('applyHeightMode', () => {
     expect(q[2]!.height).toBeLessThan(2); // red is dim (0.2126)
   });
 
+  it('brightness maps the darkest..lightest palette color onto min..max (spec §4.4)', () => {
+    // mid-tones only: absolute luminance would use a small slice of the range
+    const mid: Grid = { w: 3, h: 1, cells: Int16Array.from([0, 1, 2]), palette: [
+      { hex: '#606060', height: 1 }, { hex: '#808080', height: 1 }, { hex: '#a0a0a0', height: 1 },
+    ] };
+    expect(applyHeightMode(mid, { mode: 'brightness', min: 1, max: 5, darkHigh: false }).palette.map((p) => p.height)).toEqual([1, 3, 5]);
+    expect(applyHeightMode(mid, { mode: 'brightness', min: 1, max: 5, darkHigh: true }).palette.map((p) => p.height)).toEqual([5, 3, 1]);
+  });
+
+  it('brightness with every color equally bright puts them all at the midpoint', () => {
+    const one: Grid = { w: 2, h: 1, cells: Int16Array.from([0, 1]), palette: [{ hex: '#336699', height: 1 }, { hex: '#336699', height: 1 }] };
+    expect(applyHeightMode(one, { mode: 'brightness', min: 1, max: 4, darkHigh: true }).palette.map((p) => p.height)).toEqual([2.5, 2.5]);
+  });
+
   it('does not mutate the input', () => {
     const x = g();
     applyHeightMode(x, { mode: 'uniform', h: 9 });

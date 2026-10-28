@@ -10,3 +10,10 @@ __pycache__/
 out/
 test-results/
 playwright-report/
+dev-dist/
+*.tsbuildinfo
+.env.*
+!.env.example
+/*.png
+screenshots/
+.superpowers/

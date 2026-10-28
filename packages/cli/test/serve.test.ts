@@ -261,6 +261,72 @@ describe('px3d serve hardening', () => {
     expect(res.headers.get('x-pixel3d-report-truncated')).toBe('1');
   }, 60_000);
 
+  it('a batch whose names sanitize to the same stem (a:b.png, ab.png) keeps both outputs', async () => {
+    const app = createApp();
+    const res = await app.request('/batch', { method: 'POST', body: form({ images: [png('potion.png'), new File([fixtureBytes('potion.png')], 'a:b.png'), new File([fixtureBytes('potion.png')], 'ab.png')] }) });
+    const { jobId } = (await res.json()) as { jobId: string };
+    let job: { status: string; report: Report[] } = { status: '', report: [] };
+    for (let i = 0; i < 600 && job.status !== 'done'; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+      job = (await (await app.request(`/jobs/${jobId}`)).json()) as typeof job;
+    }
+    expect(job.status).toBe('done');
+    expect(job.report.map((r) => r.name)).toEqual(['potion', 'ab', 'ab-2']);
+  }, 90_000);
+
+  it('a page on a foreign Origin gets 403 before any work is done', async () => {
+    let called = false;
+    const app = createApp({ convert: async (...a) => { called = true; return convert(...a); } });
+    for (const origin of ['https://evil.example', 'null', 'http://localhost.evil.example', 'http://127.0.0.1.evil.example:7300']) {
+      const res = await app.request('/convert', { method: 'POST', body: potion(), headers: { Origin: origin } });
+      expect(res.status, origin).toBe(403);
+      expect(await res.json()).toEqual({ error: 'Requests from web pages on other sites are not allowed.' });
+    }
+    expect((await app.request('/health', { headers: { Origin: 'https://evil.example' } })).status).toBe(403);
+    expect(called).toBe(false);
+  });
+
+  it('allows requests with no Origin (curl, Python) and from loopback origins', async () => {
+    const app = createApp();
+    expect((await app.request('/health')).status).toBe(200);
+    for (const origin of ['http://localhost:5180', 'http://127.0.0.1:7300', 'https://localhost', 'http://[::1]:5180']) {
+      expect((await app.request('/health', { headers: { Origin: origin } })).status, origin).toBe(200);
+    }
+  });
+
+  it('bound to loopback, refuses a non-loopback Host (DNS rebinding) with 403', async () => {
+    const app = createApp({ loopbackOnly: true });
+    const res = await app.request('/health', { headers: { Host: 'rebind.evil.example:7300' } });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: 'This server only answers requests addressed to localhost.' });
+    for (const host of ['127.0.0.1:7300', 'localhost:7300', 'localhost', '[::1]:7300', 'LOCALHOST:1']) {
+      expect((await app.request('/health', { headers: { Host: host } })).status, host).toBe(200);
+    }
+    // bound to a LAN address, any Host is fine (the warning about no authentication covers it)
+    expect((await createApp({ loopbackOnly: false }).request('/health', { headers: { Host: 'nas.lan:7300' } })).status).toBe(200);
+  });
+
+  it('the real server checks Host when bound to 127.0.0.1', async () => {
+    const { request } = await import('node:http');
+    const status = (host: string) => new Promise<number>((resolve, reject) => {
+      const u = new URL(server.url);
+      request({ host: u.hostname, port: u.port, path: '/health', headers: { Host: host } }, (res) => { res.resume(); resolve(res.statusCode!); })
+        .on('error', reject).end();
+    });
+    expect(await status('rebind.evil.example')).toBe(403);
+    expect(await status(new URL(server.url).host)).toBe(200);
+  });
+
+  it('a PNG whose header declares 20000 x 20000 gets 422 fast', async () => {
+    const be32 = (n: number) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+    const bomb = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...be32(13), 0x49, 0x48, 0x44, 0x52, ...be32(20000), ...be32(20000), 8, 6, 0, 0, 0, 0, 0, 0, 0]);
+    const t = performance.now();
+    const res = await createApp().request('/convert', { method: 'POST', body: form({ image: new File([bomb], 'bomb.png') }) });
+    expect(res.status).toBe(422);
+    expect(((await res.json()) as { error: string }).error).toMatch(/^The image is too large \(20000 × 20000 px\)/);
+    expect(performance.now() - t).toBeLessThan(1000);
+  });
+
   it('openapi.json carries the running version', async () => {
     const doc = (await (await createApp().request('/openapi.json')).json()) as typeof openapi;
     expect(doc.info.version).toBe(VERSION);
