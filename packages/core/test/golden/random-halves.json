@@ -1,0 +1,36 @@
+[
+  {
+    "name": "potion_front.stl",
+    "triangles": 460,
+    "volume": 5291.111,
+    "bounds": {
+      "min": [
+        0,
+        0,
+        0
+      ],
+      "max": [
+        40,
+        53.333,
+        4.6
+      ]
+    }
+  },
+  {
+    "name": "potion_back.stl",
+    "triangles": 456,
+    "volume": 5291.111,
+    "bounds": {
+      "min": [
+        48,
+        0,
+        0
+      ],
+      "max": [
+        88,
+        53.333,
+        4.6
+      ]
+    }
+  }
+]
