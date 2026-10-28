@@ -187,7 +187,13 @@ A setting with three values, labelled in the UI as **One side / Double sided / T
 - **"Save as preset"** turns this image's per-colour heights, recolours and deletes into colour rules automatically. Painted pixels are specific to one image and are not saved into presets.
 - **Islands and corner contact:**
   - Pixels that touch only at a corner are separated by a tiny gap, as in the reference, so the art is unchanged.
-  - Separate islands are allowed when a base joins them. With no base, separate bodies are allowed, and the UI shows a warning.
+  - Pixels are joined only when they share an edge. The base follows the pixel outline, so it doesn't join separate islands either.
+  - More than one piece is a **warning**, never "Watertight":
+    - the status bar shows "▲ N separate pieces" in red, and so does the size readout;
+    - a viewport note explains why (and mentions corner-only contact when there is any);
+    - every piece except the largest is outlined in red in the image preview;
+    - a **Remove strays** button keeps the largest piece and deletes the rest, and can be undone.
+  - Export is still allowed, since loose parts can be intentional. Batch runs report the piece count per file.
   - The keychain loop attaches to the island nearest the click.
 - **Image decoding:** the same pure-JS decoders are used in both the browser and Node, so batch output matches the UI exactly.
 

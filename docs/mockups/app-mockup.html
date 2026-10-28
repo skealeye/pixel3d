@@ -173,6 +173,8 @@
     border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; background: var(--panel);
   }
   footer .ok { color: #8fc68a; }
+  footer .bad { color: var(--danger); }
+  .note .btn { margin-top: 6px; }
 
   dialog {
     background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: var(--r-m);
@@ -424,11 +426,11 @@
 </aside>
 
 <footer>
-  <span class="ok">● Watertight</span>
+  <span class="ok" id="health">● Watertight</span>
   <span id="fcount"></span>
   <span class="spacer"></span>
   <span>Mockup, nothing is saved</span>
-  <span>v0.1.6</span>
+  <span>v0.1.7</span>
 </footer>
 
 <dialog id="batch">
@@ -864,6 +866,29 @@ function sizeSource() {
   drawSource();
 }
 new ResizeObserver(sizeSource).observe($('sourceBox'));
+// pieces: pixels join only when they share an edge. Touching at a corner leaves a hairline gap, so it doesn't count.
+function pieces() {
+  const seen = new Uint8Array(N * N), out = [];
+  for (let k = 0; k < N * N; k++) {
+    if (S.grid[k] < 0 || seen[k]) continue;
+    const cells = [k]; seen[k] = 1;
+    for (let i = 0; i < cells.length; i++) {
+      const c = cells[i], x = c % N;
+      for (const n of [x > 0 ? c - 1 : -1, x < N - 1 ? c + 1 : -1, c - N, c + N]) if (n >= 0 && n < N * N && !seen[n] && S.grid[n] >= 0) { seen[n] = 1; cells.push(n); }
+    }
+    out.push(cells);
+  }
+  return out.sort((a, b) => b.length - a.length);
+}
+function cornerTouches() {
+  let n = 0;
+  const on = (x, y) => S.grid[y * N + x] >= 0;
+  for (let y = 0; y < N - 1; y++) for (let x = 0; x < N - 1; x++) {
+    const a = on(x, y), b = on(x + 1, y), c = on(x, y + 1), d = on(x + 1, y + 1);
+    if ((a && d && !b && !c) || (b && c && !a && !d)) n++;
+  }
+  return n;
+}
 function drawSource() {
   const W = src.width, c = W / N;
   sctx.clearRect(0, 0, W, W);
@@ -872,6 +897,9 @@ function drawSource() {
   sctx.beginPath();
   for (let i = 1; i < N; i++) { const p = Math.round(i * c) + .5; sctx.moveTo(p, 0); sctx.lineTo(p, W); sctx.moveTo(0, p); sctx.lineTo(W, p); }
   sctx.stroke();
+  // everything but the largest piece gets a red outline
+  sctx.strokeStyle = '#e0715c'; sctx.lineWidth = 2;
+  for (const piece of pieces().slice(1)) for (const k of piece) sctx.strokeRect(Math.round((k % N) * c) + 1, Math.round(Math.floor(k / N) * c) + 1, Math.ceil(c) - 2, Math.ceil(c) - 2);
 }
 let painting = false;
 function paintAt(e) {
@@ -1241,11 +1269,25 @@ function build() {
     cutPlane.constant = -mid.y;
   }
   const sz = modelBounds().getSize(new THREE.Vector3());
-  $('dims').innerHTML = `<b>${sz.x.toFixed(1)} × ${sz.y.toFixed(1)} × ${sz.z.toFixed(1)} mm</b>&nbsp; ${S.sides === 'halves' ? (clicker() ? 'two pieces that snap together' : 'two pieces') : 'one piece'}`;
+  $('dims').innerHTML = `<b>${sz.x.toFixed(1)} × ${sz.y.toFixed(1)} × ${sz.z.toFixed(1)} mm</b>&nbsp; ${pieces().length > 1 ? `<span class="warn">${pieces().length} separate pieces</span>` : S.sides === 'halves' ? (clicker() ? 'two pieces that snap together' : 'two pieces') : 'one piece'}`;
   const notes = [];
   if (cavityMsg) notes.push(`<span class="warn">${cavityMsg}</span>`);
   if (S.cut) notes.push('<b>Cut view.</b> Gold is solid material. Empty space shows what is hollow.');
+  const parts = pieces(), corners = cornerTouches();
+  if (parts.length > 1) {
+    const stray = parts.slice(1).reduce((a, p) => a + p.length, 0);
+    notes.push(`<span class="warn">${parts.length} separate pieces. ${stray} stray pixel${stray > 1 ? 's' : ''} (outlined in red in the image) don't share an edge with the rest, so they would print as loose parts.` +
+      (corners ? ' Pixels that touch only at a corner don\'t count as joined.' : '') + ` Paint pixels to connect them, or remove them.</span><br><button class="btn small" id="removeStrays">Remove strays</button>`);
+  }
+  $('health').className = parts.length > 1 ? 'bad' : 'ok';
+  $('health').textContent = parts.length > 1 ? `▲ ${parts.length} separate pieces` : '● Watertight';
   $('note').innerHTML = notes.join('<br>'); $('note').style.display = notes.length ? 'block' : 'none';
+  if ($('removeStrays')) $('removeStrays').onclick = () => {
+    commit();
+    const keep = new Set(pieces()[0]);
+    S.grid = S.grid.map((v, k) => keep.has(k) ? v : -1);
+    refresh(); toast('Stray pixels removed. Press Ctrl+Z to undo.');
+  };
   $('rotLabel').textContent = S.rot.some(Boolean) ? `X ${S.rot[0] * 90}°, Y ${S.rot[1] * 90}°, Z ${S.rot[2] * 90}°` : 'Flat';
   // magnets panel
   const [md] = magDims();
