@@ -19,6 +19,7 @@
     --danger: #e0715c;
     --r-s: 4px;
     --r-m: 8px;
+    --left: 330px;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
@@ -27,14 +28,13 @@
     font: 13px/1.45 Archivo, system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
     display: grid;
-    grid-template: 52px 1fr 30px / 330px 1fr 300px;
+    grid-template: 52px 1fr 30px / var(--left) 1fr 310px;
     grid-template-areas: "top top top" "left view right" "status status status";
     overflow: hidden;
   }
   button, input, select { font: inherit; color: inherit; }
   :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
-  /* top bar */
   header {
     grid-area: top; display: flex; align-items: center; gap: 16px;
     padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--panel);
@@ -43,18 +43,19 @@
   .mark span { color: var(--text); }
   .file { color: var(--muted); }
   .file b { color: var(--text); font-weight: 500; }
-  header .spacer { flex: 1; }
+  .spacer { flex: 1; }
   .btn {
     background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-s);
-    padding: 6px 12px; cursor: pointer;
+    padding: 6px 12px; cursor: pointer; white-space: nowrap;
   }
   .btn:hover { border-color: #4a515d; }
+  .btn.on { border-color: var(--gold); color: var(--gold); }
   .btn.primary { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); font-weight: 600; }
   .btn.primary:hover { filter: brightness(1.08); }
+  .btn.small { padding: 3px 8px; font-size: 12px; }
   .btn.icon { padding: 6px 9px; }
   .btn:disabled { opacity: .4; cursor: default; }
 
-  /* panels */
   aside { overflow-y: auto; background: var(--panel); }
   aside.left { grid-area: left; border-right: 1px solid var(--line); }
   aside.right { grid-area: right; border-left: 1px solid var(--line); }
@@ -63,59 +64,76 @@
   h2 small { color: var(--muted); font-weight: 400; margin-left: auto; }
   .row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .row > label:first-child { flex: 1; color: var(--muted); }
+  .sl { display: grid; grid-template-columns: 88px 1fr 58px 22px; align-items: center; gap: 8px; margin-top: 8px; }
+  .sl label { color: var(--muted); }
+  .sl .unit { color: var(--muted); font-size: 12px; }
   .hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+  .warn { color: var(--danger); }
   .num {
-    width: 64px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s);
+    width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s);
     padding: 4px 6px; text-align: right;
   }
+  .row .num { width: 64px; }
   select { background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; }
   .seg { display: flex; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 2px; gap: 2px; }
   .seg button { flex: 1; border: 0; background: none; padding: 5px 6px; border-radius: 3px; cursor: pointer; color: var(--muted); white-space: nowrap; }
   .seg button.on { background: var(--raised); color: var(--text); box-shadow: inset 0 -2px 0 var(--gold); }
-  input[type=range] { accent-color: var(--gold); flex: 1; min-width: 0; }
+  input[type=range] { accent-color: var(--gold); width: 100%; min-width: 0; }
   input[type=checkbox] { accent-color: var(--gold); }
+  .check { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: var(--muted); cursor: pointer; }
 
   /* source image */
-  .source { position: relative; background:
+  .source { background:
       conic-gradient(#2a2e35 25%, #24282e 0 50%, #2a2e35 0 75%, #24282e 0) 0 0 / 16px 16px;
     border: 1px solid var(--line); border-radius: var(--r-s); display: grid; place-items: center; padding: 10px; }
-  #src { image-rendering: pixelated; cursor: crosshair; touch-action: none; max-width: 100%; }
+  #src { image-rendering: pixelated; cursor: crosshair; touch-action: none; display: block; }
   .tools { display: flex; gap: 6px; margin-top: 8px; }
   .tools .seg { flex: 1; }
 
   /* palette */
   .pal { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
   .pal li {
-    display: grid; grid-template-columns: 26px 64px 1fr 44px 22px; align-items: center; gap: 8px;
+    display: grid; grid-template-columns: 26px 64px 1fr 50px 22px; align-items: center; gap: 8px;
     padding: 4px 6px; border-radius: var(--r-s); border: 1px solid transparent;
   }
   .pal li.sel { border-color: var(--gold); background: #2a2a24; }
   .sw { width: 26px; height: 26px; border-radius: 3px; border: 1px solid #0006; cursor: pointer; padding: 0; }
-  .hex { position: relative; cursor: pointer; color: var(--muted); font-size: 12px; text-transform: lowercase; }
+  .hex { position: relative; cursor: pointer; color: var(--muted); font-size: 12px; }
   .hex:hover { color: var(--text); text-decoration: underline dotted; }
   .hex input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-  .hv { text-align: right; color: var(--text); font-size: 12px; }
+  .hv { text-align: right; font-size: 12px; }
   .del { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 15px; padding: 0; }
   .del:hover { color: var(--danger); }
-  .heights { display: grid; gap: 8px; margin-bottom: 12px; }
+  .heights { display: grid; gap: 4px; margin-bottom: 12px; }
 
   /* viewport */
   main { grid-area: view; position: relative; min-width: 0; min-height: 0; }
   #view { width: 100%; height: 100%; display: block; }
-  .vtools { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; }
+  #resizer { position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 5; }
+  #resizer:hover, #resizer.drag { background: var(--gold); opacity: .5; }
+  .vtools { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; align-items: flex-start; }
   .vtools .btn { background: #23272ee6; }
-  .dims {
-    position: absolute; bottom: 12px; left: 12px; background: #23272ee6; border: 1px solid var(--line);
+  .pop {
+    position: absolute; top: 40px; left: 0; width: 220px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--r-m); padding: 6px 12px 12px; display: none; box-shadow: 0 8px 24px #0006;
+  }
+  .pop.open { display: block; }
+  .pop .sl { grid-template-columns: 60px 1fr 40px; }
+  .dims, .mode {
+    position: absolute; background: #23272ee6; border: 1px solid var(--line);
     border-radius: var(--r-s); padding: 6px 10px; color: var(--muted);
   }
+  .dims { bottom: 12px; left: 12px; }
   .dims b { color: var(--text); font-weight: 500; }
+  .mode { bottom: 12px; left: 50%; transform: translateX(-50%); border-left: 3px solid var(--gold); color: var(--text); display: none; }
   .note {
     position: absolute; top: 12px; right: 12px; max-width: 260px; background: #23272ee6;
     border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: var(--r-s);
     padding: 8px 10px; color: var(--muted); display: none;
   }
+  .maglist { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 2px; color: var(--muted); }
+  .maglist li { display: flex; justify-content: space-between; }
 
-  /* export */
   .export { position: sticky; bottom: 0; background: var(--panel); border-top: 1px solid var(--line); border-bottom: 0; }
   .export .btn.primary { width: 100%; padding: 9px; margin-top: 10px; }
   #name { flex: 1; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; min-width: 0; }
@@ -125,9 +143,7 @@
     border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; background: var(--panel);
   }
   footer .ok { color: #8fc68a; }
-  footer .spacer { flex: 1; }
 
-  /* batch drawer */
   dialog {
     background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: var(--r-m);
     width: min(640px, 92vw); padding: 20px;
@@ -142,7 +158,7 @@
   .toast {
     position: fixed; bottom: 46px; left: 50%; transform: translate(-50%, 12px); opacity: 0;
     background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-s); padding: 8px 14px;
-    transition: .2s; pointer-events: none;
+    transition: .2s; pointer-events: none; z-index: 20;
   }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
   @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
@@ -150,6 +166,7 @@
   @media (max-width: 960px) {
     body { grid-template: 52px 55vh auto auto 30px / 1fr; grid-template-areas: "top" "view" "left" "right" "status"; overflow: auto; }
     .export { position: static; }
+    #resizer { display: none; }
   }
 </style>
 <script type="importmap">
@@ -173,8 +190,8 @@
 
 <aside class="left">
   <section>
-    <h2>Image <small>crop, background</small></h2>
-    <div class="source"><canvas id="src" width="288" height="288"></canvas></div>
+    <h2>Image <button class="btn small" id="expand" style="margin-left:auto">Expand</button></h2>
+    <div class="source" id="sourceBox"><canvas id="src"></canvas></div>
     <div class="tools">
       <div class="seg" data-key="tool">
         <button data-v="pick">Select</button>
@@ -183,8 +200,7 @@
       </div>
       <button class="btn">Crop</button>
     </div>
-    <div class="row"><label>Remove background</label><input type="checkbox"></div>
-    <div class="row"><label>Colours</label><input type="range" min="2" max="7" value="7" id="ncol" disabled><span class="hv">7</span></div>
+    <label class="check"><input type="checkbox"> Remove background</label>
   </section>
 
   <section>
@@ -195,14 +211,16 @@
         <button data-v="random">Random</button>
         <button data-v="brightness">By brightness</button>
       </div>
+      <div class="sl" id="defRow"><label>Pixel height</label><input type="range" id="defHR" min="0.2" max="10" step="0.1"><input class="num" id="defH"><span class="unit">mm</span></div>
       <div class="row" id="rangeRow">
-        <label>Range (mm)</label>
+        <label>Range</label>
         <input class="num" type="number" step="0.2" id="hMin" value="1">
         <span>to</span>
         <input class="num" type="number" step="0.2" id="hMax" value="4">
+        <span class="unit">mm</span>
       </div>
       <div class="row" id="seedRow"><label>Seed</label><input class="num" type="number" id="seed" value="42"><button class="btn" id="reroll">Randomize</button></div>
-      <div class="row" id="brightRow"><label>Darker colours sit higher</label><input type="checkbox" id="darkHigh" checked></div>
+      <label class="check" id="brightRow"><input type="checkbox" id="darkHigh" checked> Darker colours sit higher</label>
     </div>
     <ul class="pal" id="pal"></ul>
     <div class="row"><button class="btn" id="addColour">Add colour</button><span class="hint" style="margin:0">Click a swatch to paint with it. Click a hex code to recolour.</span></div>
@@ -210,25 +228,35 @@
 </aside>
 
 <main>
+  <div id="resizer" title="Drag to resize"></div>
   <canvas id="view"></canvas>
   <div class="vtools">
     <button class="btn" id="resetView">Reset view</button>
-    <button class="btn" id="toggleGrid">Grid</button>
+    <div style="position:relative">
+      <button class="btn" id="gridBtn">Grid</button>
+      <div class="pop" id="gridPop">
+        <label class="check"><input type="checkbox" id="gridOn" checked> Show grid</label>
+        <div class="sl"><label>Colour</label><input type="color" id="gridColor" value="#8a7446" style="width:100%;height:24px"><span></span></div>
+        <div class="sl"><label>Opacity</label><input type="range" id="gridOpacity" min="0" max="100" value="70"><span class="unit" id="gridOpacityV">70%</span></div>
+      </div>
+    </div>
   </div>
   <div class="note" id="note"></div>
+  <div class="mode" id="mode"></div>
   <div class="dims" id="dims"></div>
 </main>
 
 <aside class="right">
   <section>
     <h2>Size</h2>
-    <div class="row"><label>Width</label><input class="num" type="number" id="width" value="50"><span>mm</span></div>
-    <div class="row"><label>Height</label><input class="num" type="number" id="heightOut" value="50" disabled><span>mm</span></div>
+    <div class="sl"><label>Width</label><input type="range" id="wR" min="5" max="200" step="0.5"><input class="num" id="w"><span class="unit">mm</span></div>
+    <div class="sl"><label>Height</label><input type="range" id="hR" min="5" max="200" step="0.5"><input class="num" id="h"><span class="unit">mm</span></div>
+    <label class="check"><input type="checkbox" id="lock" checked> Keep aspect ratio</label>
   </section>
 
   <section>
     <h2>Base <input type="checkbox" id="baseOn" checked style="margin-left:auto"></h2>
-    <div class="row"><label>Thickness</label><input class="num" type="number" step="0.5" id="baseH" value="2"><span>mm</span></div>
+    <div class="sl"><label>Thickness</label><input type="range" id="baseHR" min="0.5" max="6" step="0.1"><input class="num" id="baseH"><span class="unit">mm</span></div>
     <div class="row"><label>Colour</label><input type="color" id="baseColor" value="#2a2d33"></div>
     <div class="row"><label>Bottom</label></div>
     <div class="seg" data-key="bottom" style="margin-top:6px">
@@ -236,17 +264,24 @@
       <button data-v="shell">Shell</button>
       <button data-v="hollow">Hollow</button>
     </div>
-    <div class="row" id="wallRow"><label>Wall thickness</label><input class="num" type="number" step="0.2" value="1.2"><span>mm</span></div>
+    <div class="sl" id="wallRow"><label>Wall</label><input type="range" id="wallR" min="0.8" max="5" step="0.1"><input class="num" id="wall"><span class="unit">mm</span></div>
   </section>
 
   <section>
     <h2>Sides</h2>
     <div class="seg" data-key="sides">
       <button data-v="single">One side</button>
-      <button data-v="solid">Both, one piece</button>
+      <button data-v="solid">Double sided</button>
       <button data-v="halves">Two halves</button>
     </div>
     <p class="hint" id="sidesHint"></p>
+    <div id="applyRow">
+      <div class="row"><label>Colour heights apply to</label></div>
+      <div class="seg" data-key="heightsOn" style="margin-top:6px">
+        <button data-v="both" id="hoBoth">Both sides</button>
+        <button data-v="top" id="hoTop">Top side only</button>
+      </div>
+    </div>
   </section>
 
   <section>
@@ -256,15 +291,26 @@
       <button data-v="hole">Hole</button>
       <button data-v="loop">Loop</button>
     </div>
-    <div class="row" id="holeRow"><label>Hole diameter</label><input class="num" type="number" id="holeD" value="4"><span>mm</span></div>
-    <div class="row" id="loopRow"><label>Loop inner / outer</label><input class="num" type="number" id="loopIn" value="4"><input class="num" type="number" id="loopOut" value="8"></div>
-    <p class="hint" id="keyHint">Click the model to place it.</p>
+    <div class="sl" id="holeRow"><label>Diameter</label><input type="range" id="holeDR" min="2" max="8" step="0.5"><input class="num" id="holeD"><span class="unit">mm</span></div>
+    <div id="loopRows">
+      <div class="seg" data-key="loopStyle" style="margin-top:8px">
+        <button data-v="round">Rounded loop</button>
+        <button data-v="pixel">Pixel loop</button>
+      </div>
+      <div class="sl"><label>Hole</label><input type="range" id="loopInR" min="2" max="8" step="0.5"><input class="num" id="loopIn"><span class="unit">mm</span></div>
+      <div class="sl"><label>Outside</label><input type="range" id="loopOutR" min="4" max="14" step="0.5"><input class="num" id="loopOut"><span class="unit">mm</span></div>
+    </div>
+    <p class="hint" id="keyHint"></p>
   </section>
 
   <section>
-    <h2>Magnets <small>0 placed</small></h2>
-    <div class="row"><label>Size</label><select><option>8 × 3 mm</option><option>6 × 2 mm</option><option>10 × 3 mm</option><option>Custom</option></select></div>
-    <div class="row"><button class="btn">Place a magnet</button></div>
+    <h2>Magnets <small id="magCount">0 placed</small></h2>
+    <div class="row"><label>Size</label>
+      <select id="magSize"><option value="8x3">8 × 3 mm</option><option value="6x2">6 × 2 mm</option><option value="10x3">10 × 3 mm</option></select>
+    </div>
+    <div class="row"><button class="btn" id="placeMag">Place a magnet</button><button class="btn" id="clearMag">Clear all</button></div>
+    <ul class="maglist" id="magList"></ul>
+    <p class="hint" id="magHint"></p>
   </section>
 
   <section>
@@ -283,8 +329,13 @@
 
   <section class="export">
     <h2>Export</h2>
+    <div class="seg" data-key="colourMode" style="margin-bottom:8px">
+      <button data-v="full">All colours</button>
+      <button data-v="mono">One colour</button>
+    </div>
+    <div class="row" id="monoRow" style="margin:0 0 8px"><label>Print colour</label><input type="color" id="monoColor" value="#e8e4d8"></div>
     <div class="seg" data-key="format">
-      <button data-v="3mf">3MF, multi-colour</button>
+      <button data-v="3mf">3MF</button>
       <button data-v="stl">STL</button>
     </div>
     <div class="row" id="slicerRow"><label>Slicer</label>
@@ -345,9 +396,11 @@ const N = 16;
 const S = {
   grid: [], palette: [], sel: 0, tool: 'paint',
   heightMode: 'uniform', hMin: 1, hMax: 4, seed: 42, darkHigh: true, defH: 1,
-  width: 50, base: true, baseH: 2, baseColor: '#2a2d33', bottom: 'solid',
-  sides: 'single', key: 'none', holeD: 4, loopIn: 4, loopOut: 8,
-  rot: [0, 0, 0], format: '3mf', grid3d: true,
+  w: 40, h: 40, lock: true, base: true, baseH: 2, baseColor: '#2a2d33', bottom: 'solid', wall: 1.2,
+  sides: 'single', heightsOn: 'both',
+  key: 'none', holeD: 4, loopStyle: 'round', loopIn: 4, loopOut: 8, hole: null, loop: null,
+  magnets: [], magSize: '8x3', placing: false,
+  rot: [0, 0, 0], format: '3mf', colourMode: 'full', monoColor: '#e8e4d8',
 };
 {
   const idx = {};
@@ -364,16 +417,43 @@ const lum = (hex) => { const [r, g, b] = rgb(hex); return (0.2126 * r + 0.7152 *
 const dist = (a, b) => { const x = rgb(a), y = rgb(b); return Math.hypot(x[0]-y[0], x[1]-y[1], x[2]-y[2]); };
 function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const round1 = (v) => Math.round(v * 10) / 10;
+const magDims = () => S.magSize.split('x').map(Number);
+
+// pixel space: u right, v up, one unit per pixel; cell (x, y) spans [x, x+1] × [y, y+1]
+const opaque = (x, y) => x >= 0 && y >= 0 && x < N && y < N && S.grid[(N - 1 - y) * N + x] >= 0;
+function bbox() {
+  let x0 = N, x1 = -1, y0 = N, y1 = -1;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (opaque(x, y)) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  return { x0, y0, bw: x1 - x0 + 1, bh: y1 - y0 + 1 };
+}
+function edges() {
+  const out = [];
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (opaque(x, y))
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!opaque(x + dx, y + dy))
+      out.push({ u: x + .5 + dx * .5, v: y + .5 + dy * .5, nx: dx, ny: dy, cx: x, cy: y });
+  return out;
+}
+function nearestEdge(p) {
+  let best = null, bd = Infinity;
+  for (const e of edges()) { const d = Math.hypot(e.u - p.u, e.v - p.v); if (d < bd) { bd = d; best = e; } }
+  return best;
+}
+function defaults() {
+  const top = edges().filter(e => e.ny === 1).sort((a, b) => b.v - a.v || Math.abs(a.u - N / 2) - Math.abs(b.u - N / 2))[0];
+  if (!S.loop) S.loop = top;
+  if (!S.hole) S.hole = { u: top.u, v: top.v - 1.6 };
+}
 
 // ---------- undo ----------
 const past = [], future = [];
-const snap = () => JSON.stringify({ g: S.grid, p: S.palette });
+const snap = () => JSON.stringify({ g: S.grid, p: S.palette, m: S.magnets, h: S.hole, l: S.loop });
 function commit() { past.push(snap()); if (past.length > 50) past.shift(); future.length = 0; syncUndo(); }
-function restore(s) { const o = JSON.parse(s); S.grid = o.g; S.palette = o.p; S.sel = Math.min(S.sel, S.palette.length - 1); refresh(); }
+function restore(s) { const o = JSON.parse(s); Object.assign(S, { grid: o.g, palette: o.p, magnets: o.m, hole: o.h, loop: o.l }); S.sel = Math.min(S.sel, S.palette.length - 1); refresh(); }
 $('undo').onclick = () => { if (!past.length) return; future.push(snap()); restore(past.pop()); syncUndo(); };
 $('redo').onclick = () => { if (!future.length) return; past.push(snap()); restore(future.pop()); syncUndo(); };
 function syncUndo() { $('undo').disabled = !past.length; $('redo').disabled = !future.length; }
 addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && S.placing) { S.placing = false; syncMode(); }
   if (!(e.ctrlKey || e.metaKey)) return;
   if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); $('undo').click(); }
   if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) { e.preventDefault(); $('redo').click(); }
@@ -402,13 +482,13 @@ function renderPalette() {
     const ci = li.querySelector('input[type=color]');
     ci.onchange = () => recolour(i, ci.value);
     const rg = li.querySelector('input[type=range]');
+    rg.onpointerdown = () => commit();
     rg.oninput = () => { p.h = +rg.value; li.querySelector('.hv').textContent = p.h.toFixed(1) + ' mm'; build(); };
-    rg.onchange = () => commit();
     li.querySelector('.del').onclick = () => deleteColour(i);
     ul.appendChild(li);
   });
   $('pcount').textContent = `${S.palette.length} colours`;
-  $('fcount').textContent = `${S.palette.length + (S.base ? 1 : 0)} filaments`;
+  syncVisibility();
 }
 function remap(from, to) {
   S.grid = S.grid.map(v => v === from ? to : v > from ? v - 1 : v);
@@ -434,12 +514,22 @@ function recolour(i, hex) {
 $('addColour').onclick = () => { commit(); S.palette.push({ hex: '#e0715c', h: S.defH }); S.sel = S.palette.length - 1; setSeg('tool', 'paint'); refresh(); };
 
 // ---------- source canvas ----------
-const src = $('src'), sctx = src.getContext('2d'), CELL = 18;
+const src = $('src'), sctx = src.getContext('2d');
+function sizeSource() {
+  const size = Math.max(160, $('sourceBox').clientWidth - 22);
+  src.style.width = src.style.height = size + 'px';
+  src.width = src.height = Math.round(size * devicePixelRatio);
+  drawSource();
+}
+new ResizeObserver(sizeSource).observe($('sourceBox'));
 function drawSource() {
-  sctx.clearRect(0, 0, 288, 288);
-  S.grid.forEach((v, k) => { if (v < 0) return; sctx.fillStyle = S.palette[v].hex; sctx.fillRect((k % N) * CELL, Math.floor(k / N) * CELL, CELL, CELL); });
-  sctx.strokeStyle = '#ffffff14'; sctx.lineWidth = 1;
-  for (let i = 1; i < N; i++) { sctx.beginPath(); sctx.moveTo(i * CELL + .5, 0); sctx.lineTo(i * CELL + .5, 288); sctx.moveTo(0, i * CELL + .5); sctx.lineTo(288, i * CELL + .5); sctx.stroke(); }
+  const W = src.width, c = W / N;
+  sctx.clearRect(0, 0, W, W);
+  S.grid.forEach((v, k) => { if (v < 0) return; sctx.fillStyle = S.palette[v].hex; sctx.fillRect(Math.round((k % N) * c), Math.round(Math.floor(k / N) * c), Math.ceil(c), Math.ceil(c)); });
+  sctx.strokeStyle = '#ffffff1a'; sctx.lineWidth = 1;
+  sctx.beginPath();
+  for (let i = 1; i < N; i++) { const p = Math.round(i * c) + .5; sctx.moveTo(p, 0); sctx.lineTo(p, W); sctx.moveTo(0, p); sctx.lineTo(W, p); }
+  sctx.stroke();
 }
 let painting = false;
 function paintAt(e) {
@@ -456,7 +546,26 @@ src.onpointerdown = (e) => { if (S.tool !== 'pick') commit(); painting = true; s
 src.onpointermove = (e) => { if (painting && S.tool !== 'pick') paintAt(e); };
 src.onpointerup = () => { painting = false; };
 
-// ---------- segmented controls & inputs ----------
+// expand / resize the image panel
+let wide = false;
+$('expand').onclick = () => {
+  wide = !wide;
+  document.body.style.setProperty('--left', wide ? Math.round(innerWidth * .45) + 'px' : '330px');
+  $('expand').textContent = wide ? 'Shrink' : 'Expand';
+};
+{
+  const rz = $('resizer');
+  rz.onpointerdown = (e) => { rz.setPointerCapture(e.pointerId); rz.classList.add('drag'); };
+  rz.onpointermove = (e) => {
+    if (!rz.classList.contains('drag')) return;
+    const w = Math.min(Math.max(e.clientX, 260), innerWidth * .6);
+    document.body.style.setProperty('--left', w + 'px');
+    wide = w > 400; $('expand').textContent = wide ? 'Shrink' : 'Expand';
+  };
+  rz.onpointerup = () => rz.classList.remove('drag');
+}
+
+// ---------- controls ----------
 function setSeg(key, v) {
   S[key] = v;
   document.querySelectorAll(`.seg[data-key=${key}] button`).forEach(b => b.classList.toggle('on', b.dataset.v === v));
@@ -467,32 +576,67 @@ document.querySelectorAll('.seg').forEach(seg => {
   seg.querySelectorAll('button').forEach(b => b.onclick = () => {
     setSeg(key, b.dataset.v);
     if (key === 'heightMode') { commit(); applyHeightMode(); renderPalette(); }
+    if (key === 'key' && S.key !== 'none') defaults();
     if (key !== 'tool') build();
   });
   setSeg(key, S[key]);
 });
-const bindNum = (id, key, rebuildHeights) => $(id).oninput = () => { S[key] = +$(id).value; if (rebuildHeights) { applyHeightMode(); renderPalette(); } build(); };
-bindNum('hMin', 'hMin', true); bindNum('hMax', 'hMax', true); bindNum('seed', 'seed', true);
-bindNum('width', 'width'); bindNum('baseH', 'baseH'); bindNum('holeD', 'holeD'); bindNum('loopIn', 'loopIn'); bindNum('loopOut', 'loopOut');
+// slider + number pairs
+function pair(id, key, fmt, after) {
+  const r = $(id + 'R'), n = $(id);
+  const show = () => { r.value = S[key]; n.value = fmt ? fmt(S[key]) : S[key]; };
+  const set = (v) => { if (isNaN(v)) return; S[key] = v; after && after(); show(); build(); };
+  r.oninput = () => set(+r.value);
+  n.onchange = () => set(+n.value);
+  show();
+  return show;
+}
+const f1 = (v) => (+v).toFixed(1);
+const bb0 = bbox(); S.h = round1(S.w * bb0.bh / bb0.bw);
+let showW, showH;
+showW = pair('w', 'w', f1, () => { if (S.lock) { const b = bbox(); S.h = round1(S.w * b.bh / b.bw); showH(); } });
+showH = pair('h', 'h', f1, () => { if (S.lock) { const b = bbox(); S.w = round1(S.h * b.bw / b.bh); showW(); } });
+$('lock').onchange = () => { S.lock = $('lock').checked; };
+pair('baseH', 'baseH', f1);
+pair('wall', 'wall', f1);
+pair('holeD', 'holeD', f1);
+pair('loopIn', 'loopIn', f1, () => { if (S.loopOut < S.loopIn + 2) { S.loopOut = S.loopIn + 2; showLoopOut(); } });
+const showLoopOut = pair('loopOut', 'loopOut', f1, () => { if (S.loopIn > S.loopOut - 2) { S.loopIn = S.loopOut - 2; showLoopIn(); } });
+const showLoopIn = () => { $('loopInR').value = S.loopIn; $('loopIn').value = f1(S.loopIn); };
+pair('defH', 'defH', f1, () => { if (S.heightMode === 'uniform') { applyHeightMode(); renderPalette(); } });
+const bindNum = (id, key) => $(id).oninput = () => { S[key] = +$(id).value; applyHeightMode(); renderPalette(); build(); };
+bindNum('hMin', 'hMin'); bindNum('hMax', 'hMax'); bindNum('seed', 'seed');
 $('darkHigh').onchange = () => { S.darkHigh = $('darkHigh').checked; applyHeightMode(); renderPalette(); build(); };
 $('reroll').onclick = () => { commit(); S.seed = Math.floor(Math.random() * 9999); $('seed').value = S.seed; setSeg('heightMode', 'random'); applyHeightMode(); renderPalette(); build(); };
 $('baseOn').onchange = () => { S.base = $('baseOn').checked; renderPalette(); build(); };
 $('baseColor').oninput = () => { S.baseColor = $('baseColor').value; build(); };
+$('monoColor').oninput = () => { S.monoColor = $('monoColor').value; build(); };
+$('magSize').onchange = () => { S.magSize = $('magSize').value; build(); };
+$('placeMag').onclick = () => { S.placing = !S.placing; syncMode(); };
+$('clearMag').onclick = () => { commit(); S.magnets = []; build(); };
 
 function syncVisibility() {
   const show = (id, on) => { const el = $(id); if (el) el.style.display = on ? '' : 'none'; };
+  show('defRow', S.heightMode === 'uniform');
   show('rangeRow', S.heightMode !== 'uniform');
   show('seedRow', S.heightMode !== 'brightness');
   show('brightRow', S.heightMode === 'brightness');
   show('wallRow', S.bottom !== 'solid');
-  show('holeRow', S.key === 'hole'); show('loopRow', S.key === 'loop'); show('keyHint', S.key !== 'none');
+  show('holeRow', S.key === 'hole'); show('loopRows', S.key === 'loop'); show('keyHint', S.key !== 'none');
   show('slicerRow', S.format === '3mf');
+  show('monoRow', S.colourMode === 'mono');
+  if ($('fcount') && S.palette.length) $('fcount').textContent = S.colourMode === 'mono' ? '1 filament' : `${S.palette.length + (S.base ? 1 : 0)} filaments`;
+  show('applyRow', S.sides !== 'single');
+  if ($('hoBoth')) { $('hoBoth').textContent = S.sides === 'halves' ? 'Both halves' : 'Both sides'; $('hoTop').textContent = S.sides === 'halves' ? 'Front half only' : 'Top side only'; }
   const hints = {
     single: 'Pixels on the front only. Prints flat with no supports.',
-    solid: 'Pixels on both faces. The back is mirrored so it reads correctly from behind. Needs supports when printed flat.',
-    halves: 'Front and mirrored back as two flat-backed pieces. Print both, then glue. The cleanest finish.',
+    solid: 'Pixels on both faces in one piece. Needs supports when printed flat.',
+    halves: 'Front and back as two flat-backed pieces. Print both, then glue. The cleanest finish.',
   };
   if ($('sidesHint')) $('sidesHint').textContent = hints[S.sides];
+  if ($('keyHint')) $('keyHint').textContent = S.key === 'hole'
+    ? 'Drag the gold cylinder on the model to move the hole. It cuts through every layer.'
+    : 'Drag the loop to slide it around the edge of the model.';
 }
 
 // ---------- 3D ----------
@@ -506,90 +650,197 @@ scene.add(new THREE.HemisphereLight('#ffffff', '#3a3226', 1.6));
 const sun = new THREE.DirectionalLight('#ffffff', 1.8); sun.position.set(60, -80, 140); scene.add(sun);
 const fill = new THREE.DirectionalLight('#ffffff', 0.6); fill.position.set(-80, 60, -40); scene.add(fill);
 
-const plate = new THREE.Mesh(new THREE.PlaneGeometry(180, 180), new THREE.MeshStandardMaterial({ color: '#3b3324', roughness: .95 }));
+const plate = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: '#3b3324', roughness: .95 }));
 plate.position.z = -0.05; scene.add(plate);
-const grid = new THREE.GridHelper(180, 18, '#6b5a36', '#4a3f2a'); grid.rotation.x = Math.PI / 2; scene.add(grid);
+let grid;
+function makeGrid() {
+  if (grid) { scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); }
+  const c = $('gridColor').value;
+  grid = new THREE.GridHelper(200, 20, c, c);
+  grid.rotation.x = Math.PI / 2;
+  grid.material.transparent = true; grid.material.depthWrite = false;
+  grid.material.opacity = +$('gridOpacity').value / 100;
+  grid.visible = $('gridOn').checked;
+  scene.add(grid);
+}
+makeGrid();
+$('gridBtn').onclick = () => { $('gridPop').classList.toggle('open'); $('gridBtn').classList.toggle('on'); };
+$('gridColor').oninput = makeGrid;
+$('gridOn').onchange = makeGrid;
+$('gridOpacity').oninput = () => { $('gridOpacityV').textContent = $('gridOpacity').value + '%'; makeGrid(); };
 
 const holder = new THREE.Group(), pivot = new THREE.Group(); holder.add(pivot); scene.add(holder);
 const unit = new THREE.BoxGeometry(1, 1, 1);
 const mats = new Map();
 const mat = (hex) => { if (!mats.has(hex)) mats.set(hex, new THREE.MeshStandardMaterial({ color: hex, roughness: .55, flatShading: true })); return mats.get(hex); };
+const ghostGold = new THREE.MeshBasicMaterial({ color: '#d9a441', transparent: true, opacity: .45, depthTest: false });
+const ghostMag = new THREE.MeshBasicMaterial({ color: '#e0715c', transparent: true, opacity: .6, depthTest: false });
 
-function cellsOf(mirror) {
-  const byCol = new Map(), all = [];
-  S.grid.forEach((v, k) => {
-    if (v < 0) return;
-    let x = k % N; const y = N - 1 - Math.floor(k / N);
-    if (mirror) x = N - 1 - x;
-    all.push([x, y]);
-    if (!byCol.has(v)) byCol.set(v, []); byCol.get(v).push([x, y]);
-  });
-  return { byCol, all };
-}
-function slab(group, cells, hex, s, z0, h) {
-  if (!cells.length || h <= 0) return;
-  const m = new THREE.InstancedMesh(unit, mat(hex), cells.length);
+let SC = { sx: 1, sy: 1 };
+let drag = null;
+
+function slab(group, cells, hex, z0, h) {
+  if (!cells.length || h <= 0) return null;
+  const m = new THREE.InstancedMesh(unit, mat(S.colourMode === 'mono' ? S.monoColor : hex), cells.length);
   const M = new THREE.Matrix4(), q = new THREE.Quaternion();
-  cells.forEach(([x, y], i) => m.setMatrixAt(i, M.compose(new THREE.Vector3((x + .5) * s, (y + .5) * s, z0 + h / 2), q, new THREE.Vector3(s, s, h))));
+  cells.forEach(([x, y], i) => m.setMatrixAt(i, M.compose(new THREE.Vector3((x + .5) * SC.sx, (y + .5) * SC.sy, z0 + h / 2), q, new THREE.Vector3(SC.sx, SC.sy, h))));
   group.add(m);
+  return m;
 }
-function keychain(group, s, z0, t) {
-  if (S.key === 'none') return;
-  const { all } = cellsOf(false);
-  const top = (Math.max(...all.map(c => c[1])) + 1) * s, cx = N / 2 * s;
-  if (S.key === 'loop') {
-    const ro = S.loopOut / 2, ri = S.loopIn / 2;
-    const ring = new THREE.Mesh(new THREE.TorusGeometry((ro + ri) / 2, (ro - ri) / 2, 16, 40), mat(S.base ? S.baseColor : S.palette[0].hex));
-    ring.scale.z = t / (ro - ri); ring.position.set(cx, top + ri, z0 + t / 2);
-    group.add(ring);
-  } else {
-    const hole = new THREE.Mesh(new THREE.CylinderGeometry(S.holeD / 2, S.holeD / 2, 40, 24), new THREE.MeshBasicMaterial({ color: '#0d0e10' }));
-    hole.rotation.x = Math.PI / 2; hole.position.set(cx, top - S.holeD / 2 - s * 1.2, 0); group.add(hole);
+function loopCells() {
+  // square ring of whole pixels, built outward from the chosen edge
+  const e = S.loop, s = (SC.sx + SC.sy) / 2;
+  const n = Math.max(3, Math.round(S.loopOut / s)), m = Math.min(Math.max(1, Math.round(S.loopIn / s)), n - 2), a = Math.floor((n - m) / 2);
+  const tx = -e.ny, ty = e.nx, cells = [];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    if (i >= a && i < a + m && j >= a && j < a + m) continue;
+    const o = i - Math.floor(n / 2);
+    cells.push([e.cx + e.nx * (j + 1) + tx * o, e.cy + e.ny * (j + 1) + ty * o]);
   }
+  return cells;
 }
-function body(s, baseT, front, back) {
-  const g = new THREE.Group();
-  const f = cellsOf(false), b = cellsOf(true);
-  if (baseT > 0) slab(g, f.all, S.baseColor, s, 0, baseT);
-  if (front) for (const [v, cells] of f.byCol) slab(g, cells, S.palette[v].hex, s, baseT, S.palette[v].h);
-  if (back) for (const [v, cells] of b.byCol) slab(g, cells, S.palette[v].hex, s, -S.palette[v].h, S.palette[v].h);
-  // in solid two-sided mode the loop spans the full middle (base) thickness
-  keychain(g, s, 0, baseT > 0 ? baseT : Math.min(...S.palette.map(p => p.h)));
+// opts: mirror (back half), baseT, top/under (pixel layers), topVary/underVary (colour heights or flat)
+function body({ mirror = false, baseT, top = true, under = false, topVary = true, underVary = true, idx }) {
+  const g = new THREE.Group(); g.userData = { mirror, idx, baseT };
+  const mx = (x) => mirror ? N - 1 - x : x;          // mirror a cell column
+  const mu = (u) => mirror ? N - u : u;              // mirror a point
+  const hR = S.holeD / 2;
+  const cut = (x, y) => S.key === 'hole' && Math.hypot((x + .5 - S.hole.u) * SC.sx, (y + .5 - S.hole.v) * SC.sy) < hR;
+  const byCol = new Map(), all = [];
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    if (!opaque(x, y) || cut(x, y)) continue;
+    const c = [mx(x), y]; all.push(c);
+    const v = S.grid[(N - 1 - y) * N + x];
+    if (!byCol.has(v)) byCol.set(v, []); byCol.get(v).push(c);
+  }
+  const H = (p, vary) => vary ? p.h : S.defH;
+  if (baseT > 0) slab(g, all, S.baseColor, 0, baseT);
+  let zMax = baseT, zMin = 0;
+  if (top) for (const [v, cells] of byCol) { const h = H(S.palette[v], topVary); slab(g, cells, S.palette[v].hex, baseT, h); zMax = Math.max(zMax, baseT + h); }
+  if (under) for (const [v, cells] of byCol) { const h = H(S.palette[v], underVary); slab(g, cells, S.palette[v].hex, -h, h); zMin = Math.min(zMin, -h); }
+
+  // keychain
+  const t = baseT > 0 ? baseT : Math.min(...S.palette.map(p => p.h));
+  const loopHex = S.colourMode === 'mono' ? S.monoColor : S.base ? S.baseColor : S.palette[0].hex;
+  if (S.key === 'hole') {
+    const cyl = new THREE.Mesh(new THREE.CylinderGeometry(hR, hR, zMax - zMin + 2, 32), ghostGold);
+    cyl.rotation.x = Math.PI / 2; cyl.position.set(mu(S.hole.u) * SC.sx, S.hole.v * SC.sy, (zMax + zMin) / 2);
+    cyl.renderOrder = 10; cyl.userData.handle = { kind: 'hole' }; g.add(cyl);
+  }
+  if (S.key === 'loop') {
+    const e = S.loop;
+    if (S.loopStyle === 'pixel') {
+      const ring = slab(g, loopCells().map(([x, y]) => [mx(x), y]), loopHex, 0, t);
+      if (ring) ring.userData.handle = { kind: 'loop' };
+    } else {
+      const ro = S.loopOut / 2, ri = S.loopIn / 2, R = (ro + ri) / 2, r = (ro - ri) / 2;
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(R, r, 16, 48), mat(loopHex));
+      ring.scale.z = t / (2 * r);
+      const nx = mirror ? -e.nx : e.nx;
+      ring.position.set(mu(e.u) * SC.sx + nx * R, e.v * SC.sy + e.ny * R, t / 2);
+      ring.userData.handle = { kind: 'loop' }; g.add(ring);
+    }
+  }
+  // magnet pockets: open on the glue face for halves, centred in the base for double sided, 0.5 mm up otherwise
+  const [md, mh] = magDims();
+  const z0 = S.sides === 'halves' ? 0 : S.sides === 'solid' ? (baseT - mh) / 2 : 0.5;
+  S.magnets.forEach((m, i) => {
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(md / 2, md / 2, mh, 32), ghostMag);
+    c.rotation.x = Math.PI / 2; c.position.set(mu(m.u) * SC.sx, m.v * SC.sy, z0 + mh / 2);
+    c.renderOrder = 11; c.userData.handle = { kind: 'magnet', i }; g.add(c);
+  });
   return g;
 }
 function build() {
-  for (const c of [...pivot.children]) { pivot.remove(c); c.traverse(o => { if (o.isInstancedMesh) o.dispose(); }); }
-  const s = S.width / N, bt = S.base ? S.baseH : 0;
-  if (S.sides === 'single') pivot.add(body(s, bt, true, false));
-  if (S.sides === 'solid') pivot.add(body(s, bt, true, true));
+  for (const c of [...pivot.children]) { pivot.remove(c); c.traverse(o => { if (o.isInstancedMesh) o.dispose(); else if (o.geometry && o.geometry !== unit) o.geometry.dispose(); }); }
+  if (S.key !== 'none') defaults();
+  const b = bbox(); SC = { sx: S.w / b.bw, sy: S.h / b.bh };
+  const bt = S.base ? S.baseH : 0, both = S.heightsOn === 'both';
+  if (S.sides === 'single') pivot.add(body({ baseT: bt, idx: 0 }));
+  if (S.sides === 'solid') pivot.add(body({ baseT: bt, under: true, underVary: both, idx: 0 }));
   if (S.sides === 'halves') {
-    const a = body(s, bt / 2, true, false);
-    // back half: mirrored art on its own flat base
-    const back = new THREE.Group();
-    const bc = cellsOf(true);
-    if (bt > 0) slab(back, bc.all, S.baseColor, s, 0, bt / 2);
-    for (const [v, cells] of bc.byCol) slab(back, cells, S.palette[v].hex, s, bt / 2, S.palette[v].h);
-    keychain(back, s, 0, bt > 0 ? bt / 2 : Math.min(...S.palette.map(p => p.h)));
-    back.position.x = S.width + 8;
-    pivot.add(a, back);
+    // the back is printed flat side down, then flipped onto the front: its art is mirrored
+    const back = body({ mirror: true, baseT: bt / 2, topVary: both, idx: 1 });
+    back.position.x = N * SC.sx + 8;
+    pivot.add(body({ baseT: bt / 2, idx: 0 }), back);
   }
   pivot.rotation.set(...S.rot.map(r => r * Math.PI / 2));
-  holder.position.set(0, 0, 0); holder.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(pivot), c = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3());
-  holder.position.set(-c.x, -c.y, -box.min.z);
+  if (!drag) {
+    holder.position.set(0, 0, 0); holder.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(pivot), c = box.getCenter(new THREE.Vector3());
+    holder.position.set(-c.x, -c.y, -box.min.z);
+  }
+  holder.updateMatrixWorld(true);
+  const sz = new THREE.Box3().setFromObject(pivot).getSize(new THREE.Vector3());
   $('dims').innerHTML = `<b>${sz.x.toFixed(1)} × ${sz.y.toFixed(1)} × ${sz.z.toFixed(1)} mm</b>&nbsp; ${S.sides === 'halves' ? 'two pieces' : 'one piece'}`;
-  $('heightOut').value = (S.width).toFixed(0);
   const note = $('note');
   const msg = S.bottom !== 'solid' ? `${S.bottom === 'shell' ? 'Shell' : 'Hollow'} bottom is applied on export. The preview shows the outside only.` : '';
   note.textContent = msg; note.style.display = msg ? 'block' : 'none';
   $('rotLabel').textContent = S.rot.some(Boolean) ? `X ${S.rot[0] * 90}°, Y ${S.rot[1] * 90}°, Z ${S.rot[2] * 90}°` : 'Flat';
+  // magnets panel
+  const [md, mh] = magDims();
+  $('magCount').textContent = `${S.magnets.length} placed`;
+  $('magList').innerHTML = S.magnets.map((m, i) => `<li>Magnet ${i + 1}<button class="del" data-m="${i}" title="Remove">×</button></li>`).join('');
+  $('magList').querySelectorAll('[data-m]').forEach(x => x.onclick = () => { commit(); S.magnets.splice(+x.dataset.m, 1); build(); });
+  const need = S.sides === 'halves' ? mh : mh + 1;
+  const have = S.sides === 'halves' ? bt / 2 + Math.min(...S.palette.map(p => p.h)) : bt;
+  $('magHint').innerHTML = S.magnets.length
+    ? (have < need ? `<span class="warn">A ${md} × ${mh} mm magnet needs about ${need} mm of base. Make the base thicker or pick a smaller magnet.</span>` : 'Drag a magnet to move it. Pockets are hidden inside the model.')
+    : (S.sides === 'halves' ? 'Pockets open on the glue face, so the magnet ends up sealed inside.' : '');
 }
 function fitView() { camera.position.set(55, -95, 85); controls.target.set(0, 0, 4); controls.update(); }
 document.querySelectorAll('[data-rot]').forEach(b => b.onclick = () => { const a = +b.dataset.rot; S.rot[a] = (S.rot[a] + 1) % 4; build(); });
 $('flat').onclick = () => { S.rot = [0, 0, 0]; build(); };
 $('edge').onclick = () => { S.rot = [1, 0, 0]; build(); };
 $('resetView').onclick = fitView;
-$('toggleGrid').onclick = () => { grid.visible = !grid.visible; };
+
+// ---------- direct manipulation: drag hole, loop, magnets; click to place magnets ----------
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function setRay(e) { const r = canvas.getBoundingClientRect(); ndc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(ndc, camera); }
+function handles() { const hs = []; pivot.traverse(o => { if (o.userData.handle) hs.push(o); }); return hs; }
+function bodyOf(o) { while (o.parent !== pivot) o = o.parent; return o; }
+function toUV(b, pt) { const l = b.worldToLocal(pt.clone()); let u = l.x / SC.sx; if (b.userData.mirror) u = N - u; return { u, v: l.y / SC.sy }; }
+function onPlane(b) {
+  const n = new THREE.Vector3(0, 0, 1).applyQuaternion(b.getWorldQuaternion(new THREE.Quaternion()));
+  const p = b.localToWorld(new THREE.Vector3(0, 0, b.userData.baseT));
+  return ray.ray.intersectPlane(new THREE.Plane().setFromNormalAndCoplanarPoint(n, p), new THREE.Vector3());
+}
+function syncMode() {
+  $('mode').style.display = S.placing ? 'block' : 'none';
+  $('mode').textContent = 'Click the model to place a magnet. Press Esc to cancel.';
+  $('placeMag').classList.toggle('on', S.placing);
+  canvas.style.cursor = S.placing ? 'crosshair' : '';
+}
+canvas.addEventListener('pointerdown', (e) => {
+  setRay(e);
+  if (S.placing) {
+    controls.enabled = false;
+    const hit = ray.intersectObjects(pivot.children, true).find(h => !h.object.userData.handle);
+    if (hit) { commit(); S.magnets.push(toUV(bodyOf(hit.object), hit.point)); S.placing = false; syncMode(); build(); }
+    return;
+  }
+  const hit = ray.intersectObjects(handles(), false)[0];
+  if (!hit) return;
+  commit();
+  drag = { ...hit.object.userData.handle, idx: bodyOf(hit.object).userData.idx };
+  controls.enabled = false; canvas.style.cursor = 'grabbing';
+}, { capture: true });
+addEventListener('pointermove', (e) => {
+  if (e.target !== canvas && !drag) return;
+  setRay(e);
+  if (!drag) { if (!S.placing) canvas.style.cursor = ray.intersectObjects(handles(), false).length ? 'grab' : ''; return; }
+  const b = pivot.children.find(c => c.userData.idx === drag.idx); if (!b) return;
+  const pt = onPlane(b); if (!pt) return;
+  const p = toUV(b, pt);
+  if (drag.kind === 'hole') S.hole = p;
+  if (drag.kind === 'magnet') S.magnets[drag.i] = p;
+  if (drag.kind === 'loop') S.loop = nearestEdge(p);
+  build();
+});
+addEventListener('pointerup', () => {
+  controls.enabled = true;
+  if (drag) { drag = null; canvas.style.cursor = ''; build(); }
+});
 
 function resize() {
   const r = canvas.parentElement.getBoundingClientRect();
@@ -603,17 +854,22 @@ function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add(
 $('export').onclick = () => {
   const n = $('name').value || 'model';
   const files = S.sides === 'halves' && S.format === 'stl' ? `${n}_front.stl and ${n}_back.stl` : `${n}.${S.format}`;
-  toast(`Exported ${files}` + (S.format === '3mf' ? `, filaments 1 to ${S.palette.length + (S.base ? 1 : 0)} assigned for ${$('slicer').value}.` : '.'));
+  toast(`Exported ${files}` + (S.colourMode === 'mono' ? ' in one colour.' : S.format === '3mf' ? `, filaments 1 to ${S.palette.length + (S.base ? 1 : 0)} assigned for ${$('slicer').value}.` : '.'));
 };
 function presetJson() {
   return JSON.stringify({
     version: 1,
     general: {
-      colours: S.palette.length, size: { width: S.width, unit: 'mm' },
-      base: S.base ? { thickness: S.baseH, colour: S.baseColor, bottom: S.bottom } : null,
-      sides: S.sides, heights: { mode: S.heightMode, min: S.hMin, max: S.hMax, seed: S.seed },
-      keychain: S.key === 'none' ? null : { type: S.key, at: 'top-center' },
-      rotate: S.rot.map(r => r * 90), export: { format: S.format, slicer: 'bambu' },
+      colours: S.palette.length, size: { width: S.w, height: S.h, keepAspect: S.lock, unit: 'mm' },
+      base: S.base ? { thickness: S.baseH, colour: S.baseColor, bottom: S.bottom, wall: S.wall } : null,
+      sides: S.sides, heightsApplyTo: S.heightsOn,
+      heights: { mode: S.heightMode, pixelHeight: S.defH, min: S.hMin, max: S.hMax, seed: S.seed },
+      keychain: S.key === 'none' ? null : S.key === 'hole'
+        ? { type: 'hole', diameter: S.holeD, at: 'top-center' }
+        : { type: 'loop', style: S.loopStyle, inner: S.loopIn, outer: S.loopOut, at: 'top-center' },
+      magnets: S.magnets.length ? { size: S.magSize, count: S.magnets.length } : null,
+      rotate: S.rot.map(r => r * 90),
+      export: { format: S.format, slicer: 'bambu', singleColour: S.colourMode === 'mono' ? S.monoColor : null },
     },
     colourRules: S.palette.map(p => ({ match: p.hex, tolerance: 8, height: p.h })),
   }, null, 2);
@@ -627,7 +883,7 @@ $('closeBatch').onclick = () => $('batch').close();
 $('savePreset').onclick = () => { $('batch').close(); toast('Saved potion.json'); };
 
 function refresh() { renderPalette(); drawSource(); build(); }
-syncUndo(); refresh(); fitView();
+syncUndo(); syncMode(); refresh(); fitView();
 </script>
 </body>
 </html>

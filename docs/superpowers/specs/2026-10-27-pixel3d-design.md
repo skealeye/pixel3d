@@ -54,6 +54,7 @@ Success means the user can drop in a sprite, adjust heights and colours, and get
 - Pixels with alpha < 128 become transparent.
 - **Size cap raised from 256 to 512 px** on the longest side. Larger images are refused with a clear message.
 - Crop tool, a source preview with zoom and pan, and a pixel-grid overlay.
+- **The image panel can be enlarged:** an Expand/Shrink button (about 45% of the window) and a draggable divider between the panel and the 3D view.
 
 ### 4.2 Background removal (parity)
 - An on/off toggle. The background colour is guessed from the image edges or picked with an eyedropper. Tolerance runs 0–50.
@@ -79,9 +80,12 @@ Success means the user can drop in a sprite, adjust heights and colours, and get
   - `brightness`: darker is lower or higher (a toggle), mapped onto min–max.
   - Sliders then adjust individual colours.
 - Merged and deleted colours take on the height of the colour they become.
+- In `uniform` mode, a single "pixel height" slider sets every colour.
 
 ### 4.5 Geometry & size (parity)
-- Set width or height in mm or inches, and the other follows the aspect ratio.
+- Width and height of the model's outline, in mm or inches, each set with a **slider plus a number box**.
+  - "Keep aspect ratio" is on by default. Turned off, width and height scale independently, so pixels become rectangles.
+- Every size and thickness control in the app (base, wall, hole, loop, pixel height) is a slider with a number box.
 - Optional base with its own height and colour. The base follows the pixel outline.
 - **The base colour is exported correctly** (bug fix).
 - **Bottom style (new):** `solid` (default), `shell` or `hollow`. *(Confirmed by the user.)*
@@ -91,23 +95,36 @@ Success means the user can drop in a sprite, adjust heights and colours, and get
   - Ignored for `halves`, where the flat glue faces must stay solid.
 
 ### 4.6 Two-sided (new)
-A setting with three values:
+A setting with three values, labelled in the UI as **One side / Double sided / Two halves**:
 - `single`: the reference behaviour, with pixels on one face.
-- `solid`: one piece. The base is in the middle and pixel layers are built on both faces. The back face is mirrored so the sprite reads correctly from behind. Each colour's height is the same on both faces.
-- `halves`: two models exported together, the front and the mirrored back. Each lies flat side down on the bed and is glued together after printing.
+- `solid` (Double sided): one piece.
+  - The base is in the middle and pixel layers are built on both faces.
+  - The back pixels sit directly behind the front ones, so the outlines line up. Seen from behind, the art therefore reads as a mirror image; this can't be avoided, because the outline itself is mirrored when seen from behind.
+- `halves`: two models exported together, the front and the back. The back's art is mirrored in the file, so once it is flipped and glued its outline matches the front. Each half lies flat side down on the bed.
+- **Colour heights apply to** (shown for Double sided and Two halves): `both` (default) or `top`.
+  - With `top`, only the up-facing side (Double sided) or the front half (Two halves) uses per-colour heights.
+  - The other side uses the uniform pixel height.
   - Each half gets half the base thickness, so the glued result equals the `solid` version.
   - Magnet pockets open onto the glue face and are mirrored on the two halves, so the magnet is hidden inside once the halves are glued. *(Claude's call.)*
   - For export: one 3MF with two plates or objects, or two STL files (`name_front`, `name_back`).
 
 ### 4.7 Keychain (parity, reworked)
-- **Hole:** a through-hole, diameter 2–8 mm, placed by clicking the model.
-- **Loop:** a ring tab joined to the model's outside edge at the clicked point on the outline, with inner and outer diameter settings. It is **merged into one watertight body** with the base, or with the full outline when there is no base, in both STL and 3MF.
+- **Hole:** a cylinder, diameter 2–8 mm, shown as a handle you **drag anywhere on the model**. It cuts through every layer: base, pixels, and both faces or halves.
+- **Loop:** a ring joined to the model's outside edge. You **drag it and it slides along the outline**, snapping to the nearest pixel edge. Inner and outer diameter settings.
+  - Two styles: **Rounded loop**, a smooth ring, and **Pixel loop**, a square ring made of whole pixels that matches the art.
+  - The loop is **merged into one watertight body** with the base, or with the full outline when there is no base, in both STL and 3MF.
 - Loop thickness equals the base thickness, or the lowest colour height when there is no base. *(Claude's call.)*
 - The keychain works in all two-sided modes. In `halves`, the loop or hole is split across both halves, with each half getting half the thickness, so the glued loop is full thickness.
 
 ### 4.8 Magnets, viewer, export, misc (parity)
-- **Magnet pockets:** presets plus a custom size. Depth or centred placement, a readout of the material left above and below, and click-to-place for several pockets.
-- **Viewer:** orbit, zoom, pan, reset, and a grid in mm or inches.
+- **Magnet pockets:** presets plus a custom size. Depth or centred placement, and a readout of the material left above and below.
+  - "Place a magnet" enters placement mode: click the model to drop one, or press Esc to cancel. Placed magnets can be dragged and removed one by one, and there is a Clear all.
+  - A warning appears when the base is too thin for the chosen magnet.
+- **Viewer:** orbit, zoom, pan, reset, and a grid in mm or inches. **Grid options:** show or hide, colour, and opacity (0–100%).
+- **Single colour (new):** an export choice of All colours or One colour, with a colour picker.
+  - One colour keeps all the height steps but exports the model as one body.
+  - The preview shows it in the chosen colour.
+  - It applies to both STL and 3MF.
 - **STL:** single colour, binary.
 - **3MF:** multi-colour, built as **one object made of parts**, one part per colour plus the base, so the slicer keeps it together as a single model. Colour layers are **merged flush with the base**, with no 0.02 mm gap that depends on the slicer to close it.
   - **Bambu Studio (primary, tested by the user):** write `Metadata/model_settings.config` so each part opens already assigned to filament slot 1..N, in palette order, with the filament colours set. Opening the file should need no manual filament assignment.
@@ -146,7 +163,7 @@ A setting with three values:
 ## 5. Presets
 
 - A preset is a versioned JSON file. The UI can **save the current settings as a preset** and load one.
-- **General rules** apply to any image: colour count, background removal, size, base, two-sided mode, keychain, magnets, height mode with its min, max and seed, and export format.
+- **General rules** apply to any image: colour count, background removal, size, base, two-sided mode, which side the colour heights apply to, keychain (type, style, sizes), magnets, height mode with its min, max and seed, rotation, export format, and single-colour on or off.
 - **Colour rules** apply only when an image contains that colour:
   - match by hex with a tolerance;
   - then `height`, `recolour`, or `delete`.
