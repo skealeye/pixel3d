@@ -33,7 +33,7 @@ const LEGEND: Record<string, string> = { K: '#2b2135', C: '#9c6b3e', W: '#bfd9e6
 type Rgba = [number, number, number, number];
 const hex = (h: string): Rgba => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16), 255];
 
-/** Rasterise a pixel grid. Cell of output pixel x is floor((x + sx - ox) / sx), so a leading partial cell of ox pixels appears when ox > 0. */
+/** Rasterize a pixel grid. Cell of output pixel x is floor((x + sx - ox) / sx), so a leading partial cell of ox pixels appears when ox > 0. */
 function raster(w: number, h: number, sx: number, sy: number, ox: number, oy: number, at: (cx: number, cy: number) => Rgba) {
   const data = new Uint8Array(w * h * 4);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -83,7 +83,7 @@ png('corner-touch.png', raster(32, 24, 4, 4, 0, 0, (cx, cy) => {
   return corner ? [200, 30, 30, 255] : body ? [30, 30, 200, 255] : WHITE;
 }));
 
-// gradient-photo: 200x200, every neighbouring pixel differs
+// gradient-photo: 200x200, every neighboring pixel differs
 {
   const w = 200, h = 200, data = new Uint8Array(w * h * 4);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++)

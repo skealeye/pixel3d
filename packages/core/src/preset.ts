@@ -18,11 +18,11 @@ function deepPartial(schema: z.ZodType): z.ZodType {
   return z.object(out).strict();
 }
 
-const colourRuleSchema = z.object({
+const colorRuleSchema = z.object({
   match: hexSchema,
   tolPct: z.number().min(0).max(100),
   height: z.number().min(0.2).max(20).optional(),
-  recolour: hexSchema.optional(),
+  recolor: hexSchema.optional(),
   delete: z.literal(true).optional(),
 }).strict();
 
@@ -30,16 +30,16 @@ const presetSchema = z.object({
   version: z.literal(1),
   // both may be left out (R30): a hand-written {"version": 1} is the defaults
   settings: deepPartial(settingsSchema).default({}),
-  colourRules: z.array(colourRuleSchema).default([]),
+  colorRules: z.array(colorRuleSchema).default([]),
 }).strict();
 
-export type ColourRule = z.output<typeof colourRuleSchema>;
+export type ColorRule = z.output<typeof colorRuleSchema>;
 type DeepPartial<T> = T extends readonly unknown[] ? T : T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
 
 export interface Preset {
   version: 1;
   settings: DeepPartial<Settings>;
-  colourRules: ColourRule[];
+  colorRules: ColorRule[];
 }
 
 export class PresetError extends Error {
@@ -52,26 +52,13 @@ export class PresetError extends Error {
   }
 }
 
-/**
- * Validate untrusted JSON. Throws `PresetError` for the first problem. `settings` and `colourRules` may be left out,
- * and `colorRules` (US spelling) is accepted as `colourRules` (R30); the result always says `colourRules`.
- */
+/** Validate untrusted JSON. Throws `PresetError` for the first problem. `settings` and `colorRules` may be left out (R30). */
 export function parsePreset(json: unknown): Preset {
-  let doc = json;
-  let alias = false;
-  if (doc && typeof doc === 'object' && !Array.isArray(doc) && 'colorRules' in doc) {
-    const { colorRules, ...rest } = doc as Record<string, unknown>;
-    if ('colourRules' in rest) throw new PresetError('colorRules', 'give colourRules or colorRules, not both');
-    doc = { ...rest, colourRules: colorRules };
-    alias = true;
-  }
-  const r = presetSchema.safeParse(doc);
+  const r = presetSchema.safeParse(json);
   if (r.success) return r.data as Preset;
   const issue = r.error.issues[0]!;
-  const path = issue.path.map(String);
-  if (alias && path[0] === 'colourRules') path[0] = 'colorRules';
   // Unknown keys are reported on their parent object.
-  throw new PresetError(path.join('.'), issue.message);
+  throw new PresetError(issue.path.map(String).join('.'), issue.message);
 }
 
 function merge<T>(base: T, over: unknown): T {
@@ -90,10 +77,10 @@ export function presetSettings(p: Preset): Settings {
 }
 
 /** Color rules as edits for `g`'s (reduced) palette, with one readable `applied` line per edit (same index); `unmatched` lists rules that matched no color. */
-export function colourRuleEdits(rules: ColourRule[], g: Grid): { edits: Edit[]; applied: string[]; unmatched: ColourRule[] } {
+export function colorRuleEdits(rules: ColorRule[], g: Grid): { edits: Edit[]; applied: string[]; unmatched: ColorRule[] } {
   const edits: Edit[] = [];
   const applied: string[] = [];
-  const unmatched: ColourRule[] = [];
+  const unmatched: ColorRule[] = [];
   for (const rule of rules) {
     const tol2 = ((rule.tolPct / 100) * MAX_RGB_DIST) ** 2;
     let hit = false;
@@ -109,9 +96,9 @@ export function colourRuleEdits(rules: ColourRule[], g: Grid): { edits: Edit[]; 
         edits.push({ kind: 'height', hex, h: rule.height });
         applied.push(`${hex} → height ${rule.height}`);
       }
-      if (rule.recolour !== undefined) {
-        edits.push({ kind: 'recolour', from: hex, to: rule.recolour });
-        applied.push(`${hex} → recolor ${rule.recolour}`);
+      if (rule.recolor !== undefined) {
+        edits.push({ kind: 'recolor', from: hex, to: rule.recolor });
+        applied.push(`${hex} → recolor ${rule.recolor}`);
       }
     }
     if (!hit) unmatched.push(rule);
@@ -159,8 +146,8 @@ export function presetFromState(settings: Settings, g: Grid, edits: Edit[]): Pre
   const { pixelMm: _pixelMm, ...rest } = settings;
   const source = new Set(g.palette.map((c) => c.hex));
   const origin = new Map<string, string>(); // current color -> source color
-  const rules = new Map<string, ColourRule>();
-  const rule = (hex: string): ColourRule | undefined => {
+  const rules = new Map<string, ColorRule>();
+  const rule = (hex: string): ColorRule | undefined => {
     const orig = origin.get(hex) ?? hex;
     if (!source.has(orig)) return undefined;
     let r = rules.get(orig);
@@ -170,10 +157,10 @@ export function presetFromState(settings: Settings, g: Grid, edits: Edit[]): Pre
   for (const e of edits) {
     if (e.kind === 'height') { const r = rule(e.hex); if (r) r.height = e.h; }
     else if (e.kind === 'delete') { const r = rule(e.hex); if (r) r.delete = true; }
-    else if (e.kind === 'recolour') {
+    else if (e.kind === 'recolor') {
       const r = rule(e.from);
-      if (r) { r.recolour = e.to.toLowerCase(); origin.set(r.recolour, r.match); }
+      if (r) { r.recolor = e.to.toLowerCase(); origin.set(r.recolor, r.match); }
     }
   }
-  return { version: 1, settings: rest, colourRules: [...rules.values()] };
+  return { version: 1, settings: rest, colorRules: [...rules.values()] };
 }

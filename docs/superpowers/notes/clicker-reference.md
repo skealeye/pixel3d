@@ -56,7 +56,7 @@ Neither piece is a positive insert. Both are subtracted (confirmed by the Skull,
 - **Cap stem:** 5.78 round. Its end is flush with the cap underside, so there is no separate stem standing proud of a skirt.
 - **Cross socket:** 4.27 x 1.22, 3.36 deep (3.00 in the original tool).
 - **Skirt / pocket:** there is no skirt. The cap is solid apart from a 14.0 -> 14.5 tapered rounded-square pocket, 3.36 deep, around the stem.
-- **Travel gap:** cap underside to well floor is 3.24 in the modelled pose (§5 explains why the real rest is probably about 1 mm higher, giving about 4.27).
+- **Travel gap:** cap underside to well floor is 3.24 in the modeled pose (§5 explains why the real rest is probably about 1 mm higher, giving about 4.27).
 - **Clips / alignment:** none, apart from these:
   - the cross itself;
   - the 4.4° pocket draft;
@@ -68,7 +68,7 @@ Neither piece is a positive insert. Both are subtracted (confirmed by the Skull,
 ## 3. The user's workflow (confirmed in Skull.obj)
 1. Model the art as two solids:
    - a **cap**, the upper part of the sculpt, with a flat underside;
-   - a **body**, the lower part, with a sculpted **well** that the cap drops into with clearance. The well is modelled by hand, not cut by a tool.
+   - a **body**, the lower part, with a sculpted **well** that the cap drops into with clearance. The well is modeled by hand, not cut by a tool.
 2. **Cap:** subtract `Top Clicker`, with its wide face flush with the cap underside (in the Skull it sits 0.012 below it). This leaves:
    - the 5.78 stem;
    - the cross socket;
@@ -93,8 +93,8 @@ Ours, relative to the plate top P: floor 1.2, column `15.6 + 2*fitGap` (16.2 at 
 | depth below the seat | 8.38, blind *| 1.5 + 8.5 = 10.0, plus a 1.2 floor | low (both clear 8.3) |
 | column above the seat | **19.0 for 3.0, then 20.0 for 1.0** *| **16.2 (15.6 + 2x0.3)** for 3.4 | **yes**: the ref gives about 1.7 per side round the housing; ours gives 0.3 |
 | well floor above the seat | +3.98 *| +3.4 | low |
-| cap underside / stem end above the seat | +7.22 modelled (+8.25 if seated on an 11.6 stem tip) | stem end +7.8 | low |
-| travel room (stem end to floor) | 3.25 modelled; 4.27 riding on the tip | 4.4 (4.0 + 0.4) | ok either way |
+| cap underside / stem end above the seat | +7.22 modeled (+8.25 if seated on an 11.6 stem tip) | stem end +7.8 | low |
+| travel room (stem end to floor) | 3.25 modeled; 4.27 riding on the tip | 4.4 (4.0 + 0.4) | ok either way |
 | cap stem | **5.78** round, flush with the cap underside, 3.35 long *| 5.5 round, 4.5 long | medium |
 | cross socket | **4.27 x 1.22**, both arms *| 4.1 x 1.3 | **yes**: the ref is 0.17 longer and 0.08 narrower; the narrower width is what grips |
 | socket depth | **3.35** (the original tool was 3.0) *| 3.8 | medium |
@@ -118,8 +118,8 @@ Ours, relative to the plate top P: floor 1.2, column `15.6 + 2*fitGap` (16.2 at 
 - **What was unioned:** nothing.
 - **Where the pieces sit relative to the art:**
   - **Cap cutter:** its mouth is flush with the cap's flat underside, 0.012 below it.
-  - **Body cutter:** in the Skull its tiers sit at 5.557 / 13.940 / 16.939, which is 0.023 higher than in partsref. Its top overlaps the hand-modelled well floor at 17.916, so the 20.0 tier is 0.98 deep.
-  - Both cutters are centred on the same axis.
+  - **Body cutter:** in the Skull its tiers sit at 5.557 / 13.940 / 16.939, which is 0.023 higher than in partsref. Its top overlaps the hand-modeled well floor at 17.916, so the 20.0 tier is 0.98 deep.
+  - Both cutters are centered on the same axis.
 - **Body profile:**
   - **Well:** 27.36 x 26.91 at the floor (Z 17.92), 27.6 x 27.7 at Z 22, 27.8 x 28.3 at Z 24.8, then flaring at the rim (Z 25.80). The well is **7.88 deep**.
   - **Pocket below the well floor:** 20.0 for 0.98, 19.0 for 3.0, then the 14.1 x 14.56 shaft 8.38 deep down to Z 5.557.
@@ -140,7 +140,7 @@ Ours, relative to the plate top P: floor 1.2, column `15.6 + 2*fitGap` (16.2 at 
   - well floor +3.98;
   - cap underside +7.22;
   - socket ceiling +10.57.
-  - The modelled gap from the cap underside to the well floor is **3.25**.
+  - The modeled gap from the cap underside to the well floor is **3.25**.
   - If the MX stem tip really is 11.6 above the plate (our `MX.above`), the cross bottoms out in the 3.35 socket and the cap rides 1.03 higher. That makes the real gap **4.27**, i.e. 4.0 travel + 0.27 margin, which matches our 4.0 + 0.4 approach.
   - Either way it is well past the 2.0 actuation.
 - **Side clearance cap-to-well, assembled (min radial gap per slice):**

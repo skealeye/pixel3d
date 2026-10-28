@@ -1,5 +1,5 @@
 import {
-  applyEdits, applyHeightMode, clampInt, detectScale, downsampleNearest, EXACT_COLOURS, findCornerBg, heightModeOf,
+  applyEdits, applyHeightMode, clampInt, detectScale, downsampleNearest, EXACT_COLORS, findCornerBg, heightModeOf,
   looksLikePixelArt, overCap, pixelate, PIXELATE_BG_TOL_PCT, reducePalette, removeBackground, toGrid,
   type BgHow, type Edit, type Grid, type Img, type Scale, type Settings,
 } from '@pixel3d/core';
@@ -36,7 +36,7 @@ export interface Meta {
   /** The part of the full image the grid covers; grid cell (i, j) maps to `region.x + (i + .5) * region.w / grid.w`. */
   region: Rect;
   /** Colors in the image before the color count reduces them (at most 64). */
-  colours: number;
+  colors: number;
 }
 
 // The cap, the pixelate background tolerance and the exact-color count come from core convert.ts (toReducedGrid),
@@ -112,7 +112,7 @@ export function computeGrid(src: Source, s: Settings, edits: Edit[], showBg = fa
     const r = background(cut(img, region), bgOn, tolPct, src.pick);
     bg = r;
     if (!opaque(r.img)) return { error: `${src.name} is empty once the background is removed. Lower the tolerance.` };
-    art = pixelate(r.img, { across: clamp(s.pixelate.across, 8, 128), colours: clamp(s.pixelate.colours, 2, 16) });
+    art = pixelate(r.img, { across: clamp(s.pixelate.across, 8, 128), colors: clamp(s.pixelate.colors, 2, 16) });
   } else {
     const area = cellArea(img, scale);
     region = src.crop ? snapToCells(src.crop, area, scale) : area;
@@ -122,11 +122,11 @@ export function computeGrid(src: Source, s: Settings, edits: Edit[], showBg = fa
     art = r.img;
   }
   if (!opaque(art)) return { error: `${src.name} is empty once the background is removed. Lower the tolerance.` };
-  const exact = toGrid(art, EXACT_COLOURS);
-  const base = reducePalette(exact, s.colours.max);
+  const exact = toGrid(art, EXACT_COLORS);
+  const base = reducePalette(exact, s.colors.max);
   const { grid, dropped } = applyEdits(applyHeightMode(base, heightModeOf(s)), edits);
   const info = `${grid.w} × ${grid.h} px` + (pixelated ? ', pixelated' : upscaleText(scale));
-  return { grid, dropped, meta: { base, pixelated, showBg, info, bg: bg.bg, how: bg.how, region, colours: exact.palette.length } };
+  return { grid, dropped, meta: { base, pixelated, showBg, info, bg: bg.bg, how: bg.how, region, colors: exact.palette.length } };
 }
 
 /** The grid size pixelating gives at `across` pixels wide (as core `pixelate`: never wider than the region, aspect kept). */
@@ -137,7 +137,7 @@ export function pixelatedSize(src: Source, across: number): { w: number; h: numb
 }
 
 /** The full-resolution pixel under grid cell (i, j), as #rrggbb. */
-export function colourAt(src: Source, meta: Meta, gridW: number, gridH: number, i: number, j: number): string {
+export function colorAt(src: Source, meta: Meta, gridW: number, gridH: number, i: number, j: number): string {
   const { region } = meta;
   const x = Math.min(src.img.width - 1, Math.floor(region.x + ((i + 0.5) * region.w) / gridW));
   const y = Math.min(src.img.height - 1, Math.floor(region.y + ((j + 0.5) * region.h) / gridH));

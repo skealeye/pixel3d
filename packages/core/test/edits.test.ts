@@ -10,14 +10,14 @@ const base = (): Grid => ({
 
 describe('applyEdits', () => {
   it('recolor onto an existing color merges and keeps the target height', () => {
-    const { grid, dropped } = applyEdits(base(), [{ kind: 'recolour', from: '#ff0000', to: '#fe0000' }]);
+    const { grid, dropped } = applyEdits(base(), [{ kind: 'recolor', from: '#ff0000', to: '#fe0000' }]);
     expect(dropped).toEqual([]);
     expect(grid.palette).toEqual([{ hex: '#fe0000', height: 5 }, { hex: '#0000ff', height: 2 }]);
     expect(Array.from(grid.cells)).toEqual([0, 0, 1, 0, 0, -1]);
   });
 
   it('recolor to a new color just renames it', () => {
-    const { grid } = applyEdits(base(), [{ kind: 'recolour', from: '#0000ff', to: '#00FF00' }]);
+    const { grid } = applyEdits(base(), [{ kind: 'recolor', from: '#0000ff', to: '#00FF00' }]);
     expect(grid.palette[2]).toEqual({ hex: '#00ff00', height: 2 });
   });
 
@@ -66,7 +66,7 @@ describe('applyEdits', () => {
 
   it('drops edits that name a missing color', () => {
     const d = { kind: 'delete', hex: '#123456' } as const;
-    const r = applyEdits(base(), [d, { kind: 'recolour', from: '#123456', to: '#000000' }]);
+    const r = applyEdits(base(), [d, { kind: 'recolor', from: '#123456', to: '#000000' }]);
     expect(r.dropped.length).toBe(2);
     expect(r.grid.palette.length).toBe(3);
   });

@@ -6,7 +6,7 @@ import { handleMeshes, type Handle } from './handles';
 import { press } from './press';
 
 /** `step`: one grid square, mm (10 mm, or half an inch). */
-export interface GridOptions { on: boolean; colour: string; opacity: number; step?: number }
+export interface GridOptions { on: boolean; color: string; opacity: number; step?: number }
 type Size = { x: number; y: number; z: number };
 type Vec3 = [number, number, number];
 export type ClickerView = 'assembled' | 'apart';
@@ -61,7 +61,7 @@ export class Viewport {
   private hl: string | null = null;
   private cutPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private cut = false;
-  private gridOpts: GridOptions = { on: true, colour: '#8a7446', opacity: 0.7, step: 10 };
+  private gridOpts: GridOptions = { on: true, color: '#8a7446', opacity: 0.7, step: 10 };
   private gridHelper: THREE.GridHelper | null = null;
   private ro: ResizeObserver;
   private dirty = true;
@@ -391,9 +391,9 @@ export class Viewport {
       this.gridHelper.geometry.dispose();
       (this.gridHelper.material as THREE.Material).dispose();
     }
-    const { on, colour, opacity } = this.gridOpts;
+    const { on, color, opacity } = this.gridOpts;
     const step = this.gridStep, n = Math.round(200 / step);
-    const g = (this.gridHelper = new THREE.GridHelper(n * step, n, colour, colour));
+    const g = (this.gridHelper = new THREE.GridHelper(n * step, n, color, color));
     g.rotation.x = Math.PI / 2;
     const m = g.material as THREE.LineBasicMaterial;
     m.transparent = true;

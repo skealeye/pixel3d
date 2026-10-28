@@ -56,7 +56,7 @@ describe('buildModel', () => {
     const m = await buildModel(potion, DEFAULTS);
     expect(m.parts.map((p) => p.name)).toEqual(['base', ...potion.palette.map((p) => p.hex)]);
     expect(m.parts).toHaveLength(8);
-    expect(m.parts[0]!.hex).toBe(DEFAULTS.base.colour);
+    expect(m.parts[0]!.hex).toBe(DEFAULTS.base.color);
     expect(m.parts.every((p) => p.object === 'main')).toBe(true);
     expect(m.size.x).toBeCloseTo(40, 4);
     expect(m.size.y).toBeCloseTo(53.333, 2);

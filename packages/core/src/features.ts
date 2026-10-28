@@ -124,7 +124,7 @@ function magnetShapes(wasm: Wasm, g: Grid, s: Settings, f: Frame): CrossSection[
 export function magnetCutters(wasm: Wasm, g: Grid, s: Settings, f: Frame, side: Side): { cutters: Manifold[]; pauseZ: number | null; warning: string | null } {
   if (!s.magnets.at.length) return { cutters: [], pauseZ: null, warning: null };
   const { d, h } = magnetSize(s);
-  const sealed = side.kind === 'solid' || (side.kind === 'single' && s.magnets.position === 'centre');
+  const sealed = side.kind === 'solid' || (side.kind === 'single' && s.magnets.position === 'center');
   const z0 = !sealed ? -1 : side.kind === 'solid' ? (side.baseT - h) / 2 : Math.max(0, (side.baseT - h) / 2);
   const z1 = sealed ? z0 + h : h;
   const cutters = magnetShapes(wasm, g, s, f).map((cs) => scratch((k) => k(k(cs).extrude(z1 - z0)).translate([0, 0, z0])));
@@ -181,7 +181,7 @@ export function addLoop(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: Cro
   const loop = keep(bodyLoop(wasm, g, s, f, side, !!base));
   if (base) return solids.map((x) => (x === base ? { ...x, m: keep(x.m.add(loop)) } : x));
   const prism = keep(keep(keep(outlineMm(outline, f)).extrude(2 * REACH)).translate([0, 0, -REACH]));
-  return [...solids, { name: 'loop', hex: s.keychain.loop.colour, m: keep(loop.subtract(prism)) }];
+  return [...solids, { name: 'loop', hex: s.keychain.loop.color, m: keep(loop.subtract(prism)) }];
 }
 
 /**
@@ -218,11 +218,11 @@ function bodyPieces(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: CrossSe
   cutters: Manifold[], place: (m: Manifold) => Manifold): number {
   return scratch((k) => {
     let lo = -Infinity, hi = Infinity, zMin = Infinity, zMax = -Infinity;
-    const colours = solids.filter((x) => x.name !== 'base' && x.name !== 'loop');
+    const colors = solids.filter((x) => x.name !== 'base' && x.name !== 'loop');
     for (const x of solids) {
       const b = x.m.boundingBox();
       zMin = Math.min(zMin, b.min[2]!); zMax = Math.max(zMax, b.max[2]!);
-      if (colours.includes(x)) { lo = Math.max(lo, b.min[2]!); hi = Math.min(hi, b.max[2]!); }
+      if (colors.includes(x)) { lo = Math.max(lo, b.min[2]!); hi = Math.min(hi, b.max[2]!); }
     }
     lo = Math.min(lo, 0); hi = Math.max(hi, side.baseT);
     let proxy = k(k(k(outlineMm(outline, f)).extrude(hi - lo)).translate([0, 0, lo]));
@@ -233,7 +233,7 @@ function bodyPieces(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: CrossSe
       const through = b.max[2]! >= hi - 1e-9 || b.min[2]! <= lo + 1e-9;
       if (!through || (b.max[2]! >= zMax && b.min[2]! <= zMin)) continue; // the hole removes everything in its footprint
       const column = k(k(k(c.project()).extrude(zMax - zMin + 2)).translate([0, 0, zMin - 1]));
-      for (const x of colours) body = k(body.add(k(x.m.intersect(column))));
+      for (const x of colors) body = k(body.add(k(x.m.intersect(column))));
     }
     for (const c of cutters) body = k(body.subtract(c));
     return body.decompose().map(k).filter((c) => c.volume() > 0).length;

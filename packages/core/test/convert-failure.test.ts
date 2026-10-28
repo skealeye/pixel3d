@@ -11,7 +11,7 @@ const { convert, parsePreset } = await import('../src/index');
 describe('convert: unexpected failure', () => {
   it('reports a plain error plus the underlying detail, and does not throw', async () => {
     const bytes = new Uint8Array(readFileSync(new URL('./fixtures/potion.png', import.meta.url)));
-    const { files, report } = await convert(bytes, parsePreset({ version: 1, settings: {}, colourRules: [] }), 'p');
+    const { files, report } = await convert(bytes, parsePreset({ version: 1, settings: {}, colorRules: [] }), 'p');
     expect(files).toEqual([]);
     expect(report.error).toBe('The conversion failed: boom: cells is not iterable.');
     expect(report.detail).toMatch(/^TypeError: boom: cells is not iterable\n\s+at /);

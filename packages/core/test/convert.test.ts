@@ -10,7 +10,7 @@ import { assertManifold } from './util/assertManifold';
 import { all, parseXml } from './util/xml';
 
 const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`./fixtures/${name}`, import.meta.url)));
-const preset = (settings: unknown = {}, colourRules: unknown[] = []): Preset => parsePreset({ version: 1, settings, colourRules });
+const preset = (settings: unknown = {}, colorRules: unknown[] = []): Preset => parsePreset({ version: 1, settings, colorRules });
 
 /** PNG from rows of colors; null = transparent. Each cell is drawn `k`×`k`. */
 const png = (rows: (string | null)[][], k = 1): Uint8Array => {
@@ -139,7 +139,7 @@ describe('convert: report', () => {
     const { palette } = await inspect(fixture('potion.png'));
     const hex = palette[0]!.hex;
     const { report } = await convert(fixture('potion.png'), preset({}, [
-      { match: hex, tolPct: 0, recolour: '#123456' },
+      { match: hex, tolPct: 0, recolor: '#123456' },
       { match: hex, tolPct: 0, height: 3 },
     ]), 'p');
     expect(report.applied).toEqual([`${hex} → recolor #123456`]);
@@ -169,7 +169,7 @@ describe('convert: report', () => {
 
   it('passes the magnet pause height into the 3MF', async () => {
     const { files, report } = await convert(fixture('potion.png'), preset({
-      base: { height: 6 }, magnets: { size: '6x2', at: [{ fx: 0.5, fy: 0.6 }], position: 'centre' }, export: { slicer: 'bambu' },
+      base: { height: 6 }, magnets: { size: '6x2', at: [{ fx: 0.5, fy: 0.6 }], position: 'center' }, export: { slicer: 'bambu' },
     }), 'm');
     expect(report.error).toBeUndefined();
     const z = unzipSync(files[0]!.bytes);
@@ -178,7 +178,7 @@ describe('convert: report', () => {
   });
 
   it('pixelates a photo automatically: at most `colors` colors', async () => {
-    const { report } = await convert(fixture('gradient-photo.png'), preset({ pixelate: { colours: 4, across: 16 } }), 'photo');
+    const { report } = await convert(fixture('gradient-photo.png'), preset({ pixelate: { colors: 4, across: 16 } }), 'photo');
     expect(report.error).toBeUndefined();
     expect(report.palette.length).toBeGreaterThan(0);
     expect(report.palette.length).toBeLessThanOrEqual(4);
@@ -235,7 +235,7 @@ describe('convert: report', () => {
       const bytes = big();
       const info = await inspect(bytes);
       expect(info).toMatchObject({ width: 600, height: 600, looksLikePixelArt: false });
-      expect(info.colourCount).toBe(8);
+      expect(info.colorCount).toBe(8);
       const { report } = await convert(bytes, preset({ pixelate: { enabled, across: 24 } }), 'big');
       expect(report.error).toBeUndefined();
       expect(report.warnings).toContain('The image is larger than 512 px, so it was pixelated.');
@@ -320,7 +320,7 @@ describe('inspect', () => {
     const r = await inspect(fixture('gradient-photo.png'));
     expect(r.looksLikePixelArt).toBe(false);
     expect(r.palette).toHaveLength(64);
-    expect(r.colourCount).toBeGreaterThan(64);
+    expect(r.colorCount).toBeGreaterThan(64);
   });
 
   it('unreadable bytes reject with a plain ConvertError', async () => {

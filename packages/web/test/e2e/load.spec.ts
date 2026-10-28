@@ -20,7 +20,7 @@ const EYE = 'eye-on-white.png 10 × 6 px, detected from a 4× upscale';
 const EMPTY = 'Open an image, or drop one anywhere on the window';
 
 interface Snap { name: string | null; grid: { w: number; h: number; opaque: number; palette: { hex: string }[] } | null; settings: { background: { tolPct: number; enabled: boolean }; pixelate: { enabled: boolean | 'auto'; across: number } }; undo: number; redo: number; zoom: number }
-interface View { shown: 'none' | 'preview' | 'model'; cut: boolean; materials: number; clipped: number; buildError: string | null; grid: { on: boolean; colour: string; opacity: number }; renders: number; size: { x: number; y: number; z: number } | null }
+interface View { shown: 'none' | 'preview' | 'model'; cut: boolean; materials: number; clipped: number; buildError: string | null; grid: { on: boolean; color: string; opacity: number }; renders: number; size: { x: number; y: number; z: number } | null }
 const snap = (page: Page) => page.evaluate(() => (window as unknown as { __pixel3d: { snapshot(): Snap } }).__pixel3d.snapshot());
 const view = (page: Page) => page.evaluate(() => (window as unknown as { __pixel3d: { viewport(): View } }).__pixel3d.viewport());
 const opaque = async (page: Page) => (await snap(page)).grid!.opaque;
@@ -115,7 +115,7 @@ test.describe('loading', () => {
     await expect(page.locator('#fileInfo')).toHaveText('gradient-photo.png 32 × 32 px, pixelated');
     await expect(page.locator('#pixelate')).toBeChecked();
     await expect(page.locator('#pixW')).toHaveValue('32');
-    await expect(page.locator('#pixColours')).toHaveValue('8');
+    await expect(page.locator('#pixColors')).toHaveValue('8');
     expect((await snap(page)).grid!.palette.length).toBeLessThanOrEqual(8);
     await page.locator('#pixW').fill('16');
     await page.locator('#pixW').press('Enter');

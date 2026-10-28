@@ -43,7 +43,7 @@ export function previewOf(g: Grid, s: Settings): Preview | null {
   }
   // seat the lowest point on the bed, as the core model does
   if (bottom < 0) for (const list of columns.values()) for (let i = 2; i < list.length; i += 4) list[i]! -= bottom;
-  return { columns, baseHex: s.base.colour, px, size: { x: box.w * px.x, y: box.h * px.y, z: top - bottom } };
+  return { columns, baseHex: s.base.color, px, size: { x: box.w * px.x, y: box.h * px.y, z: top - bottom } };
 }
 
 const unit = new THREE.BoxGeometry(1, 1, 1).translate(0.5, 0.5, 0.5);

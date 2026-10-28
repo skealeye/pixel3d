@@ -75,7 +75,7 @@ const moved = (m: Mesh, transform?: string): Mesh => {
   for (let i = 0; i < v.length; i += 3) for (let c = 0; c < 3; c++) out[i + c] = v[i]! * t[c]! + v[i + 1]! * t[3 + c]! + v[i + 2]! * t[6 + c]! + t[9 + c]!;
   return { vertProperties: out, triVerts: m.triVerts };
 };
-const xyCentre = (meshes: { vertProperties: Float32Array }[]) => {
+const xyCenter = (meshes: { vertProperties: Float32Array }[]) => {
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const { vertProperties: v } of meshes) for (let i = 0; i < v.length; i += 3) {
     x0 = Math.min(x0, v[i]!); x1 = Math.max(x1, v[i]!); y0 = Math.min(y0, v[i + 1]!); y1 = Math.max(y1, v[i + 1]!);
@@ -179,7 +179,7 @@ describe('to3MF: Bambu', () => {
     }
     // the model sits in the middle of a 256 x 256 plate
     const placed = a!.components.map((c) => moved(moved(meshOf(c.mesh), c.transform), a!.item.attrs.transform));
-    const [cx, cy] = xyCentre(placed);
+    const [cx, cy] = xyCenter(placed);
     expect(cx).toBeCloseTo(128, 3);
     expect(cy).toBeCloseTo(128, 3);
   });
@@ -195,18 +195,18 @@ describe('to3MF: Bambu', () => {
     expect(o!.parts.every((p) => p.subtype === 'normal_part')).toBe(true);
     expect(o!.parts.map((p) => p.extruder)).toEqual(main.parts.map((_, i) => String(i + 1)));
     expect(o!.parts.map((p) => p.name)).toEqual(main.parts.map((p) => p.name));
-    const colours = r.project.filament_colour!;
-    expect(colours).toEqual(main.parts.map((p) => p.hex.toUpperCase()));
-    expect(colours[0]).toBe(DEFAULTS.base.colour.toUpperCase());
-    expect(r.project.filament_type).toEqual(colours.map(() => 'PLA'));
-    expect(r.project.filament_settings_id).toHaveLength(colours.length);
+    const colors = r.project.filament_colour!; // filament_colour: external format key, spelling fixed by Bambu Studio
+    expect(colors).toEqual(main.parts.map((p) => p.hex.toUpperCase()));
+    expect(colors[0]).toBe(DEFAULTS.base.color.toUpperCase());
+    expect(r.project.filament_type).toEqual(colors.map(() => 'PLA'));
+    expect(r.project.filament_settings_id).toHaveLength(colors.length);
     // plate and assemble blocks name the object
     expect(metaOf(kid(kid(r.settings, 'plate'), 'model_instance')).object_id).toBe(a!.id);
     expect(kid(kid(r.settings, 'assemble'), 'assemble_item').attrs.object_id).toBe(a!.id);
   });
 
   it('a base the same color as a palette entry shares its filament slot (R25); the parts stay separate', async () => {
-    const same = await buildModel(potion, settings((s) => { s.base.colour = potion.palette[0]!.hex; }));
+    const same = await buildModel(potion, settings((s) => { s.base.color = potion.palette[0]!.hex; }));
     const r = readBambu(await to3MF(same, { slicer: 'bambu', mono: false, name: 'potion' }));
     const parts = r.cfgObjects[0]!.parts;
     expect(parts.map((p) => p.name)).toEqual(same.parts.map((p) => p.name));
@@ -214,14 +214,14 @@ describe('to3MF: Bambu', () => {
     const art = parts.find((p) => p.name === potion.palette[0]!.hex)!;
     expect(parts[0]!.extruder).toBe(art.extruder);
     expect(r.project.filament_colour).toHaveLength(same.parts.length - 1);
-    expect(r.project.filament_colour).toEqual(filamentColors(potion, settings((s) => { s.base.colour = potion.palette[0]!.hex; })).map((h) => h.toUpperCase()));
+    expect(r.project.filament_colour).toEqual(filamentColors(potion, settings((s) => { s.base.color = potion.palette[0]!.hex; })).map((h) => h.toUpperCase()));
   });
 
   it('8 art colors and a base equal to one of them: 8 filaments, 8 slots (R25)', async () => {
     // 8 columns, 3 rows, one color a column
     const hexes = ['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6'];
     const eight: Grid = { w: 8, h: 3, cells: Int16Array.from({ length: 24 }, (_, k) => k % 8), palette: hexes.map((hex) => ({ hex, height: 1 })) };
-    const s = settings((x) => { x.base.colour = eight.palette[3]!.hex.toUpperCase(); });
+    const s = settings((x) => { x.base.color = eight.palette[3]!.hex.toUpperCase(); });
     expect(filamentColors(eight, s)).toHaveLength(8);
     const r = readBambu(await to3MF(await buildModel(eight, s), { slicer: 'bambu', mono: false, name: 'potion' }));
     expect(r.project.filament_colour).toHaveLength(8);
@@ -238,13 +238,13 @@ describe('to3MF: Bambu', () => {
 
   it('filamentColors matches the 3MF slots: base off with a loop, mono, clicker', async () => {
     const cases: Settings[] = [
-      settings((s) => { s.base.enabled = false; s.keychain.type = 'loop'; s.keychain.loop.colour = potion.palette[1]!.hex; }),
-      settings((s) => { s.base.enabled = false; s.keychain.type = 'loop'; s.keychain.loop.colour = '#123456'; }),
+      settings((s) => { s.base.enabled = false; s.keychain.type = 'loop'; s.keychain.loop.color = potion.palette[1]!.hex; }),
+      settings((s) => { s.base.enabled = false; s.keychain.type = 'loop'; s.keychain.loop.color = '#123456'; }),
       settings((s) => { s.export.mono = true; }),
       settings((s) => { s.make = 'clicker'; s.base.enabled = false; }),
     ];
     for (const s of cases) {
-      const r = readBambu(await to3MF(await buildModel(potion, s), { slicer: 'bambu', mono: s.export.mono, monoHex: s.export.monoColour, name: 'potion' }));
+      const r = readBambu(await to3MF(await buildModel(potion, s), { slicer: 'bambu', mono: s.export.mono, monoHex: s.export.monoColor, name: 'potion' }));
       expect(r.project.filament_colour).toEqual(filamentColors(potion, s).map((h) => h.toUpperCase()));
     }
   }, 60_000);
@@ -333,7 +333,7 @@ describe('to3MF: Prusa', () => {
   });
 
   it('a base the same color as an art color shares its extruder (R25)', async () => {
-    const same = await buildModel(potion, settings((s) => { s.base.colour = potion.palette[0]!.hex; }));
+    const same = await buildModel(potion, settings((s) => { s.base.color = potion.palette[0]!.hex; }));
     const cfg = parseXml(unzip(await to3MF(same, { slicer: 'prusa', mono: false, name: 'potion' })).text('Metadata/Slic3r_PE_model.config'));
     const ex = kids(kids(cfg, 'object')[0]!, 'volume').map((v) => kids(v, 'metadata').find((e) => e.attrs.key === 'extruder')!.attrs.value);
     expect(ex[0]).toBe(ex[1]);

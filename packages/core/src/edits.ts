@@ -2,7 +2,7 @@ import { type Grid, DEFAULT_HEIGHT, clampHeight, cloneGrid, mergeInto } from './
 import { nearestIndex } from './palette';
 
 export type Edit =
-  | { kind: 'recolour'; from: string; to: string }
+  | { kind: 'recolor'; from: string; to: string }
   | { kind: 'delete'; hex: string }
   | { kind: 'height'; hex: string; h: number }
   | { kind: 'paint'; x: number; y: number; hex: string | null }
@@ -16,7 +16,7 @@ export function applyEdits(g: Grid, edits: Edit[]): { grid: Grid; dropped: Edit[
 
   for (const e of edits) {
     switch (e.kind) {
-      case 'recolour': {
+      case 'recolor': {
         const from = find(e.from);
         const to = e.to.toLowerCase();
         if (from < 0) { dropped.push(e); break; }

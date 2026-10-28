@@ -18,10 +18,10 @@ type Anchor = 'top-center' | 'top-left' | { fx: number; fy: number };
 interface Settings {
   size: { width: number; height: number; keepAspect: boolean; unit: 'mm' | 'in' };
   pixelMm?: { x: number; y: number };
-  base: { enabled: boolean; height: number; colour: string };
+  base: { enabled: boolean; height: number; color: string };
   inside: { mode: string; wall: number };
   sides: { mode: string; heightsOn: string };
-  keychain: { type: string; hole: { style: string; size: number; at: Anchor }; loop: { style: string; angle: number; colour: string } };
+  keychain: { type: string; hole: { style: string; size: number; at: Anchor }; loop: { style: string; angle: number; color: string } };
   magnets: { size: string; position: string; at: Anchor[] };
   rotation: [number, number, number];
 }
@@ -45,7 +45,7 @@ async function loadPotion(page: Page) {
 const model = (page: Page) => expect.poll(async () => (await view(page)).shown).toBe('model');
 
 /** Page position of the middle of the 3D view. */
-async function viewCentre(page: Page) {
+async function viewCenter(page: Page) {
   const b = (await page.locator('#view').boundingBox())!;
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 }
@@ -105,13 +105,13 @@ test.describe('model settings', () => {
     const favs = () => page.locator('#baseFavs [data-c]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.c));
     expect(await favs()).toEqual(['#2a2d33', '#f2efe6', '#111111', '#d9a441', '#3d6fb6']);
     await page.locator('#baseColor').fill('#123456');
-    expect((await settings(page)).base.colour).toBe('#123456');
+    expect((await settings(page)).base.color).toBe('#123456');
     await page.locator('#baseFavs .star').click();
     await expect(page.locator('.toast')).toHaveText('Saved to favorites.');
     expect(await favs()).toEqual(['#123456', '#2a2d33', '#f2efe6', '#111111', '#d9a441']);
     await expect(page.locator('#baseFavs [data-c="#123456"]')).toHaveClass(/\bcur\b/);
     await page.locator('#baseFavs [data-c="#f2efe6"]').click();
-    expect((await settings(page)).base.colour).toBe('#f2efe6');
+    expect((await settings(page)).base.color).toBe('#f2efe6');
     await expect(page.locator('#baseColor')).toHaveValue('#f2efe6');
     await page.locator('#baseFavs [data-c="#111111"]').click({ button: 'right' });
     expect(await favs()).toEqual(['#123456', '#2a2d33', '#f2efe6', '#d9a441']);
@@ -247,7 +247,7 @@ test.describe('model settings', () => {
     await expect(page.locator('#loopFavs [data-c]')).toHaveCount(5);
     await expect(page.locator('#keyHint')).toHaveText('Move the slider to slide the loop around the edge.');
     await page.locator('#loopFavs [data-c="#d9a441"]').click();
-    expect((await settings(page)).keychain.loop.colour).toBe('#d9a441');
+    expect((await settings(page)).keychain.loop.color).toBe('#d9a441');
     // the hole is kept at least 2 mm smaller than the outside
     await page.locator('#loopIn').fill('9');
     await page.locator('#loopIn').press('Enter');
@@ -261,7 +261,7 @@ test.describe('model settings', () => {
     await page.locator('#placeMag').click();
     await expect(page.locator('#mode')).toBeVisible();
     await expect(page.locator('#mode')).toHaveText('Click the model to place a magnet. Press Esc to cancel.');
-    const c = await viewCentre(page);
+    const c = await viewCenter(page);
     await page.mouse.click(c.x, c.y);
     await expect(page.locator('#mode')).toBeHidden();
     await expect(page.locator('#magCount')).toHaveText('1 placed');
@@ -289,10 +289,10 @@ test.describe('model settings', () => {
     await loadPotion(page);
     await page.locator('#baseH').fill('5');
     await page.locator('#baseH').press('Enter');
-    await seg(page, 'magPos', 'centre').click();
+    await seg(page, 'magPos', 'center').click();
     await model(page);
     await page.locator('#placeMag').click();
-    const c = await viewCentre(page);
+    const c = await viewCenter(page);
     await page.mouse.click(c.x, c.y);
     await expect(page.locator('#magCount')).toHaveText('1 placed');
     // 8 × 3 mm sealed in a 5 mm base under 1 mm pixels: 1 mm below the pocket, 5 + 1 - 4 = 2 mm above it
@@ -309,7 +309,7 @@ test.describe('model settings', () => {
     await page.waitForTimeout(1000); // past the 250 ms debounce and the build
     await expect(page.locator('#note .warn')).toHaveCount(0);
     // sealed, but the base is thinner than the magnet: the pocket sits on the bed, open
-    await seg(page, 'magPos', 'centre').click();
+    await seg(page, 'magPos', 'center').click();
     await expect(page.locator('#magRead')).toHaveText('Material left: none below (the pocket is open), 0.0 mm above it.');
     await seg(page, 'sides', 'halves').click();
     await expect(page.locator('#magPosRow')).toBeHidden();

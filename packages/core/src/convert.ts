@@ -7,7 +7,7 @@ import type { Grid } from './grid';
 import { reducePalette, toGrid } from './palette';
 import { applyEdits } from './edits';
 import { applyHeightMode } from './heights';
-import { type Preset, colourRuleEdits, presetSettings } from './preset';
+import { type Preset, colorRuleEdits, presetSettings } from './preset';
 import { type Settings, DEFAULTS, heightModeOf } from './settings';
 import { type Model, buildModel } from './mesh';
 import { toSTL } from './export/stl';
@@ -44,9 +44,9 @@ export const CAP = 512;
 /** Corner tolerance for the full-resolution background pass before pixelating: 40 RGB (spec §4.1). */
 export const PIXELATE_BG_TOL_PCT = (40 / 441.7) * 100;
 /** Colors kept exactly before palette reduction merges the closest pairs. */
-export const EXACT_COLOURS = 64;
+export const EXACT_COLORS = 64;
 
-/** `n` rounded and clamped to lo..hi (the pixelate `across` and `colours` settings). */
+/** `n` rounded and clamped to lo..hi (the pixelate `across` and `colors` settings). */
 export const clampInt = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(n)));
 const clamp = clampInt;
 
@@ -58,7 +58,7 @@ export function emptyReport(name: string): Report {
   return { name, palette: [], applied: [], dropped: [], size: { x: 0, y: 0, z: 0 }, pieces: 0, warnings: [], files: [], grid: { w: 0, h: 0 } };
 }
 /** Colors `inspect` lists, most frequent first. */
-const INSPECT_COLOURS = 64;
+const INSPECT_COLORS = 64;
 const MAX_NAME = 100;
 
 /** A plain sentence for the user, as opposed to an unexpected failure. `cause`, when set, becomes `Report.detail`. */
@@ -120,12 +120,12 @@ async function toReducedGrid(bytes: Uint8Array, s: Settings): Promise<{ grid: Gr
     // clear the background at full resolution first, so edge pixels don't average into a fringe
     const bg = removeBackground(img, { enabled: s.background.enabled, tolPct: PIXELATE_BG_TOL_PCT });
     if (!opaqueCount(bg.img)) throw new ConvertError('The image is empty once the background is removed.');
-    art = pixelate(bg.img, { across: clamp(s.pixelate.across, 8, 128), colours: clamp(s.pixelate.colours, 2, 16) });
+    art = pixelate(bg.img, { across: clamp(s.pixelate.across, 8, 128), colors: clamp(s.pixelate.colors, 2, 16) });
   } else {
     art = removeBackground(downsampleNearest(img, scale), s.background).img;
   }
   if (!opaqueCount(art)) throw new ConvertError('The image is empty once the background is removed.');
-  return { grid: reducePalette(toGrid(art, EXACT_COLOURS), s.colours.max), warnings };
+  return { grid: reducePalette(toGrid(art, EXACT_COLORS), s.colors.max), warnings };
 }
 
 /**
@@ -136,7 +136,7 @@ export async function exportModel(model: Model, s: Settings, name: string): Prom
   const ex = s.export;
   return ex.format === 'stl'
     ? toSTL(model, { mono: ex.mono, name })
-    : [{ name: `${name}.3mf`, bytes: await to3MF(model, { slicer: ex.slicer, mono: ex.mono, monoHex: ex.monoColour, pauseZ: model.pauseZ, name }) }];
+    : [{ name: `${name}.3mf`, bytes: await to3MF(model, { slicer: ex.slicer, mono: ex.mono, monoHex: ex.monoColor, pauseZ: model.pauseZ, name }) }];
 }
 
 /**
@@ -153,7 +153,7 @@ export async function convert(bytes: Uint8Array, preset: Preset, name: string): 
     report.warnings.push(...warnings);
 
     // color rules match the reduced palette and win over the height mode, so they go on after it
-    const { edits, applied, unmatched } = colourRuleEdits(preset.colourRules, reduced);
+    const { edits, applied, unmatched } = colorRuleEdits(preset.colorRules, reduced);
     const { grid, dropped } = applyEdits(applyHeightMode(reduced, heightModeOf(settings)), edits);
     const gone = new Set(dropped);
     edits.forEach((e, i) => (gone.has(e) ? report.dropped : report.applied).push(applied[i]!));
@@ -189,7 +189,7 @@ export interface InspectResult {
   /** The 64 most frequent colors, most frequent first. */
   palette: { hex: string; count: number }[];
   /** Distinct opaque colors in all. */
-  colourCount: number;
+  colorCount: number;
   looksLikePixelArt: boolean;
 }
 
@@ -212,8 +212,8 @@ export async function inspect(bytes: Uint8Array): Promise<InspectResult> {
     width: art.width,
     height: art.height,
     scale,
-    palette: [...counts].sort((a, b) => b[1] - a[1]).slice(0, INSPECT_COLOURS).map(([hex, count]) => ({ hex, count })),
-    colourCount: counts.size,
+    palette: [...counts].sort((a, b) => b[1] - a[1]).slice(0, INSPECT_COLORS).map(([hex, count]) => ({ hex, count })),
+    colorCount: counts.size,
     looksLikePixelArt: looksLikePixelArt(img, scale),
   };
 }

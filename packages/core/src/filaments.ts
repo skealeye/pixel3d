@@ -16,14 +16,14 @@ export function filamentSlots(hexes: readonly string[]): string[] {
  * keychain loop that has no base to join. One color is one filament.
  */
 export function filamentColors(g: Grid, s: Settings): string[] {
-  if (s.export.mono) return [s.export.monoColour.toLowerCase()];
+  if (s.export.mono) return [s.export.monoColor.toLowerCase()];
   const clicker = s.make === 'clicker';
   const used = new Set<number>();
   for (const v of g.cells) if (v >= 0) used.add(v);
   const parts: string[] = [];
-  if (clicker || s.base.enabled) parts.push(s.base.colour);
+  if (clicker || s.base.enabled) parts.push(s.base.color);
   g.palette.forEach((p, i) => { if (used.has(i)) parts.push(p.hex); });
   const loop = !clicker && !s.base.enabled && s.keychain.type === 'loop' && s.keychain.loop.outer > s.keychain.loop.inner;
-  if (loop) parts.push(s.keychain.loop.colour);
+  if (loop) parts.push(s.keychain.loop.color);
   return filamentSlots(parts);
 }

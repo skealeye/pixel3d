@@ -4,7 +4,7 @@
 export class PresetJsonError extends Error {}
 
 /** The preset used when none is given. */
-export const emptyPresetDoc = (): Record<string, unknown> => ({ version: 1, settings: {}, colourRules: [] });
+export const emptyPresetDoc = (): Record<string, unknown> => ({ version: 1, settings: {}, colorRules: [] });
 
 /** JSON.parse that throws `PresetJsonError`. */
 export function parsePresetJson(text: string): unknown {

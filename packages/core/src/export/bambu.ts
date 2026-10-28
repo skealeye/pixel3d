@@ -89,12 +89,12 @@ ${assemble.join('\n')}
   </assemble>
 </config>
 `;
-  const n = scene.colours.length, each = <T>(v: T) => Array.from({ length: n }, () => v);
+  const n = scene.colors.length, each = <T>(v: T) => Array.from({ length: n }, () => v);
   files['Metadata/project_settings.config'] = JSON.stringify({
     name: 'project_settings',
     from: 'project',
     version: VERSION,
-    filament_colour: scene.colours,
+    filament_colour: scene.colors, // external format key, spelling fixed by Bambu Studio
     filament_type: each('PLA'),
     filament_settings_id: each('Generic PLA'),
     filament_diameter: each('1.75'),

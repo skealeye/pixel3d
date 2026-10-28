@@ -1,6 +1,6 @@
 <script lang="ts">
   import { change, app, ui } from '../state.svelte';
-  import { colourAt } from '../pipeline';
+  import { colorAt } from '../pipeline';
   import { cropTo, paintCells } from '../actions.svelte';
 
   const MAX_ZOOM = 16;
@@ -121,7 +121,7 @@
     const at = cellAt(e);
     if (ui.picking && e.button === 0) {
       if (!at?.inside || !app.source || !app.meta) return;
-      const src = app.source, hex = colourAt(src, app.meta, at.g.w, at.g.h, at.i, at.j);
+      const src = app.source, hex = colorAt(src, app.meta, at.g.w, at.g.h, at.i, at.j);
       ui.picking = false;
       change(() => { app.source = { ...src, pick: hex }; app.settings.background.enabled = true; });
       return;

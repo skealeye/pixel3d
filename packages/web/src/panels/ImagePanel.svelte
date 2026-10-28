@@ -72,7 +72,7 @@
     begin: () => { before = app.grid && { edits: app.edits, w: app.grid.w, h: app.grid.h }; acrossLive.begin(); },
     set: acrossLive.set,
   };
-  const colours = live(() => s.pixelate.colours, (v) => (s.pixelate.colours = v), pixelated);
+  const colors = live(() => s.pixelate.colors, (v) => (s.pixelate.colors = v), pixelated);
 </script>
 
 <section>
@@ -109,6 +109,6 @@
   <label class="check"><input type="checkbox" id="pixelate" checked={!!meta?.pixelated} onchange={(e) => setPixelate(e.currentTarget)}> Pixelate: turn a photo or drawing into pixel art</label>
   <div id="pixRows" style:display={meta?.pixelated ? '' : 'none'}>
     <Slider id="pixW" label="Pixels across" min={8} max={128} value={s.pixelate.across} unit="px" {...across} />
-    <Slider id="pixColours" label="Colors" min={2} max={16} value={s.pixelate.colours} hold="#pal" {...colours} />
+    <Slider id="pixColors" label="Colors" min={2} max={16} value={s.pixelate.colors} hold="#pal" {...colors} />
   </div>
 </section>

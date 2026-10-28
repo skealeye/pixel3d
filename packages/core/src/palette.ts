@@ -24,8 +24,8 @@ export function nearestIndex(palette: { hex: string }[], hex: string, skip = -1)
   return best;
 }
 
-/** Exact colors by pixel count; colors beyond `maxColours` merge into the nearest kept color. Alpha 0 -> -1. */
-export function toGrid(img: Img, maxColours: number): Grid {
+/** Exact colors by pixel count; colors beyond `maxColors` merge into the nearest kept color. Alpha 0 -> -1. */
+export function toGrid(img: Img, maxColors: number): Grid {
   const { width: w, height: h, data } = img;
   const counts = new Map<string, number>();
   const hexes: (string | null)[] = new Array(w * h);
@@ -36,7 +36,7 @@ export function toGrid(img: Img, maxColours: number): Grid {
     counts.set(hex, (counts.get(hex) ?? 0) + 1);
   }
   // Map keeps first-seen order and sort is stable, so ties resolve by first appearance.
-  const kept = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, Math.max(1, maxColours)).map(([hex]) => hex);
+  const kept = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, Math.max(1, maxColors)).map(([hex]) => hex);
   const palette = kept.map((hex) => ({ hex, height: DEFAULT_HEIGHT }));
   const index = new Map(kept.map((hex, i) => [hex, i]));
   const cells = new Int16Array(w * h);

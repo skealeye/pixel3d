@@ -211,7 +211,7 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
       return a > 0;
     });
     const filled = keep(CrossSection.ofPolygons(outers, 'NonZero'));
-    const colours = g.palette.map((_, i) => region((v) => v === i));
+    const colors = g.palette.map((_, i) => region((v) => v === i));
     const spots = switchSpots(W, H, c.switches);
     const coverAt = (x: number, y: number) => keep(keep(CrossSection.square([MIN_ART, MIN_ART], true)).translate([x, y]));
     const uncovered = spots.filter(([x, y]) => keep(coverAt(x, y).subtract(filled)).area() > 1e-3).length;
@@ -220,9 +220,9 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
     const capT = capThickness(s);
     const backing = keep(filled.extrude(capT));
     const capCuts = keep(Manifold.union(spots.map(([x, y]) => capCutter(wasm, x, y, keep))));
-    const capSolids: { name: string; hex: string; m: Manifold }[] = [{ name: 'base', hex: s.base.colour, m: keep(backing.subtract(capCuts)) }];
+    const capSolids: { name: string; hex: string; m: Manifold }[] = [{ name: 'base', hex: s.base.color, m: keep(backing.subtract(capCuts)) }];
     g.palette.forEach((p, i) => {
-      const cs = colours[i];
+      const cs = colors[i];
       if (cs) capSolids.push({ name: p.hex, hex: p.hex, m: keep(keep(cs.extrude(p.height)).translate([0, 0, capT])) });
     });
 
@@ -246,7 +246,7 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
     foot = keep(CrossSection.union([foot, ...spots.map(([x, y]) => keep(rounded(wasm, guard, guard, MX.leadInR + MIN_WALL, keep).translate([x, y])))]));
     const cuts: Manifold[] = [keep(keep(keep(filled.offset(c.fitGap, 'Miter')).extrude(L.rimTop + 1 - L.wellFloor)).translate([0, 0, L.wellFloor]))];
     for (const [x, y] of spots) cuts.push(seatCutter(wasm, x, y, MX.shaft, L.shaftBottom, L.wellFloor + 0.01, keep));
-    // neighbouring switches: at 19.05 pitch the 19.0 columns (and the rounded corners of the 20.0 lead-ins) would
+    // neighboring switches: at 19.05 pitch the 19.0 columns (and the rounded corners of the 20.0 lead-ins) would
     // leave a thin fin between them, so join them with a straight slot
     for (let i = 1; i < spots.length; i++) {
       const [x0, y0] = spots[i - 1]!, [x1, y1] = spots[i]!;
@@ -265,7 +265,7 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
 
     const pieces = Math.max(countPieces(wasm, capSolids.map((x) => x.m)), countPieces(wasm, [body]));
     return toModel(
-      [{ object: 'cap', solids: capSolids }, { object: 'body', solids: [{ name: 'base', hex: s.base.colour, m: body }] }],
+      [{ object: 'cap', solids: capSolids }, { object: 'body', solids: [{ name: 'base', hex: s.base.color, m: body }] }],
       pieces,
       warningsOf(W, H, c.switches, uncovered),
       { capShift: [-dx, 0], restZ: L.capUnder, pressedZ: L.capUnder - MX.travel, rimZ: L.rimTop },
@@ -300,7 +300,7 @@ export async function fitTest(s: Settings): Promise<Model> {
     const objects: Objects = [];
     const pad = MIN_ART, capT = MX.engage + CAP_ROOF;
     const stemCoupon = keep(box(pad, pad, pad / 2, 0, 0, capT).subtract(capCutter(wasm, pad / 2, 0, keep)));
-    objects.push({ object: 'stem', solids: [{ name: 'base', hex: s.base.colour, m: stemCoupon }] });
+    objects.push({ object: 'stem', solids: [{ name: 'base', hex: s.base.color, m: stemCoupon }] });
     const side = MX.leadIn + 2 * wall;
     const top = MX.floor + MX.depth + MX.columnH + 1;
     let x0 = pad + APART;
@@ -310,7 +310,7 @@ export async function fitTest(s: Settings): Promise<Model> {
       // k + 1 notches, 1 mm wide and deep, in the top of the front wall
       for (let i = 0; i <= k; i++) cuts.push(box(1, wall + 2, cx + (i - k / 2) * 2.5, -side / 2, top - 1, top + 1));
       const m = keep(box(side, side, cx, 0, 0, top).subtract(keep(Manifold.union(cuts))));
-      objects.push({ object: `socket_${signed(d)}`, solids: [{ name: 'base', hex: s.base.colour, m }] });
+      objects.push({ object: `socket_${signed(d)}`, solids: [{ name: 'base', hex: s.base.color, m }] });
       x0 += side + APART;
     });
     return toModel(objects, 1, []);

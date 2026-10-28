@@ -1,7 +1,7 @@
 <script lang="ts">
   import { app, live, setting } from '../state.svelte';
-  import { colourInput } from './colour';
-  import Favourites from './Favourites.svelte';
+  import { colorInput } from './color';
+  import Favorites from './Favorites.svelte';
   import Slider from './Slider.svelte';
 
   /** Keychain: none, a hole (dragged on the model, viewport/handles.ts) or a loop placed by angle. */
@@ -14,9 +14,9 @@
   // the hole stays at least 2 mm smaller than the outside
   const inner = live(() => key.loop.inner, (v) => { key.loop.inner = v; if (key.loop.outer < v + 2) key.loop.outer = v + 2; });
   const outer = live(() => key.loop.outer, (v) => { key.loop.outer = v; if (key.loop.inner > v - 2) key.loop.inner = v - 2; });
-  const colour = colourInput((hex) => (key.loop.colour = hex));
+  const color = colorInput((hex) => (key.loop.color = hex));
 
-  const ownColour = $derived(!app.settings.base.enabled && !app.settings.export.mono);
+  const ownColor = $derived(!app.settings.base.enabled && !app.settings.export.mono);
   const hint = $derived(key.type === 'hole'
     ? 'Drag the gold marker on the model to move the hole. It cuts through every layer.'
     : app.settings.base.enabled ? 'The loop uses the base color.' : 'Move the slider to slide the loop around the edge.');
@@ -46,10 +46,10 @@
       <Slider id="loopAngle" label="Position" min={0} max={359} step={1} value={key.loop.angle} unit="°" format={(v) => String(Math.round(v))} {...angle} />
       <Slider id="loopIn" label="Hole" min={2} max={10} step={0.5} value={key.loop.inner} unit="mm" format={f1} {...inner} />
       <Slider id="loopOut" label="Outside" min={4} max={16} step={0.5} value={key.loop.outer} unit="mm" format={f1} {...outer} />
-      {#if ownColour}
+      {#if ownColor}
         <div id="loopColRows">
-          <div class="row"><label for="loopColor">Loop color</label><input type="color" id="loopColor" value={key.loop.colour} {...colour}></div>
-          <Favourites id="loopFavs" value={key.loop.colour} pick={(hex) => setting(() => (key.loop.colour = hex))} />
+          <div class="row"><label for="loopColor">Loop color</label><input type="color" id="loopColor" value={key.loop.color} {...color}></div>
+          <Favorites id="loopFavs" value={key.loop.color} pick={(hex) => setting(() => (key.loop.color = hex))} />
         </div>
       {/if}
     </div>

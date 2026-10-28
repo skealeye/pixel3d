@@ -87,7 +87,7 @@ export async function buildModel(g: Grid, s: Settings): Promise<Model> {
       return any ? keep(new wasm.CrossSection(traceLoops(on, g.w, g.h), 'Positive')) : null;
     };
     const outline = region((v) => v >= 0)!;
-    const colours = g.palette.map((_, i) => region((v) => v === i));
+    const colors = g.palette.map((_, i) => region((v) => v === i));
 
     // a slab of `cs` from z0 to z0 + h, in mm with the opaque box at the origin
     const slab = (cs: CrossSection, z0: number, h: number): Manifold =>
@@ -97,9 +97,9 @@ export async function buildModel(g: Grid, s: Settings): Promise<Model> {
     // one side's layers: base 0..bt, each color bt..bt + h (and, double sided, -h'..0 underneath)
     const layers = (bt: number, vary: boolean, under: false | 'vary' | 'uniform'): Solid[] => {
       const out: Solid[] = [];
-      if (s.base.enabled) out.push({ name: 'base', hex: s.base.colour, m: slab(outline, 0, bt) });
+      if (s.base.enabled) out.push({ name: 'base', hex: s.base.color, m: slab(outline, 0, bt) });
       g.palette.forEach((p, i) => {
-        const cs = colours[i];
+        const cs = colors[i];
         if (!cs) return;
         let m = slab(cs, bt, vary ? p.height : uniform);
         if (under) {

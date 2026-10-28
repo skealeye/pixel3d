@@ -18,7 +18,7 @@ const test = base.extend({
   },
 });
 
-type Settings = Record<string, unknown> & { pixelMm?: unknown; export: { format: string; slicer: string; mono: boolean; monoColour: string } };
+type Settings = Record<string, unknown> & { pixelMm?: unknown; export: { format: string; slicer: string; mono: boolean; monoColor: string } };
 interface Snap { settings: Settings; undo: number; edits: unknown[]; grid: { palette: { hex: string; height: number }[] } | null }
 interface View { shown: 'none' | 'preview' | 'model'; materials: number }
 type Hook = { snapshot(): Snap; viewport(): View };
@@ -70,7 +70,7 @@ test.describe('export', () => {
     await loadPotion(page);
     await customize(page);
     const preset = parsePreset(JSON.parse(await savePreset(page)));
-    expect(preset.colourRules).toHaveLength(1);
+    expect(preset.colorRules).toHaveLength(1);
     // On edge reached the preset, and it changes the file: a lost rotation on both sides would not pass
     expect(preset.settings.rotation).toEqual([1, 0, 0]);
     const flat = await convert(new Uint8Array(fixture('potion.png')), parsePreset({ ...preset, settings: { ...preset.settings, rotation: [0, 0, 0] } }), 'potion');
@@ -133,7 +133,7 @@ test.describe('export', () => {
     await expect(page.locator('#summary')).toHaveText(`potion.3mf, 8 filaments, ${dims}`);
     await seg(page, 'format', 'stl').click();
     await expect(page.locator('#summary')).toHaveText(`potion.stl, 8 filaments, ${dims}`);
-    await seg(page, 'colourMode', 'mono').click();
+    await seg(page, 'colorMode', 'mono').click();
     await expect(page.locator('#monoRow')).toBeVisible();
     await expect(page.locator('#summary')).toHaveText(`potion.stl, one filament, ${dims}`);
     await page.locator('#name').fill('ghost');
@@ -149,9 +149,9 @@ test.describe('export', () => {
   test('One color exports one part, in the print color, and the preview shows it', async ({ page }) => {
     await loadPotion(page);
     await page.locator('#exportBtn').click();
-    await seg(page, 'colourMode', 'mono').click();
+    await seg(page, 'colorMode', 'mono').click();
     await page.locator('#monoColor').fill('#336699');
-    expect((await snap(page)).settings.export).toMatchObject({ mono: true, monoColour: '#336699' });
+    expect((await snap(page)).settings.export).toMatchObject({ mono: true, monoColor: '#336699' });
     await expect.poll(async () => (await view(page)).materials).toBe(1);
     const files = unzipSync(await bytesOf(await exportFile(page)));
     const cfg = strFromU8(files['Metadata/model_settings.config']!);
@@ -159,7 +159,7 @@ test.describe('export', () => {
     expect(strFromU8(files['Metadata/project_settings.config']!)).toContain('#336699');
     await expect(page.locator('.toast')).toHaveText('Exported potion.3mf in one color.');
     await page.locator('#exportBtn').click();
-    await seg(page, 'colourMode', 'full').click();
+    await seg(page, 'colorMode', 'full').click();
     await expect.poll(async () => (await view(page)).materials).toBeGreaterThan(1);
   });
 
@@ -179,6 +179,7 @@ test.describe('export', () => {
     const ex = (name: string) => parts.find((p) => p.name === name)!.extruder;
     expect(parts.map((p) => p.name)).toContain('base');
     expect(ex('base')).toBe(ex(art));
+    // filament_colour: external format key, spelling fixed by Bambu Studio
     expect((JSON.parse(strFromU8(files['Metadata/project_settings.config']!)) as { filament_colour: string[] }).filament_colour).toHaveLength(7);
     await page.locator('#baseColor').fill('#123456');
     await expect(page.locator('#fcount')).toHaveText('8 filaments');
@@ -278,7 +279,7 @@ test.describe('export', () => {
   test('Add color with nothing painted leaves the filament count alone', async ({ page }) => {
     await loadPotion(page);
     await expect(page.locator('#fcount')).toHaveText('8 filaments');
-    await page.locator('#addColour').click();
+    await page.locator('#addColor').click();
     await expect.poll(async () => (await snap(page)).grid!.palette.length).toBe(8);
     await expect(page.locator('#fcount')).toHaveText('8 filaments');
     await page.locator('#exportBtn').click();
@@ -349,7 +350,7 @@ test.describe('presets and batch', () => {
     await loadPotion(page);
     const before = await snap(page);
     await page.locator('#openBatch').click();
-    await page.locator('#presetIn').setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{"version":1,"settings":{"base":{"height":99}},"colourRules":[]}') });
+    await page.locator('#presetIn').setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{"version":1,"settings":{"base":{"height":99}},"colorRules":[]}') });
     await expect(page.locator('.toast')).toContainText("Couldn't load bad.json: settings.base.height");
     expect((await snap(page)).settings).toEqual(before.settings);
   });

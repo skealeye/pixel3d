@@ -24,7 +24,7 @@ export interface ThreeMFOptions {
 }
 
 /** Bambu's 256 x 256 mm plate: the model is centered on it. */
-export const PLATE_CENTRE: [number, number] = [128, 128];
+export const PLATE_CENTER: [number, number] = [128, 128];
 const MTIME = new Date('2026-01-01T00:00:00Z');
 
 
@@ -63,7 +63,7 @@ const shift = (m: Mesh, dx: number, dy: number): Mesh => {
 async function sceneOf(model: Model, opts: ThreeMFOptions): Promise<Scene> {
   const name = opts.name ?? 'model';
   const objects = objectsOf(model, name);
-  const monoHex = opts.monoHex ?? DEFAULTS.export.monoColour;
+  const monoHex = opts.monoHex ?? DEFAULTS.export.monoColor;
   const slotList = opts.mono ? [monoHex.toLowerCase()] : filamentSlots(model.parts.map((p) => p.hex));
   const slotOf = (hex: string) => slotList.indexOf(hex.toLowerCase()) + 1;
   const raw: { name: string; parts: OutPart[] }[] = [];
@@ -73,17 +73,17 @@ async function sceneOf(model: Model, opts: ThreeMFOptions): Promise<Scene> {
       : o.parts.map((p: Part) => ({ name: p.name, hex: p.hex, slot: slotOf(p.hex), mesh: p.mesh }));
     raw.push({ name: o.name, parts });
   }
-  const colours = slotList.map((h) => h.toUpperCase());
+  const colors = slotList.map((h) => h.toUpperCase());
   const all = footprint(raw.flatMap((o) => o.parts.map((p) => p.mesh)));
   const out: OutObject[] = raw.map((o) => {
     const f = footprint(o.parts.map((p) => p.mesh));
     return {
       name: o.name,
       parts: o.parts.map((p) => ({ ...p, mesh: shift(p.mesh, f.cx, f.cy) })),
-      at: [f.cx - all.cx + PLATE_CENTRE[0], f.cy - all.cy + PLATE_CENTRE[1], 0],
+      at: [f.cx - all.cx + PLATE_CENTER[0], f.cy - all.cy + PLATE_CENTER[1], 0],
     };
   });
-  return { name, objects: out, colours, pauseZ: [...(opts.pauseZ ?? model.pauseZ)] };
+  return { name, objects: out, colors, pauseZ: [...(opts.pauseZ ?? model.pauseZ)] };
 }
 
 /**
@@ -102,7 +102,7 @@ function genericFiles(scene: Scene): Files {
     res.push(` <object id="${id}" name="${esc(o.name)}" type="model">\n  <components>\n${ids.map((i) => `   <component objectid="${i}"/>`).join('\n')}\n  </components>\n </object>`);
     items.push(` <item objectid="${id++}" transform="${translate(o.at)}"/>`);
   }
-  const mats = scene.colours.map((c, i) => `  <base name="slot ${i + 1}" displaycolor="${c}"/>`).join('\n');
+  const mats = scene.colors.map((c, i) => `  <base name="slot ${i + 1}" displaycolor="${c}"/>`).join('\n');
   return {
     '3D/3dmodel.model': `<?xml version="1.0" encoding="UTF-8"?>
 <model unit="millimeter" xml:lang="en-US" xmlns="${NS_CORE}">

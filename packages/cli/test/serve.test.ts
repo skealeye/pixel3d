@@ -11,8 +11,8 @@ import openapi from '../openapi.json';
 
 const root = join(import.meta.dirname, '..', '..', '..');
 const fixtureBytes = (n: string) => new Uint8Array(readFileSync(join(root, 'packages', 'core', 'test', 'fixtures', n)));
-const emptyPreset = { version: 1, settings: {}, colourRules: [] };
-const halvesPreset = { version: 1, settings: { sides: { mode: 'halves' }, export: { format: 'stl' } }, colourRules: [] };
+const emptyPreset = { version: 1, settings: {}, colorRules: [] };
+const halvesPreset = { version: 1, settings: { sides: { mode: 'halves' }, export: { format: 'stl' } }, colorRules: [] };
 
 const png = (n: string) => new File([fixtureBytes(n)], n, { type: 'image/png' });
 const form = (fields: Record<string, string | File | File[]>) => {
@@ -73,7 +73,7 @@ describe('px3d serve', () => {
   }, 60_000);
 
   it('a bad preset returns 400 with the field path', async () => {
-    const bad = { version: 1, settings: { base: { height: 'tall' } }, colourRules: [] };
+    const bad = { version: 1, settings: { base: { height: 'tall' } }, colorRules: [] };
     const res = await post(server.url, '/convert', form({ image: png('potion.png'), preset: JSON.stringify(bad) }));
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: string; path: string };

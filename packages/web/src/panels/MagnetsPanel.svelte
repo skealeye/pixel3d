@@ -8,7 +8,7 @@
   const lowest = $derived(app.grid?.palette.length ? Math.min(...app.grid.palette.map((p) => p.height)) : app.settings.heights.h);
   const pocket = $derived(magnetPocket(app.settings, lowest));
   const sizes = [['8x3', '8 × 3 mm'], ['6x2', '6 × 2 mm'], ['10x3', '10 × 3 mm']] as const;
-  const positions = [['bottom', 'Pocket in bottom'], ['centre', 'Sealed in center']] as const;
+  const positions = [['bottom', 'Pocket in bottom'], ['center', 'Sealed in center']] as const;
 
   function place() {
     if (!app.grid) { ui.placing = false; return; }

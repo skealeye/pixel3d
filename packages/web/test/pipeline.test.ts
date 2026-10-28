@@ -8,7 +8,7 @@ const fixture = (n: string) => new Uint8Array(readFileSync(new URL(`../../core/t
 
 /** The web app's Export for these bytes and preset settings: the app's own grid, then core's buildModel + exportModel. */
 async function appExport(bytes: Uint8Array, settings: unknown, name: string) {
-  const preset = parsePreset({ version: 1, settings, colourRules: [] });
+  const preset = parsePreset({ version: 1, settings, colorRules: [] });
   const s = presetSettings(preset);
   const img = await decodeImage(bytes);
   const src: Source = { name, img, ...describe(img), pick: null, crop: null };
@@ -33,7 +33,7 @@ group('web pipeline vs convert() (UI/batch parity)', () => {
   const cases: [string, () => Uint8Array, unknown][] = [
     ['potion', () => fixture('potion.png'), {}],
     ['gradient photo (the pixelate path)', () => fixture('gradient-photo.png'), {}],
-    ['gradient photo, 50 across, 5 colors', () => fixture('gradient-photo.png'), { pixelate: { across: 50, colours: 5 } }],
+    ['gradient photo, 50 across, 5 colors', () => fixture('gradient-photo.png'), { pixelate: { across: 50, colors: 5 } }],
     ['offset grid', () => fixture('offset-grid.png'), {}],
     ['1025 px wide 2× upscale, pixelate off (the 512 px cap edge)', () => upscaled(1025), { pixelate: { enabled: false } }],
   ];

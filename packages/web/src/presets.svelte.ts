@@ -1,4 +1,4 @@
-import { colourRuleEdits, parsePreset, presetFromState, presetSettings, type Edit, type Grid, type Preset, type Settings } from '@pixel3d/core';
+import { colorRuleEdits, parsePreset, presetFromState, presetSettings, type Edit, type Grid, type Preset, type Settings } from '@pixel3d/core';
 import { computeGrid } from './pipeline';
 import { app, change, setting, toast } from './state.svelte';
 
@@ -41,7 +41,7 @@ export function applyPresetText(text: string, fileName: string): boolean {
     app.settings = structuredClone(settings);
     if (!app.source) return;
     const r = computeGrid(app.source, settings, []);
-    const rules = 'error' in r ? [] : colourRuleEdits(preset.colourRules, r.meta.base).edits;
+    const rules = 'error' in r ? [] : colorRuleEdits(preset.colorRules, r.meta.base).edits;
     app.edits = [...rules, ...app.edits.filter(imageEdit)];
   });
   if (ok) toast(`Loaded ${fileName}`);

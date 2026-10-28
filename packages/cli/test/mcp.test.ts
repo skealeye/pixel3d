@@ -9,7 +9,7 @@ import { createMcpServer } from '../src/mcp';
 
 const root = join(import.meta.dirname, '..', '..', '..');
 const fixture = (n: string) => join(root, 'packages', 'core', 'test', 'fixtures', n);
-const emptyPreset = { version: 1, settings: {}, colourRules: [] };
+const emptyPreset = { version: 1, settings: {}, colorRules: [] };
 
 let tmp: string;
 let n = 0;
@@ -49,7 +49,7 @@ describe('px3d mcp (in-process)', () => {
     const client = await connect();
     const r = await call(client, 'inspect_image', { path: fixture('potion.png') });
     expect(r.isError).toBe(false);
-    expect(JSON.parse(r.text).colourCount).toBe(7);
+    expect(JSON.parse(r.text).colorCount).toBe(7);
   });
 
   it('inspect_image reports an undecodable or missing file plainly', async () => {
@@ -133,7 +133,7 @@ describe('px3d mcp (in-process)', () => {
     writeFileSync(join(dir, 'good.json'), JSON.stringify({
       version: 1,
       settings: { base: { height: 2 }, sides: { mode: 'halves' }, keychain: { type: 'loop' } },
-      colourRules: [
+      colorRules: [
         { match: '#ff0000', tolPct: 5, delete: true },
         { match: '#00ff00', tolPct: 5, delete: true },
         { match: '#0000ff', tolPct: 5, delete: true },

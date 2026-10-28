@@ -15,7 +15,7 @@ const settings = (patch: (s: Settings) => void): Settings => {
   return s;
 };
 const checkAll = async (m: Model) => { for (const p of m.parts) await assertManifold(p); };
-const centre = { fx: 0.5, fy: 0.5 };
+const center = { fx: 0.5, fy: 0.5 };
 
 const bounds = (parts: Part[]) => {
   const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
@@ -76,7 +76,7 @@ const PX = 40 / 12; // potion is 12 opaque pixels across
 describe('keychain hole', () => {
   for (const [style, area] of [['round', Math.PI * 2 ** 2], ['square', 4 ** 2]] as const) {
     it(`a 4 mm ${style} hole removes ${style === 'round' ? 'π·2²' : '4²'} x the stack height, and nothing moves`, async () => {
-      const m = await buildModel(potion, settings((s) => { s.keychain.type = 'hole'; s.keychain.hole = { style, size: 4, at: centre }; }));
+      const m = await buildModel(potion, settings((s) => { s.keychain.type = 'hole'; s.keychain.hole = { style, size: 4, at: center }; }));
       const lost = (await volume(plain.parts)) - (await volume(m.parts));
       expect(Math.abs(lost / (area * 3) - 1)).toBeLessThan(0.02);
       expect(bounds(m.parts)).toEqual(bounds(plain.parts));
@@ -118,7 +118,7 @@ describe('keychain hole', () => {
 
   it('cuts every part of both halves', async () => {
     const none = await buildModel(potion, settings((s) => { s.sides.mode = 'halves'; }));
-    const m = await buildModel(potion, settings((s) => { s.sides.mode = 'halves'; s.keychain.type = 'hole'; s.keychain.hole = { style: 'square', size: 4, at: centre }; }));
+    const m = await buildModel(potion, settings((s) => { s.sides.mode = 'halves'; s.keychain.type = 'hole'; s.keychain.hole = { style: 'square', size: 4, at: center }; }));
     for (const o of ['front', 'back'] as const) {
       const lost = (await volume(none.parts.filter((p) => p.object === o))) - (await volume(m.parts.filter((p) => p.object === o)));
       expect(lost).toBeCloseTo(16 * 2, 1); // half base 1 + color 1
@@ -128,17 +128,17 @@ describe('keychain hole', () => {
 
   it('review focus 2: a 10 mm hole that splits a thin sprite gives pieces >= 2', async () => {
     const bar = art(['0000000000']); // 4 mm pixels: a 40 x 4 mm bar
-    const m = await buildModel(bar, settings((s) => { s.keychain.type = 'hole'; s.keychain.hole = { style: 'round', size: 10, at: centre }; }));
+    const m = await buildModel(bar, settings((s) => { s.keychain.type = 'hole'; s.keychain.hole = { style: 'round', size: 10, at: center }; }));
     expect(m.pieces).toBeGreaterThanOrEqual(2);
     await checkAll(m);
   });
 
   it('review focus 2: a magnet overlapping the hole stays manifold', async () => {
-    for (const position of ['bottom', 'centre'] as const) {
+    for (const position of ['bottom', 'center'] as const) {
       const m = await buildModel(potion, settings((s) => {
         s.base.height = 5;
         s.keychain.type = 'hole';
-        s.keychain.hole = { style: 'round', size: 6, at: centre };
+        s.keychain.hole = { style: 'round', size: 6, at: center };
         s.magnets = { size: '8x3', position, at: [{ fx: 0.6, fy: 0.55 }] };
       }));
       expect(m.pieces).toBe(1);
@@ -157,7 +157,7 @@ describe('piece count after cuts', () => {
       const m = await buildModel(g, settings((s) => {
         s.size.width = 36;
         s.sides.mode = mode;
-        s.magnets = { size: '10x3', position: 'bottom', at: [centre] };
+        s.magnets = { size: '10x3', position: 'bottom', at: [center] };
       }));
       expect(m.pieces).toBeGreaterThanOrEqual(2);
       await checkAll(m);
@@ -232,7 +232,7 @@ describe('keychain loop', () => {
     const m = await buildModel(g, settings((s) => {
       s.base.enabled = false;
       s.keychain.type = 'loop';
-      s.keychain.loop = { style: 'round', inner: 4, outer: 8, angle: 0, colour: '#ff8800' };
+      s.keychain.loop = { style: 'round', inner: 4, outer: 8, angle: 0, color: '#ff8800' };
     }));
     const loop = m.parts.find((p) => p.name === 'loop')!;
     expect(loop.hex).toBe('#ff8800');
@@ -257,7 +257,7 @@ describe('keychain loop', () => {
 });
 
 describe('magnets', () => {
-  const magnet = (patch: (s: Settings) => void = () => {}) => settings((s) => { s.magnets = { size: '8x3', position: 'bottom', at: [centre] }; patch(s); });
+  const magnet = (patch: (s: Settings) => void = () => {}) => settings((s) => { s.magnets = { size: '8x3', position: 'bottom', at: [center] }; patch(s); });
 
   it('an 8x3 bottom pocket opens at z = 0; a 2 mm base carries the warning', async () => {
     const m = await buildModel(potion, magnet());
@@ -280,7 +280,7 @@ describe('magnets', () => {
 
   it('sealed in the center of a 5 mm base: closed on the bed, pause at the top of the pocket', async () => {
     const none = await buildModel(potion, settings((s) => { s.base.height = 5; }));
-    const m = await buildModel(potion, magnet((s) => { s.base.height = 5; s.magnets.position = 'centre'; }));
+    const m = await buildModel(potion, magnet((s) => { s.base.height = 5; s.magnets.position = 'center'; }));
     expect(m.warnings).toEqual([]);
     expect(areaAt(m.parts)).toBeCloseTo(areaAt(none.parts), 3);
     expect(m.pauseZ).toEqual([4]);
@@ -289,12 +289,12 @@ describe('magnets', () => {
   });
 
   it('sealed on a thin base warns with the sealed allowance (h + 1.2)', async () => {
-    const m = await buildModel(potion, magnet((s) => { s.magnets.size = { d: 6, h: 2 }; s.magnets.position = 'centre'; }));
+    const m = await buildModel(potion, magnet((s) => { s.magnets.size = { d: 6, h: 2 }; s.magnets.position = 'center'; }));
     expect(m.warnings).toEqual(['A 6 × 2 mm magnet needs about 3.2 mm here. Make the base thicker or pick a smaller magnet.']);
   });
 
   it('a sealed pocket clamped onto the bed (base thinner than the magnet) is open: no pause', async () => {
-    const m = await buildModel(potion, magnet((s) => { s.magnets.position = 'centre'; })); // 2 mm base, 3 mm magnet
+    const m = await buildModel(potion, magnet((s) => { s.magnets.position = 'center'; })); // 2 mm base, 3 mm magnet
     expect(m.pauseZ).toEqual([]);
     expect(m.warnings).toHaveLength(1);
   });
@@ -375,7 +375,7 @@ describe('inside', () => {
       s.base.height = 4;
       s.inside = { mode: 'shell', wall: 1.2 };
       s.keychain.type = 'hole';
-      s.keychain.hole = { style: 'round', size: 6, at: centre };
+      s.keychain.hole = { style: 'round', size: 6, at: center };
     }));
     expect(m.pieces).toBe(1);
     for (const p of m.parts) await assertManifold(p);

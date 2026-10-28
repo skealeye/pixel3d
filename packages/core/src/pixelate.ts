@@ -1,6 +1,6 @@
 import type { Img } from './image';
 
-export interface PixelateOptions { across: number; colours: number; seed?: number }
+export interface PixelateOptions { across: number; colors: number; seed?: number }
 
 export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -69,7 +69,7 @@ function kmeans(px: Float64Array, n: number, k: number, seed: number): { cent: n
 }
 
 /**
- * Shrinks to `across` pixels wide (never larger than the source, aspect kept) by area averaging, then snaps to `colours` k-means colors.
+ * Shrinks to `across` pixels wide (never larger than the source, aspect kept) by area averaging, then snaps to `colors` k-means colors.
  * Remove the background at full resolution first (removeBackground) so edge pixels do not average into a pale fringe.
  */
 export function pixelate(img: Img, opts: PixelateOptions): Img {
@@ -82,7 +82,7 @@ export function pixelate(img: Img, opts: PixelateOptions): Img {
   if (!idx.length) return out;
   const px = new Float64Array(idx.length * 3);
   idx.forEach((o, i) => { px[i * 3] = rgb[o * 3]!; px[i * 3 + 1] = rgb[o * 3 + 1]!; px[i * 3 + 2] = rgb[o * 3 + 2]!; });
-  const { cent, lab } = kmeans(px, idx.length, Math.max(1, Math.min(Math.round(opts.colours), idx.length)), opts.seed ?? 7);
+  const { cent, lab } = kmeans(px, idx.length, Math.max(1, Math.min(Math.round(opts.colors), idx.length)), opts.seed ?? 7);
   idx.forEach((o, i) => {
     const c = cent[lab[i]!]!;
     out.data.set([Math.round(c[0]!), Math.round(c[1]!), Math.round(c[2]!), 255], o * 4);

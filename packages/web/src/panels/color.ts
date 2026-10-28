@@ -5,7 +5,7 @@ import { setting } from '../state.svelte';
  * session (the picker sends input events while it is dragged) updates it in place. A model color never changes
  * the grid, so the in-place updates need no pipeline run.
  */
-export function colourInput(put: (hex: string) => void) {
+export function colorInput(put: (hex: string) => void) {
   let open = false;
   return {
     oninput: (e: Event & { currentTarget: HTMLInputElement }) => {

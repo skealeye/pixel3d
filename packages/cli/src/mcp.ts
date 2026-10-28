@@ -24,7 +24,7 @@ const guarded = async (fn: () => Promise<ToolResult>): Promise<ToolResult> => {
 };
 
 const presetShape = {
-  preset: z.record(z.string(), z.unknown()).optional().describe('Inline preset object: {version: 1, settings: {...}, colourRules: [...]}. settings and colourRules may be left out (defaults); colorRules is accepted for colourRules. Give this or presetPath, not both.'),
+  preset: z.record(z.string(), z.unknown()).optional().describe('Inline preset object: {version: 1, settings: {...}, colorRules: [...]}. settings and colorRules may be left out (defaults). Give this or presetPath, not both.'),
   presetPath: z.string().optional().describe('Path to a preset JSON file. Give this or preset, not both.'),
   out: z.string().describe('Output folder for the models and report.json. Created if missing.'),
   format: z.enum(['stl', '3mf']).optional().describe('Overrides the preset export format.'),
@@ -44,7 +44,7 @@ export function presetSummary(p: Preset): string {
   const s = presetSettings(p);
   const parts = [s.base.enabled ? `base ${s.base.height} mm` : 'no base', s.sides.mode];
   if (s.keychain.type !== 'none') parts.push(s.keychain.type);
-  const n = p.colourRules.length;
+  const n = p.colorRules.length;
   if (n) parts.push(`${n} color ${n === 1 ? 'rule' : 'rules'}`);
   return parts.join(', ');
 }

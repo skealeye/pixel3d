@@ -4,14 +4,14 @@
   import { baseName } from '../presets.svelte';
   import { downloadFiles, failNextExport, runExport } from '../export/exporter';
   import { register } from '../hook';
-  import { colourInput } from './colour';
+  import { colorInput } from './color';
 
   /** The Export panel (mockup v0.1.9): All colors / One color, format, slicer, file name and a summary line (spec §4.8). */
   const ex = $derived(app.settings.export);
   const open = $derived(ui.popover === 'export');
   const SLICERS: [Slicer, string][] = [['bambu', 'Bambu Studio'], ['orca', 'OrcaSlicer'], ['prusa', 'PrusaSlicer'], ['generic', 'Other']];
   const slicerLabel = $derived(SLICERS.find(([v]) => v === ex.slicer)![1]);
-  const monoColour = colourInput((hex) => (app.settings.export.monoColour = hex));
+  const monoColor = colorInput((hex) => (app.settings.export.monoColor = hex));
   let busy = $state(false);
   $effect(() => register({ failNextExport }));
 
@@ -69,12 +69,12 @@
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div id="exportPop" class:open onclick={(e) => e.stopPropagation()}>
     <h2>Export</h2>
-    <div class="seg" data-key="colourMode">
+    <div class="seg" data-key="colorMode">
       <button data-v="full" class:on={!ex.mono} onclick={() => ex.mono && set(() => (app.settings.export.mono = false))}>All colors</button>
       <button data-v="mono" class:on={ex.mono} onclick={() => !ex.mono && set(() => (app.settings.export.mono = true))}>One color</button>
     </div>
     {#if ex.mono}
-      <div class="row" id="monoRow"><label for="monoColor">Print color</label><input type="color" id="monoColor" value={ex.monoColour} {...monoColour}></div>
+      <div class="row" id="monoRow"><label for="monoColor">Print color</label><input type="color" id="monoColor" value={ex.monoColor} {...monoColor}></div>
     {/if}
     <div class="seg" data-key="format">
       <button data-v="3mf" class:on={ex.format === '3mf'} onclick={() => ex.format !== '3mf' && set(() => (app.settings.export.format = '3mf'))}>3MF</button>

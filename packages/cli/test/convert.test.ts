@@ -54,21 +54,21 @@ describe('px3d convert', () => {
     const r = run(['convert', fixture('potion.png'), '--out', out]);
     expect(r.status).toBe(0);
     expect(r.stderr).not.toMatch(/✗/);
-    const direct = await convert(new Uint8Array(readFileSync(fixture('potion.png'))), parsePreset({ version: 1, settings: {}, colourRules: [] }), 'potion');
+    const direct = await convert(new Uint8Array(readFileSync(fixture('potion.png'))), parsePreset({ version: 1, settings: {}, colorRules: [] }), 'potion');
     expect(direct.files.length).toBe(1);
     expect(readFileSync(join(out, 'potion.3mf')).equals(direct.files[0]!.bytes)).toBe(true);
   }, 120_000);
 
   it('--set overrides the preset; --format overrides the format; the out dir is created', async () => {
     const p = join(fresh('p'), 'p.json');
-    writeFileSync(p, JSON.stringify({ version: 1, settings: { base: { height: 1 } }, colourRules: [] }));
+    writeFileSync(p, JSON.stringify({ version: 1, settings: { base: { height: 1 } }, colorRules: [] }));
     const out = join(fresh('o'), 'new', 'deeper');
     const r = run(['convert', fixture('potion.png'), '--preset', p, '--set', 'base.height=3', '--set', 'export.mono=true', '--set', 'sides.mode=halves', '--format', 'stl', '--out', out]);
     expect(r.status).toBe(0);
     const files = readdirSync(out).filter((f) => f.endsWith('.stl'));
     expect(files.length).toBeGreaterThan(0);
     const direct = await convert(new Uint8Array(readFileSync(fixture('potion.png'))),
-      parsePreset({ version: 1, settings: { base: { height: 3 }, sides: { mode: 'halves' }, export: { format: 'stl', mono: true } }, colourRules: [] }), 'potion');
+      parsePreset({ version: 1, settings: { base: { height: 3 }, sides: { mode: 'halves' }, export: { format: 'stl', mono: true } }, colorRules: [] }), 'potion');
     expect(files.sort()).toEqual(direct.files.map((f) => f.name).sort());
     expect(files).toEqual(expect.arrayContaining(['potion_front.stl', 'potion_back.stl']));
     for (const f of direct.files) expect(readFileSync(join(out, f.name)).equals(f.bytes), f.name).toBe(true);
@@ -132,7 +132,7 @@ describe('px3d convert', () => {
 
   it('warns about a color rule that matched no color', () => {
     const p = join(fresh('p'), 'p.json');
-    writeFileSync(p, JSON.stringify({ version: 1, settings: {}, colourRules: [{ match: '#00ff01', tolPct: 0, height: 3 }] }));
+    writeFileSync(p, JSON.stringify({ version: 1, settings: {}, colorRules: [{ match: '#00ff01', tolPct: 0, height: 3 }] }));
     const out = fresh('out');
     const r = run(['convert', fixture('potion.png'), '--preset', p, '--out', out]);
     expect(r.status).toBe(0);
@@ -145,7 +145,7 @@ describe('px3d convert', () => {
 
     it('an invalid preset names the field', () => {
       const p = join(fresh('p'), 'p.json');
-      writeFileSync(p, JSON.stringify({ version: 1, settings: { base: { height: 'tall' } }, colourRules: [] }));
+      writeFileSync(p, JSON.stringify({ version: 1, settings: { base: { height: 'tall' } }, colorRules: [] }));
       const out = join(fresh('o'), 'out');
       const r = run(['convert', fixture('potion.png'), '--preset', p, '--out', out]);
       expect(r.status).toBe(2);

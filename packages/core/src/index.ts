@@ -22,8 +22,8 @@ export const VERSION: string = pkg.version;
 
 export { DEFAULTS, settingsSchema, heightModeOf } from './settings';
 export type { Settings, Anchor } from './settings';
-export { parsePreset, presetSettings, colourRuleEdits, placeRelative, presetFromState, PresetError } from './preset';
-export type { Preset, ColourRule } from './preset';
+export { parsePreset, presetSettings, colorRuleEdits, placeRelative, presetFromState, PresetError } from './preset';
+export type { Preset, ColorRule } from './preset';
 export { buildModel, opaqueBox, pixelSize } from './mesh';
 export { filamentColors, filamentSlots } from './filaments';
 export type { Model, Part } from './mesh';
@@ -35,5 +35,5 @@ export { toSTL } from './export/stl';
 export { to3MF } from './export/threemf';
 export type { ThreeMFOptions, Slicer } from './export/threemf';
 export type { ManifoldToplevel } from './manifold';
-export { convert, exportModel, inspect, safeName, emptyReport, overCap, clampInt, CAP, PIXELATE_BG_TOL_PCT, EXACT_COLOURS, ConvertError } from './convert';
+export { convert, exportModel, inspect, safeName, emptyReport, overCap, clampInt, CAP, PIXELATE_BG_TOL_PCT, EXACT_COLORS, ConvertError } from './convert';
 export type { Report, ConvertResult, InspectResult } from './convert';

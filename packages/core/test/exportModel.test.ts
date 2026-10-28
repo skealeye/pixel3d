@@ -10,20 +10,20 @@ async function gridOf(p: Preset) {
   const s = presetSettings(p);
   const img = await decodeImage(potion);
   const art = removeBackground(downsampleNearest(img, detectScale(img)), s.background).img;
-  return applyHeightMode(reducePalette(toGrid(art, 64), s.colours.max), heightModeOf(s));
+  return applyHeightMode(reducePalette(toGrid(art, 64), s.colors.max), heightModeOf(s));
 }
 
 describe('exportModel (the web Export path)', () => {
   const cases: [string, unknown][] = [
     ['bambu 3MF, rotated', { rotation: [1, 0, 0], base: { height: 3 } }],
-    ['prusa 3MF, one color', { export: { slicer: 'prusa', mono: true, monoColour: '#112233' } }],
+    ['prusa 3MF, one color', { export: { slicer: 'prusa', mono: true, monoColor: '#112233' } }],
     ['STL halves', { sides: { mode: 'halves' }, export: { format: 'stl' } }],
     ['clicker 3MF', { make: 'clicker' }],
     ['clicker STL', { make: 'clicker', export: { format: 'stl' } }],
   ];
   for (const [label, settings] of cases) {
     it(`gives convert()'s files byte for byte: ${label}`, async () => {
-      const preset = parsePreset({ version: 1, settings, colourRules: [] });
+      const preset = parsePreset({ version: 1, settings, colorRules: [] });
       const ref = await convert(potion, preset, 'potion');
       expect(ref.report.error).toBeUndefined();
       const s = presetSettings(preset);
@@ -34,7 +34,7 @@ describe('exportModel (the web Export path)', () => {
   }
 
   it('is deterministic: two runs give the same bytes', async () => {
-    const preset = parsePreset({ version: 1, settings: {}, colourRules: [] });
+    const preset = parsePreset({ version: 1, settings: {}, colorRules: [] });
     const [a, b] = [await convert(potion, preset, 'potion'), await convert(potion, preset, 'potion')];
     expect(Buffer.from(a.files[0]!.bytes).equals(Buffer.from(b.files[0]!.bytes))).toBe(true);
   }, 60_000);

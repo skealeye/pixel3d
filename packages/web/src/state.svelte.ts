@@ -45,7 +45,7 @@ export const ui = $state({
   clkView: 'assembled' as 'assembled' | 'apart',
   /** Cut view switches on by itself only the first time Shell or Hollow is picked (spec §4.5). */
   cutAuto: false,
-  grid: { on: true, colour: '#8a7446', opacity: 0.7 },
+  grid: { on: true, color: '#8a7446', opacity: 0.7 },
   /** Image panel width, px. */
   left: 330,
   wide: false,
@@ -147,7 +147,7 @@ export function recompute(notify = true): string | null {
 }
 
 /** The settings `computeGrid` reads. */
-const gridKey = (s: Settings) => JSON.stringify([s.background, s.pixelate, s.colours, s.heights]);
+const gridKey = (s: Settings) => JSON.stringify([s.background, s.pixelate, s.colors, s.heights]);
 /** What the last pipeline run was made from, and the grid it gave. */
 let last: { src: Source; edits: Edit[]; picking: boolean; key: string; grid: Grid; bg: string; art: Grid | null } | null = null;
 /** What decides which pixels are background. */

@@ -44,7 +44,7 @@ function axis(d: Uint8ClampedArray, len: number, step: number, lines: number, st
   return { s, o };
 }
 
-/** Detect an integer nearest-neighbour upscale per axis, plus the grid offset left by a crop. */
+/** Detect an integer nearest-neighbor upscale per axis, plus the grid offset left by a crop. */
 export function detectScale(img: Img): Scale {
   const { width: w, height: h, data } = img;
   const x = axis(data, w, 4, h, w * 4);

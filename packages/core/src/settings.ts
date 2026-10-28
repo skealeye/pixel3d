@@ -30,9 +30,9 @@ export const settingsSchema = z.object({
   pixelate: z.object({
     enabled: z.union([z.boolean(), z.literal('auto')]),
     across: z.number().int().min(8).max(128),
-    colours: z.number().int().min(2).max(16),
+    colors: z.number().int().min(2).max(16),
   }).strict(),
-  colours: z.object({ max: z.number().int().min(2).max(16) }).strict(),
+  colors: z.object({ max: z.number().int().min(2).max(16) }).strict(),
   heights: z.object({
     mode: z.enum(['uniform', 'random', 'brightness']),
     /** Default pixel height; used by `uniform`. */
@@ -42,7 +42,7 @@ export const settingsSchema = z.object({
     seed: z.number().int(),
     darkHigh: z.boolean(),
   }).strict(),
-  base: z.object({ enabled: z.boolean(), height, colour: hexSchema }).strict(),
+  base: z.object({ enabled: z.boolean(), height, color: hexSchema }).strict(),
   inside: z.object({ mode: z.enum(['solid', 'shell', 'hollow']), wall: mm(0.8, 5) }).strict(),
   sides: z.object({
     mode: z.enum(['single', 'solid', 'halves']),
@@ -56,7 +56,7 @@ export const settingsSchema = z.object({
       inner: z.number().positive(),
       outer: z.number().positive(),
       angle: mm(0, 359),
-      colour: hexSchema,
+      color: hexSchema,
     }).strict(),
   }).strict(),
   magnets: z.object({
@@ -64,7 +64,7 @@ export const settingsSchema = z.object({
       z.enum(['8x3', '6x2', '10x3']),
       z.object({ d: z.number().positive(), h: z.number().positive() }).strict(),
     ]),
-    position: z.enum(['bottom', 'centre']),
+    position: z.enum(['bottom', 'center']),
     at: z.array(anchorSchema),
   }).strict(),
   /** Export orientation in quarter turns about X, Y, Z. */
@@ -74,7 +74,7 @@ export const settingsSchema = z.object({
     slicer: z.enum(['bambu', 'orca', 'prusa', 'generic']),
     /** Export as one color (all height steps kept). */
     mono: z.boolean(),
-    monoColour: hexSchema,
+    monoColor: hexSchema,
   }).strict(),
   make: z.enum(['model', 'clicker']),
   clicker: z.object({
@@ -93,20 +93,20 @@ export type Settings = z.output<typeof settingsSchema>;
 export const DEFAULTS: Settings = {
   size: { width: 40, height: 40, keepAspect: true, unit: 'mm' },
   background: { enabled: true, tolPct: 10 },
-  pixelate: { enabled: 'auto', across: 32, colours: 8 },
-  colours: { max: 16 },
+  pixelate: { enabled: 'auto', across: 32, colors: 8 },
+  colors: { max: 16 },
   heights: { mode: 'uniform', h: 1, min: 1, max: 4, seed: 42, darkHigh: true },
-  base: { enabled: true, height: 2, colour: '#2a2d33' },
+  base: { enabled: true, height: 2, color: '#2a2d33' },
   inside: { mode: 'solid', wall: 1.2 },
   sides: { mode: 'single', heightsOn: 'both' },
   keychain: {
     type: 'none',
     hole: { style: 'round', size: 4, at: 'top-center' },
-    loop: { style: 'round', inner: 4, outer: 8, angle: 0, colour: '#2a2d33' },
+    loop: { style: 'round', inner: 4, outer: 8, angle: 0, color: '#2a2d33' },
   },
   magnets: { size: '8x3', position: 'bottom', at: [] },
   rotation: [0, 0, 0],
-  export: { format: '3mf', slicer: 'bambu', mono: false, monoColour: '#e8e4d8' },
+  export: { format: '3mf', slicer: 'bambu', mono: false, monoColor: '#e8e4d8' },
   make: 'model',
   clicker: { shape: 'outline', border: 3, capHeight: 2, fitGap: 0.5, switches: 1 },
 };

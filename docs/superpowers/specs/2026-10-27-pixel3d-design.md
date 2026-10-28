@@ -6,7 +6,7 @@ Date: 2026-10-27 · Status: approved 2026-10-28 (keycap clicker §4.6b has open 
 
 Turn pixel art images into 3D-printable models quickly, either one at a time in a polished app or in batches without a UI, driven by Python or Claude.
 
-UI copy uses US spelling (R28).
+US spelling throughout, including code and preset keys (R28).
 
 The reference is https://oct0f1sh.github.io/PixelArtTo3D/ (source: github.com/oct0f1sh/PixelArtTo3D). The user likes almost all of it. pixel3d keeps its feature set, fixes its bugs, and adds what it lacks:
 
@@ -220,7 +220,7 @@ A fidget clicker in the style of the Vostok Labs Clicker Generator (user's refer
 - **General rules** apply to any image: color count, background removal, size, base, two-sided mode, which side the color heights apply to, keychain (type, style, sizes), magnets, height mode with its min, max and seed, rotation, export format, and single-color on or off.
 - **Color rules** apply only when an image contains that color:
   - match by hex with a tolerance;
-  - then `height`, `recolour`, or `delete`.
+  - then `height`, `recolor`, or `delete`.
 - Color rules override general rules.
 - Placement of the keychain and magnets in presets is relative: `top-center`, `top-left`, or x,y as fractions of the bounding box. The engine snaps that position to the nearest valid outline or interior point.
 

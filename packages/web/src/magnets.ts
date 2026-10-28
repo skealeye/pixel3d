@@ -11,7 +11,7 @@ export function magnetPocket(s: Settings, lowest: number) {
   const { d, h } = magnetSize(s);
   const bt = s.base.enabled ? s.base.height : 0;
   const mode = s.sides.mode;
-  const sealed = mode === 'solid' || (mode === 'single' && s.magnets.position === 'centre');
+  const sealed = mode === 'solid' || (mode === 'single' && s.magnets.position === 'center');
   const under = s.sides.heightsOn === 'both' ? lowest : s.heights.h;
   let below: number | null = null, above: number;
   if (mode === 'solid') {

@@ -48,7 +48,7 @@ async function loadClicker(page: Page) {
   await expect.poll(async () => (await clicker(page))?.view ?? null).toBe('assembled');
 }
 
-const centre = (b: Box): [number, number] => [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2];
+const center = (b: Box): [number, number] => [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2];
 
 test.describe('keycap clicker', () => {
   test('Make: Flat model / Clicker is the first control in the right panel', async ({ page }) => {
@@ -123,7 +123,7 @@ test.describe('keycap clicker', () => {
     await expect(page.locator('#dims')).toContainText('assembled, switch at rest');
     let c = (await clicker(page))!;
     // the cap sits over the body, lifted onto the switch, with a see-through stand-in switch
-    const [cx, cy] = centre(c.cap), [bx, by] = centre(c.body);
+    const [cx, cy] = center(c.cap), [bx, by] = center(c.body);
     expect(Math.abs(cx - bx)).toBeLessThan(0.01);
     expect(Math.abs(cy - by)).toBeLessThan(0.01);
     expect(c.cap.min[2]).toBeCloseTo(c.rest, 3);

@@ -18,7 +18,7 @@ const test = base.extend({
 type Edit = { kind: string; [k: string]: unknown };
 interface Snap {
   grid: { w: number; h: number; opaque: number; palette: { hex: string; height: number }[] } | null;
-  settings: { size: { width: number; height: number }; pixelMm?: { x: number; y: number }; colours: { max: number };
+  settings: { size: { width: number; height: number }; pixelMm?: { x: number; y: number }; colors: { max: number };
     heights: { mode: string; h: number; min: number; max: number; seed: number } };
   edits: Edit[]; undo: number;
 }
@@ -116,8 +116,8 @@ test.describe('colors and heights', () => {
     expect(await hexes(page)).toContain('#123456');
     expect(await hexes(page)).not.toContain('#9c6b3e');
     expect((await snap(page)).edits).toEqual([
-      { kind: 'recolour', from: '#4e2f9e', to: '#7a4fd6' },
-      { kind: 'recolour', from: '#9c6b3e', to: '#123456' },
+      { kind: 'recolor', from: '#4e2f9e', to: '#7a4fd6' },
+      { kind: 'recolor', from: '#9c6b3e', to: '#123456' },
     ]);
     await page.keyboard.press('Control+z');
     await page.keyboard.press('Control+z');
@@ -130,7 +130,7 @@ test.describe('colors and heights', () => {
     await expect(page.locator('.toast')).toHaveText('Color deleted. Its pixels now use the nearest color.');
     expect(await hexes(page)).toEqual(POTION.slice(0, 6));
     expect(await opaque(page)).toBe(CELLS);
-    await page.locator('#addColour').click();
+    await page.locator('#addColor').click();
     expect(await hexes(page)).toContain('#e0715c');
     await expect(row(page, '#e0715c')).toHaveClass(/\bsel\b/);
     await expect(tool(page, 'paint')).toHaveClass(/\bon\b/);
@@ -432,7 +432,7 @@ test.describe('colors and heights', () => {
     await expect.poll(async () => (await view(page)).highlight).toEqual({ hex: '#7a4fd6', lit: 1, dim: 7 });
   });
 
-  for (const [label, id, open] of [['Colors', 'colMax', null], ['pixelate Colors', 'pixColours', 'pixelate']] as const) {
+  for (const [label, id, open] of [['Colors', 'colMax', null], ['pixelate Colors', 'pixColors', 'pixelate']] as const) {
     test(`dragging the ${label} slider keeps it under the pointer while the palette list shrinks and grows`, async ({ page }) => {
       await page.setViewportSize({ width: 1400, height: 600 });
       await loadPotion(page);

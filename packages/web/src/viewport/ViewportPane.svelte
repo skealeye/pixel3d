@@ -156,13 +156,13 @@
   });
 
   $effect(() => { vp?.setCut(ui.cut); });
-  $effect(() => { const ex = app.settings.export; vp?.setMono(ex.mono ? ex.monoColour : null); });
+  $effect(() => { const ex = app.settings.export; vp?.setMono(ex.mono ? ex.monoColor : null); });
   // R26: in Select mode the selected color shows on the model, the rest dimmed
   $effect(() => {
     const sel = ui.sel, on = ui.tool === 'select' && !!sel && !!app.grid?.palette.some((p) => p.hex === sel);
     vp?.setHighlight(on ? sel : null);
   });
-  $effect(() => { vp?.setGrid({ on: ui.grid.on, colour: ui.grid.colour, opacity: ui.grid.opacity, step: gridStep(unit) }); });
+  $effect(() => { vp?.setGrid({ on: ui.grid.on, color: ui.grid.color, opacity: ui.grid.opacity, step: gridStep(unit) }); });
   $effect(() => {
     const r = app.settings.rotation, clicker = app.settings.make === 'clicker';
     if (!vp) return;
@@ -256,7 +256,7 @@
       <button class="btn" id="gridBtn" class:on={ui.popover === 'grid'} onclick={() => (ui.popover = ui.popover === 'grid' ? null : 'grid')}>Grid</button>
       <div class="pop" id="gridPop" class:open={ui.popover === 'grid'}>
         <label class="check"><input type="checkbox" id="gridOn" bind:checked={ui.grid.on}> Show grid</label>
-        <div class="sl"><label for="gridColor">Color</label><input type="color" id="gridColor" bind:value={ui.grid.colour} style="width:100%"><span></span></div>
+        <div class="sl"><label for="gridColor">Color</label><input type="color" id="gridColor" bind:value={ui.grid.color} style="width:100%"><span></span></div>
         <div class="sl"><label for="gridOpacity">Opacity</label><input type="range" id="gridOpacity" min="0" max="100"
           value={Math.round(ui.grid.opacity * 100)} oninput={(e) => (ui.grid.opacity = +e.currentTarget.value / 100)}><span class="unit" id="gridOpacityV">{Math.round(ui.grid.opacity * 100)}%</span></div>
       </div>

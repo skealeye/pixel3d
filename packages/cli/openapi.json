@@ -28,7 +28,7 @@
                 "required": ["image"],
                 "properties": {
                   "image": { "type": "string", "format": "binary", "description": "PNG, JPEG, GIF or WebP." },
-                  "preset": { "description": "Preset JSON as a string, or a file containing it: {version: 1, settings?, colourRules?} (colorRules is accepted for colourRules). Defaults are used when omitted.", "oneOf": [{ "type": "string" }, { "type": "string", "format": "binary" }] }
+                  "preset": { "description": "Preset JSON as a string, or a file containing it: {version: 1, settings?, colorRules?}. Defaults are used when omitted.", "oneOf": [{ "type": "string" }, { "type": "string", "format": "binary" }] }
                 }
               }
             }
@@ -67,7 +67,7 @@
                 "required": ["images"],
                 "properties": {
                   "images": { "type": "array", "items": { "type": "string", "format": "binary" }, "description": "Repeat the field once per image." },
-                  "preset": { "description": "Preset JSON as a string, or a file containing it: {version: 1, settings?, colourRules?} (colorRules is accepted for colourRules). Defaults are used when omitted.", "oneOf": [{ "type": "string" }, { "type": "string", "format": "binary" }] }
+                  "preset": { "description": "Preset JSON as a string, or a file containing it: {version: 1, settings?, colorRules?}. Defaults are used when omitted.", "oneOf": [{ "type": "string" }, { "type": "string", "format": "binary" }] }
                 }
               }
             }

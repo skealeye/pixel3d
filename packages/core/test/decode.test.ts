@@ -95,7 +95,7 @@ describe('decodeImage size cap (8192 px a side, 40 MP)', () => {
 
   it('refuses a header-level oversize as a ConvertError sentence in convert()', async () => {
     const { convert } = await import('../src/index');
-    const { report } = await convert(pngHeader(20000, 20000), { version: 1, settings: {}, colourRules: [] } as never, 'big');
+    const { report } = await convert(pngHeader(20000, 20000), { version: 1, settings: {}, colorRules: [] } as never, 'big');
     expect(report.error).toMatch(/^The image is too large \(20000 × 20000 px\)/);
   });
 

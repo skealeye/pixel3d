@@ -18,22 +18,22 @@ export function setHeight(hex: string, h: number, push: boolean) {
   if (last?.kind === 'height' && last.hex === hex) app.edits = [...before.slice(0, -1), app.edits.at(-1)!];
 }
 
-export function recolour(from: string, to: string) {
+export function recolor(from: string, to: string) {
   to = to.toLowerCase();
   if (from === to || !app.grid) return;
   const merge = app.grid.palette.some((p) => p.hex === to);
-  if (!addEdits([{ kind: 'recolour', from, to }])) return;
+  if (!addEdits([{ kind: 'recolor', from, to }])) return;
   if (ui.sel === from) ui.sel = to;
   if (merge) toast('Merged into the matching color.');
 }
 
-export function deleteColour(hex: string) {
+export function deleteColor(hex: string) {
   if ((app.grid?.palette.length ?? 0) < 2) return;
   if (addEdits([{ kind: 'delete', hex }])) toast('Color deleted. Its pixels now use the nearest color.');
 }
 
 /** The mockup's new color, at the current pixel height; then paint with it. */
-export function addColour() {
+export function addColor() {
   const hex = '#e0715c', h = app.settings.heights.h;
   if (!app.grid?.palette.some((p) => p.hex === hex)) {
     const edits: Edit[] = [{ kind: 'add', hex }];
@@ -69,11 +69,11 @@ export function removeStrays() {
 }
 
 /** Bring back deleted, recolored and merged colors; heights set for colors that still exist are kept. */
-export function restoreColours() {
+export function restoreColors() {
   if (!app.source) return;
   const ok = change(() => {
-    app.edits = app.edits.filter((e) => e.kind !== 'recolour' && e.kind !== 'delete');
-    app.settings.colours.max = DEFAULTS.colours.max;
+    app.edits = app.edits.filter((e) => e.kind !== 'recolor' && e.kind !== 'delete');
+    app.settings.colors.max = DEFAULTS.colors.max;
   });
   if (ok) toast('Original colors restored. Your heights were kept.');
 }
@@ -85,7 +85,7 @@ export function reloadImage() {
   const ok = change(() => {
     app.edits = [];
     app.source = { ...src, crop: null };
-    app.settings.colours.max = DEFAULTS.colours.max;
+    app.settings.colors.max = DEFAULTS.colors.max;
   });
   if (ok) toast('Image reloaded. Press Ctrl+Z to undo.');
 }

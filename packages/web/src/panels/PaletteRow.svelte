@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { deleteColour, recolour, setHeight } from '../actions.svelte';
+  import { deleteColor, recolor, setHeight } from '../actions.svelte';
   import { inputStarted } from '../perf';
   import { ui } from '../state.svelte';
 
@@ -25,9 +25,9 @@
 <li class:sel={ui.sel === hex}>
   <button class="sw" style:background={hex} title={ui.tool === 'select' ? 'Show where this color is used' : 'Paint with this color'} aria-label="{ui.tool === 'select' ? 'Select' : 'Paint with'} {hex}" onclick={pick}></button>
   <label class="hex">{hex}<input type="color" value={hex} title="Recolor every pixel of this color"
-    onchange={(e) => recolour(hex, e.currentTarget.value)}></label>
+    onchange={(e) => recolor(hex, e.currentTarget.value)}></label>
   <input type="range" min="0.2" max="20" step="0.1" value={height} aria-label="Height of {hex}"
     oninput={(e) => slide(+e.currentTarget.value)} onchange={() => (dragging = false)}>
   <span class="hv">{height.toFixed(1)} mm</span>
-  <button class="del" title="Delete color (pixels move to the nearest color)" aria-label="Delete {hex}" onclick={() => deleteColour(hex)}>×</button>
+  <button class="del" title="Delete color (pixels move to the nearest color)" aria-label="Delete {hex}" onclick={() => deleteColor(hex)}>×</button>
 </li>

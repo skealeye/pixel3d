@@ -11,7 +11,7 @@ const root = join(import.meta.dirname, '..', '..', '..');
 const main = join(root, 'packages', 'cli', 'src', 'main.ts');
 const env = { ...process.env, TSX_TSCONFIG_PATH: join(root, 'packages', 'cli', 'tsconfig.json') };
 const potion = join(root, 'packages', 'core', 'test', 'fixtures', 'potion.png');
-const presetDoc = { version: 1, settings: { base: { height: 3 }, rotation: [1, 0, 0] }, colourRules: [] };
+const presetDoc = { version: 1, settings: { base: { height: 3 }, rotation: [1, 0, 0] }, colorRules: [] };
 
 /** The snippet's command lines, each split into words (the snippets use no quoting). */
 const commands = batchSnippets('potion').split('\n').filter((l) => l && !l.startsWith('#')).map((l) => l.split(/\s+/));
