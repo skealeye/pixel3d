@@ -60,6 +60,8 @@ export const TRAVEL_MARGIN = 0.4;
 export const CAP_ROOF = 1.2;
 /** The square the art must cover over each switch: the pocket mouth plus a 1.5 mm wall each side. */
 export const MIN_ART = MX.pocket[0] + 2 * 1.5;
+/** Thinnest body wall round a switch's 20.0 lead-in, mm: the footprint always covers that square round each switch. */
+export const MIN_WALL = 1.2;
 
 /** The cap's backing thickness: the base height, but never less than the pocket plus its roof. */
 export const capThickness = (s: Settings): number => Math.max(s.base.enabled ? s.base.height : 0, MX.engage + CAP_ROOF);
@@ -226,19 +228,33 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
 
     // ---- body, printed underside down: footprint minus the well and each switch's seat
     const L = clickerLevels(s, capT);
+    // the border is the wall beyond the well (art + fit gap), so the two never eat into each other
+    const grow = c.fitGap + c.border;
     let foot: CrossSection;
     if (c.shape === 'outline') {
-      foot = keep(filled.offset(c.border, 'Miter'));
+      foot = keep(filled.offset(grow, 'Miter'));
     } else if (c.shape === 'circle') {
       let r = 0;
       for (const poly of filled.toPolygons()) for (const [x, y] of poly) r = Math.max(r, Math.hypot(x - W / 2, y - H / 2));
-      foot = keep(keep(CrossSection.circle(r + c.border, 2 * SEGMENTS)).translate([W / 2, H / 2]));
+      foot = keep(keep(CrossSection.circle(r + grow, 2 * SEGMENTS)).translate([W / 2, H / 2]));
     } else {
-      const w = W + 2 * c.border, h = H + 2 * c.border, r = Math.min(4, w / 4, h / 4);
+      const w = W + 2 * grow, h = H + 2 * grow, r = Math.min(4, w / 4, h / 4);
       foot = keep(rounded(wasm, w, h, r, keep).translate([W / 2, H / 2]));
     }
+    // never less than a MIN_WALL wall round each switch's lead-in (small art at a thin border)
+    const guard = MX.leadIn + 2 * MIN_WALL;
+    foot = keep(CrossSection.union([foot, ...spots.map(([x, y]) => keep(rounded(wasm, guard, guard, MX.leadInR + MIN_WALL, keep).translate([x, y])))]));
     const cuts: Manifold[] = [keep(keep(keep(filled.offset(c.fitGap, 'Miter')).extrude(L.rimTop + 1 - L.wellFloor)).translate([0, 0, L.wellFloor]))];
     for (const [x, y] of spots) cuts.push(seatCutter(wasm, x, y, MX.shaft, L.shaftBottom, L.wellFloor + 0.01, keep));
+    // neighbouring switches: at 19.05 pitch the 19.0 columns (and the rounded corners of the 20.0 lead-ins) would
+    // leave a thin fin between them, so join them with a straight slot
+    for (let i = 1; i < spots.length; i++) {
+      const [x0, y0] = spots[i - 1]!, [x1, y1] = spots[i]!;
+      const along = Math.hypot(x1 - x0, y1 - y0), alongX = Math.abs(x1 - x0) >= Math.abs(y1 - y0);
+      const slot = (across: number, za: number, zb: number) => keep(keep(Manifold.cube(alongX ? [along, across, zb - za] : [across, along, zb - za], true))
+        .translate([(x0 + x1) / 2, (y0 + y1) / 2, (za + zb) / 2]));
+      cuts.push(slot(MX.column, L.seat, L.columnTop + 0.01), slot(MX.leadIn, L.columnTop, L.wellFloor + 0.01));
+    }
     const body = keep(keep(foot.extrude(L.rimTop)).subtract(keep(Manifold.union(cuts))));
 
     // ---- lay out as printed: the cap beside the body on +X

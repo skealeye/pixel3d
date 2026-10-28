@@ -3,7 +3,7 @@ import { strFromU8, unzipSync } from 'fflate';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   buildClicker, buildModel, CAP_ROOF, capThickness, clickerLevels, convert, decodeImage, DEFAULTS, detectScale, downsampleNearest,
-  FIT_STEPS, fitTest, MIN_ART, MX, settingsSchema, to3MF, toGrid, toSTL, TRAVEL_MARGIN,
+  FIT_STEPS, fitTest, MIN_ART, MIN_WALL, MX, settingsSchema, to3MF, toGrid, toSTL, TRAVEL_MARGIN,
 } from '../src/index';
 import type { Grid, Model, Part, Settings } from '../src/index';
 import { initManifold } from '../src/manifold';
@@ -160,6 +160,55 @@ describe('buildClicker', () => {
     }
     // between shafts, the shaft wall is solid
     expect(await volumeIn(body, ...around(cx + MX.pitch / 2, cy, 2, 2, L.shaftBottom, L.seat))).toBeCloseTo(4 * MX.depth, 3);
+  });
+
+  it('neighbouring switches share one joined column and lead-in, with no fin between them', async () => {
+    const s = settings((s) => { s.clicker.switches = 3; s.size.keepAspect = false; s.size.width = 64; s.size.height = 24; });
+    const m = await buildClicker(square(32), s);
+    const body = of(m, 'body');
+    const [cx, cy] = centre(boxOf(body));
+    const L = clickerLevels(s);
+    for (const mid of [-MX.pitch / 2, MX.pitch / 2]) {
+      expect(await volumeIn(body, ...around(cx + mid, cy, 1, MX.column, L.seat, L.columnTop))).toBeCloseTo(0, 3);
+      expect(await volumeIn(body, ...around(cx + mid, cy, 1, MX.leadIn, L.columnTop, L.wellFloor))).toBeCloseTo(0, 3);
+    }
+    expect(m.pieces).toBe(1);
+    for (const p of m.parts) await assertManifold(p);
+  });
+
+  for (const shape of ['outline', 'circle', 'square'] as const) {
+    it(`${shape}, fit gap 1.5 and border 1.5: the border is a 1.5 mm wall beyond the well, in one body piece`, async () => {
+      const s = settings((s) => { s.clicker.shape = shape; s.clicker.fitGap = 1.5; s.clicker.border = 1.5; });
+      const m = await buildClicker(square(32), s);
+      for (const p of m.parts) await assertManifold(p);
+      expect(m.pieces).toBe(1);
+      const body = of(m, 'body'), b = boxOf(body);
+      const [cx, cy] = centre(b);
+      const L = clickerLevels(s);
+      // the well edge is 20 + 1.5 from the centre; the wall stands just beyond it, up to the rim
+      const wellEdge = 20 + s.clicker.fitGap;
+      expect(await volumeIn(body, ...around(cx + wellEdge + 0.75, cy, 1, 1, L.rimTop - 1, L.rimTop))).toBeCloseTo(1, 3);
+      expect(await volumeIn(body, ...around(cx, cy - wellEdge - 0.75, 1, 1, L.rimTop - 1, L.rimTop))).toBeCloseTo(1, 3);
+      if (shape !== 'circle') expect(b.max[0] - b.min[0]).toBeCloseTo(40 + 2 * (s.clicker.fitGap + s.clicker.border), 3);
+    });
+  }
+
+  it(`minimum art at a 1.5 mm border still leaves a ${MIN_WALL} mm wall round the 20.0 lead-in`, async () => {
+    const s = settings((s) => { s.size.width = MIN_ART; s.clicker.border = 1.5; s.clicker.fitGap = 0.2; });
+    const m = await buildClicker(square(16), s);
+    for (const p of m.parts) await assertManifold(p);
+    expect(m.pieces).toBe(1);
+    const body = of(m, 'body'), b = boxOf(body);
+    expect(b.max[0] - b.min[0]).toBeGreaterThanOrEqual(MX.leadIn + 2 * MIN_WALL - 1e-4);
+    expect(b.max[1] - b.min[1]).toBeGreaterThanOrEqual(MX.leadIn + 2 * MIN_WALL - 1e-4);
+    const [cx, cy] = centre(b);
+    const L = clickerLevels(s);
+    // a wall MIN_WALL thick all along each side of the lead-in
+    for (const [dx, dy, w, d] of [[1, 0, MIN_WALL, 10], [-1, 0, MIN_WALL, 10], [0, 1, 10, MIN_WALL], [0, -1, 10, MIN_WALL]] as const) {
+      const off = MX.leadIn / 2 + MIN_WALL / 2;
+      expect(await volumeIn(body, ...around(cx + dx * off, cy + dy * off, w - 0.02, d - 0.02, L.columnTop + 0.1, L.wellFloor - 0.1)))
+        .toBeCloseTo((w - 0.02) * (d - 0.02) * (L.wellFloor - L.columnTop - 0.2), 3);
+    }
   });
 
   it('the cap is solid underneath apart from the pocket round a 5.8 stem with the cross socket, 3.35 deep', async () => {
