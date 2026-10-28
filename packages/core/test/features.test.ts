@@ -127,6 +127,39 @@ describe('keychain hole', () => {
   });
 });
 
+describe('piece count after cuts', () => {
+  it('an open pocket deeper than base + lowest colour leaves a taller colour island floating: pieces >= 2', async () => {
+    // 9 x 9 at 4 mm: a field of colour 0 (1 mm) with one 3 mm pixel of colour 1 in the middle, inside a 10 mm pocket
+    const cells = new Int16Array(81).fill(0);
+    cells[4 * 9 + 4] = 1;
+    const g: Grid = { w: 9, h: 9, cells, palette: [{ hex: '#ff0000', height: 1 }, { hex: '#0000ff', height: 3 }] };
+    for (const mode of ['single', 'halves'] as const) {
+      const m = await buildModel(g, settings((s) => {
+        s.size.width = 36;
+        s.sides.mode = mode;
+        s.magnets = { size: '10x3', position: 'bottom', at: [centre] };
+      }));
+      expect(m.pieces).toBeGreaterThanOrEqual(2);
+      await checkAll(m);
+    }
+  });
+
+  it('corner-touching art plus a small hole: the decompose path agrees with the 4-connected count', async () => {
+    const g = art(['00..', '00..', '..00', '..00']);
+    for (const base of [true, false]) {
+      const plainM = await buildModel(g, settings((s) => { s.base.enabled = base; }));
+      const holed = await buildModel(g, settings((s) => {
+        s.base.enabled = base;
+        s.keychain.type = 'hole';
+        s.keychain.hole = { style: 'round', size: 2, at: { fx: 0.25, fy: 0.25 } };
+      }));
+      expect(plainM.pieces).toBe(2);
+      expect(holed.pieces).toBe(plainM.pieces);
+      for (const p of holed.parts) await assertManifold(p);
+    }
+  });
+});
+
 describe('keychain loop', () => {
   it('edgeAtAngle: 0° leaves through the top edge, 90° through the right', () => {
     const up = edgeAtAngle(potion, 0), right = edgeAtAngle(potion, 90);
@@ -238,6 +271,12 @@ describe('magnets', () => {
   it('sealed on a thin base warns with the sealed allowance (h + 1.2)', async () => {
     const m = await buildModel(potion, magnet((s) => { s.magnets.size = { d: 6, h: 2 }; s.magnets.position = 'centre'; }));
     expect(m.warnings).toEqual(['A 6 × 2 mm magnet needs about 3.2 mm here. Make the base thicker or pick a smaller magnet.']);
+  });
+
+  it('a sealed pocket clamped onto the bed (base thinner than the magnet) is open: no pause', async () => {
+    const m = await buildModel(potion, magnet((s) => { s.magnets.position = 'centre'; })); // 2 mm base, 3 mm magnet
+    expect(m.pauseZ).toEqual([]);
+    expect(m.warnings).toHaveLength(1);
   });
 
   it('double sided is always sealed, centred on the middle base; pauseZ is in bed coordinates', async () => {

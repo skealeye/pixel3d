@@ -131,7 +131,8 @@ export function magnetCutters(wasm: Wasm, g: Grid, s: Settings, f: Frame, side: 
   const warning = have < need - 1e-9
     ? `A ${d} × ${h} mm magnet needs about ${need.toFixed(1)} mm here. Make the base thicker or pick a smaller magnet.`
     : null;
-  return { cutters, pauseZ: sealed ? z1 : null, warning };
+  // a sealed pocket clamped onto the bed (base thinner than the magnet) is open, so there is nothing to pause for
+  return { cutters, pauseZ: sealed && z0 > 0 ? z1 : null, warning };
 }
 
 /**
@@ -193,31 +194,45 @@ export function cutBody(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: Cro
   const inside = insideCutter(wasm, g, s, f, outline, side);
   const cutters = [holeCutter(wasm, g, s, f), ...mags.cutters, inside.cutter].filter((c): c is Manifold => c !== null).map(keep);
   const warnings = [...(mags.warning ? [mags.warning] : []), ...inside.warnings];
-  const pieces = cutters.length || hasLoop(s) ? bodyPieces(wasm, g, s, f, outline, solids, side, cutters) : null;
+  const placed = cutters.map(place);
+  const pieces = cutters.length || hasLoop(s) ? bodyPieces(wasm, g, s, f, outline, solids, side, placed, place) : null;
   if (!cutters.length) return { solids, warnings, pause: null, pieces };
-  const all = keep(wasm.Manifold.union(cutters.map(place)));
+  const all = keep(wasm.Manifold.union(placed));
   const cut = solids.map((x) => ({ ...x, m: keep(x.m.subtract(all)) })).filter((x) => !x.m.isEmpty());
   return { solids: cut, warnings, pause: mags.pauseZ !== null ? place(mags.cutters[0]!) : null, pieces };
 }
 
 /**
- * Disconnected pieces of one body after its loop and cuts (unmirrored `cutters`; `solids` uncut).
- * A 3D union of every colour layer takes seconds on busy art, so this counts a stand-in with the same
- * connectivity: the outline through the body's thinnest stack, plus the loop, less the cutters. It can only
- * over-count, where a pocket severs the thinnest stack but taller colours still bridge it. A sealed void is
- * its own negative-volume component and is not counted.
+ * Disconnected pieces of one body after its loop and cuts. `solids` (uncut) and `cutters` are placed; `place`
+ * moves unmirrored geometry the same way. A 3D union of every colour layer takes seconds on busy art, so this
+ * counts a stand-in: the outline through the body's thinnest stack, plus the loop. Where a cutter reaches past
+ * that stack (a pocket at least as deep as base + lowest colour), the stand-in has no material left there, so
+ * each colour's own geometry inside the cutter's footprint is added back: a taller colour island standing over
+ * the pocket then shows as its own piece. Each cutter is then subtracted. It can still over-count where a pocket
+ * severs the thinnest stack but taller colours bridge it. A sealed void is its own negative-volume component and
+ * is not counted.
  */
-function bodyPieces(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: CrossSection, solids: Solid[], side: Side, cutters: Manifold[]): number {
+function bodyPieces(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: CrossSection, solids: Solid[], side: Side,
+  cutters: Manifold[], place: (m: Manifold) => Manifold): number {
   return scratch((k) => {
-    let lo = -Infinity, hi = Infinity;
+    let lo = -Infinity, hi = Infinity, zMin = Infinity, zMax = -Infinity;
+    const colours = solids.filter((x) => x.name !== 'base' && x.name !== 'loop');
     for (const x of solids) {
-      if (x.name === 'base' || x.name === 'loop') continue;
       const b = x.m.boundingBox();
-      lo = Math.max(lo, b.min[2]!); hi = Math.min(hi, b.max[2]!);
+      zMin = Math.min(zMin, b.min[2]!); zMax = Math.max(zMax, b.max[2]!);
+      if (colours.includes(x)) { lo = Math.max(lo, b.min[2]!); hi = Math.min(hi, b.max[2]!); }
     }
     lo = Math.min(lo, 0); hi = Math.max(hi, side.baseT);
-    let body = k(k(k(outlineMm(outline, f)).extrude(hi - lo)).translate([0, 0, lo]));
-    if (hasLoop(s)) body = k(body.add(k(bodyLoop(wasm, g, s, f, side, solids.some((x) => x.name === 'base')))));
+    let proxy = k(k(k(outlineMm(outline, f)).extrude(hi - lo)).translate([0, 0, lo]));
+    if (hasLoop(s)) proxy = k(proxy.add(k(bodyLoop(wasm, g, s, f, side, solids.some((x) => x.name === 'base')))));
+    let body = place(proxy); // for the front this is `proxy` itself, which `k` already frees
+    for (const c of cutters) {
+      const b = c.boundingBox();
+      const through = b.max[2]! >= hi - 1e-9 || b.min[2]! <= lo + 1e-9;
+      if (!through || (b.max[2]! >= zMax && b.min[2]! <= zMin)) continue; // the hole removes everything in its footprint
+      const column = k(k(k(c.project()).extrude(zMax - zMin + 2)).translate([0, 0, zMin - 1]));
+      for (const x of colours) body = k(body.add(k(x.m.intersect(column))));
+    }
     for (const c of cutters) body = k(body.subtract(c));
     return body.decompose().map(k).filter((c) => c.volume() > 0).length;
   });
