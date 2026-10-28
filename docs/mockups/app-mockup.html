@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pixel3d — mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Silkscreen&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #1b1e23;
+    --panel: #23272e;
+    --raised: #2c313a;
+    --line: #363c46;
+    --text: #e8e4d8;
+    --muted: #8e95a2;
+    --gold: #d9a441;      /* textured-PEI gold: the one accent */
+    --gold-ink: #23180a;
+    --danger: #e0715c;
+    --r-s: 4px;
+    --r-m: 8px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 13px/1.45 Archivo, system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+    display: grid;
+    grid-template: 52px 1fr 30px / 330px 1fr 300px;
+    grid-template-areas: "top top top" "left view right" "status status status";
+    overflow: hidden;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  /* top bar */
+  header {
+    grid-area: top; display: flex; align-items: center; gap: 16px;
+    padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  .mark { font-family: Silkscreen, monospace; font-size: 22px; letter-spacing: 1px; color: var(--gold); line-height: 1; }
+  .mark span { color: var(--text); }
+  .file { color: var(--muted); }
+  .file b { color: var(--text); font-weight: 500; }
+  header .spacer { flex: 1; }
+  .btn {
+    background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-s);
+    padding: 6px 12px; cursor: pointer;
+  }
+  .btn:hover { border-color: #4a515d; }
+  .btn.primary { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.icon { padding: 6px 9px; }
+  .btn:disabled { opacity: .4; cursor: default; }
+
+  /* panels */
+  aside { overflow-y: auto; background: var(--panel); }
+  aside.left { grid-area: left; border-right: 1px solid var(--line); }
+  aside.right { grid-area: right; border-left: 1px solid var(--line); }
+  section { padding: 14px 16px 16px; border-bottom: 1px solid var(--line); }
+  h2 { margin: 0 0 10px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  h2 small { color: var(--muted); font-weight: 400; margin-left: auto; }
+  .row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .row > label:first-child { flex: 1; color: var(--muted); }
+  .hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+  .num {
+    width: 64px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s);
+    padding: 4px 6px; text-align: right;
+  }
+  select { background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; }
+  .seg { display: flex; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 2px; gap: 2px; }
+  .seg button { flex: 1; border: 0; background: none; padding: 5px 6px; border-radius: 3px; cursor: pointer; color: var(--muted); white-space: nowrap; }
+  .seg button.on { background: var(--raised); color: var(--text); box-shadow: inset 0 -2px 0 var(--gold); }
+  input[type=range] { accent-color: var(--gold); flex: 1; min-width: 0; }
+  input[type=checkbox] { accent-color: var(--gold); }
+
+  /* source image */
+  .source { position: relative; background:
+      conic-gradient(#2a2e35 25%, #24282e 0 50%, #2a2e35 0 75%, #24282e 0) 0 0 / 16px 16px;
+    border: 1px solid var(--line); border-radius: var(--r-s); display: grid; place-items: center; padding: 10px; }
+  #src { image-rendering: pixelated; cursor: crosshair; touch-action: none; max-width: 100%; }
+  .tools { display: flex; gap: 6px; margin-top: 8px; }
+  .tools .seg { flex: 1; }
+
+  /* palette */
+  .pal { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .pal li {
+    display: grid; grid-template-columns: 26px 64px 1fr 44px 22px; align-items: center; gap: 8px;
+    padding: 4px 6px; border-radius: var(--r-s); border: 1px solid transparent;
+  }
+  .pal li.sel { border-color: var(--gold); background: #2a2a24; }
+  .sw { width: 26px; height: 26px; border-radius: 3px; border: 1px solid #0006; cursor: pointer; padding: 0; }
+  .hex { position: relative; cursor: pointer; color: var(--muted); font-size: 12px; text-transform: lowercase; }
+  .hex:hover { color: var(--text); text-decoration: underline dotted; }
+  .hex input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .hv { text-align: right; color: var(--text); font-size: 12px; }
+  .del { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 15px; padding: 0; }
+  .del:hover { color: var(--danger); }
+  .heights { display: grid; gap: 8px; margin-bottom: 12px; }
+
+  /* viewport */
+  main { grid-area: view; position: relative; min-width: 0; min-height: 0; }
+  #view { width: 100%; height: 100%; display: block; }
+  .vtools { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; }
+  .vtools .btn { background: #23272ee6; }
+  .dims {
+    position: absolute; bottom: 12px; left: 12px; background: #23272ee6; border: 1px solid var(--line);
+    border-radius: var(--r-s); padding: 6px 10px; color: var(--muted);
+  }
+  .dims b { color: var(--text); font-weight: 500; }
+  .note {
+    position: absolute; top: 12px; right: 12px; max-width: 260px; background: #23272ee6;
+    border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: var(--r-s);
+    padding: 8px 10px; color: var(--muted); display: none;
+  }
+
+  /* export */
+  .export { position: sticky; bottom: 0; background: var(--panel); border-top: 1px solid var(--line); border-bottom: 0; }
+  .export .btn.primary { width: 100%; padding: 9px; margin-top: 10px; }
+  #name { flex: 1; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; min-width: 0; }
+
+  footer {
+    grid-area: status; display: flex; align-items: center; gap: 20px; padding: 0 16px;
+    border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; background: var(--panel);
+  }
+  footer .ok { color: #8fc68a; }
+  footer .spacer { flex: 1; }
+
+  /* batch drawer */
+  dialog {
+    background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: var(--r-m);
+    width: min(640px, 92vw); padding: 20px;
+  }
+  dialog::backdrop { background: #0008; }
+  dialog h3 { margin: 0 0 4px; font-size: 16px; }
+  dialog p { color: var(--muted); margin: 0 0 12px; }
+  pre {
+    background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 10px 12px;
+    font: 12px/1.5 Consolas, monospace; overflow: auto; max-height: 260px; margin: 0 0 12px;
+  }
+  .toast {
+    position: fixed; bottom: 46px; left: 50%; transform: translate(-50%, 12px); opacity: 0;
+    background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-s); padding: 8px 14px;
+    transition: .2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+  @media (max-width: 960px) {
+    body { grid-template: 52px 55vh auto auto 30px / 1fr; grid-template-areas: "top" "view" "left" "right" "status"; overflow: auto; }
+    .export { position: static; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+
+<header>
+  <div class="mark">pixel<span>3d</span></div>
+  <div class="file"><b>potion.png</b>&nbsp; 16 × 16 px, detected from a 4× upscale</div>
+  <div class="spacer"></div>
+  <button class="btn icon" id="undo" title="Undo (Ctrl+Z)">↶</button>
+  <button class="btn icon" id="redo" title="Redo (Ctrl+Y)">↷</button>
+  <button class="btn" id="openBatch">Batch and API</button>
+  <button class="btn">Open image</button>
+</header>
+
+<aside class="left">
+  <section>
+    <h2>Image <small>crop, background</small></h2>
+    <div class="source"><canvas id="src" width="288" height="288"></canvas></div>
+    <div class="tools">
+      <div class="seg" data-key="tool">
+        <button data-v="pick">Select</button>
+        <button data-v="paint">Paint</button>
+        <button data-v="erase">Erase</button>
+      </div>
+      <button class="btn">Crop</button>
+    </div>
+    <div class="row"><label>Remove background</label><input type="checkbox"></div>
+    <div class="row"><label>Colours</label><input type="range" min="2" max="7" value="7" id="ncol" disabled><span class="hv">7</span></div>
+  </section>
+
+  <section>
+    <h2>Colours and heights <small id="pcount"></small></h2>
+    <div class="heights">
+      <div class="seg" data-key="heightMode">
+        <button data-v="uniform">All the same</button>
+        <button data-v="random">Random</button>
+        <button data-v="brightness">By brightness</button>
+      </div>
+      <div class="row" id="rangeRow">
+        <label>Range (mm)</label>
+        <input class="num" type="number" step="0.2" id="hMin" value="1">
+        <span>to</span>
+        <input class="num" type="number" step="0.2" id="hMax" value="4">
+      </div>
+      <div class="row" id="seedRow"><label>Seed</label><input class="num" type="number" id="seed" value="42"><button class="btn" id="reroll">Randomize</button></div>
+      <div class="row" id="brightRow"><label>Darker colours sit higher</label><input type="checkbox" id="darkHigh" checked></div>
+    </div>
+    <ul class="pal" id="pal"></ul>
+    <div class="row"><button class="btn" id="addColour">Add colour</button><span class="hint" style="margin:0">Click a swatch to paint with it. Click a hex code to recolour.</span></div>
+  </section>
+</aside>
+
+<main>
+  <canvas id="view"></canvas>
+  <div class="vtools">
+    <button class="btn" id="resetView">Reset view</button>
+    <button class="btn" id="toggleGrid">Grid</button>
+  </div>
+  <div class="note" id="note"></div>
+  <div class="dims" id="dims"></div>
+</main>
+
+<aside class="right">
+  <section>
+    <h2>Size</h2>
+    <div class="row"><label>Width</label><input class="num" type="number" id="width" value="50"><span>mm</span></div>
+    <div class="row"><label>Height</label><input class="num" type="number" id="heightOut" value="50" disabled><span>mm</span></div>
+  </section>
+
+  <section>
+    <h2>Base <input type="checkbox" id="baseOn" checked style="margin-left:auto"></h2>
+    <div class="row"><label>Thickness</label><input class="num" type="number" step="0.5" id="baseH" value="2"><span>mm</span></div>
+    <div class="row"><label>Colour</label><input type="color" id="baseColor" value="#2a2d33"></div>
+    <div class="row"><label>Bottom</label></div>
+    <div class="seg" data-key="bottom" style="margin-top:6px">
+      <button data-v="solid">Solid</button>
+      <button data-v="shell">Shell</button>
+      <button data-v="hollow">Hollow</button>
+    </div>
+    <div class="row" id="wallRow"><label>Wall thickness</label><input class="num" type="number" step="0.2" value="1.2"><span>mm</span></div>
+  </section>
+
+  <section>
+    <h2>Sides</h2>
+    <div class="seg" data-key="sides">
+      <button data-v="single">One side</button>
+      <button data-v="solid">Both, one piece</button>
+      <button data-v="halves">Two halves</button>
+    </div>
+    <p class="hint" id="sidesHint"></p>
+  </section>
+
+  <section>
+    <h2>Keychain</h2>
+    <div class="seg" data-key="key">
+      <button data-v="none">None</button>
+      <button data-v="hole">Hole</button>
+      <button data-v="loop">Loop</button>
+    </div>
+    <div class="row" id="holeRow"><label>Hole diameter</label><input class="num" type="number" id="holeD" value="4"><span>mm</span></div>
+    <div class="row" id="loopRow"><label>Loop inner / outer</label><input class="num" type="number" id="loopIn" value="4"><input class="num" type="number" id="loopOut" value="8"></div>
+    <p class="hint" id="keyHint">Click the model to place it.</p>
+  </section>
+
+  <section>
+    <h2>Magnets <small>0 placed</small></h2>
+    <div class="row"><label>Size</label><select><option>8 × 3 mm</option><option>6 × 2 mm</option><option>10 × 3 mm</option><option>Custom</option></select></div>
+    <div class="row"><button class="btn">Place a magnet</button></div>
+  </section>
+
+  <section>
+    <h2>Orientation</h2>
+    <div class="row" style="margin-top:0">
+      <button class="btn" data-rot="0">Rotate X</button>
+      <button class="btn" data-rot="1">Rotate Y</button>
+      <button class="btn" data-rot="2">Rotate Z</button>
+    </div>
+    <div class="row">
+      <button class="btn" id="flat">Flat</button>
+      <button class="btn" id="edge">On edge</button>
+      <span class="hint" style="margin:0" id="rotLabel"></span>
+    </div>
+  </section>
+
+  <section class="export">
+    <h2>Export</h2>
+    <div class="seg" data-key="format">
+      <button data-v="3mf">3MF, multi-colour</button>
+      <button data-v="stl">STL</button>
+    </div>
+    <div class="row" id="slicerRow"><label>Slicer</label>
+      <select id="slicer"><option>Bambu Studio</option><option>OrcaSlicer</option><option>PrusaSlicer</option><option>Other</option></select>
+    </div>
+    <div class="row"><label style="flex:0">Name</label><input id="name" value="potion"></div>
+    <button class="btn primary" id="export">Export</button>
+  </section>
+</aside>
+
+<footer>
+  <span class="ok">● Watertight</span>
+  <span id="fcount"></span>
+  <span class="spacer"></span>
+  <span>Mockup, nothing is saved</span>
+  <span>v0.1.0</span>
+</footer>
+
+<dialog id="batch">
+  <h3>Batch and API</h3>
+  <p>Save these settings as a preset, then convert a whole folder from the command line, from Python over the local API, or from Claude through the MCP tools. Your colour heights become colour rules.</p>
+  <pre id="cli"></pre>
+  <pre id="presetJson"></pre>
+  <div class="row" style="justify-content:flex-end">
+    <button class="btn" id="closeBatch">Close</button>
+    <button class="btn primary" id="savePreset">Save preset</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------- sample sprite (original placeholder art) ----------
+const SPRITE = [
+  '......KKKK......',
+  '.....KCCCCK.....',
+  '.....KCCCCK.....',
+  '......KWWK......',
+  '......KWWK......',
+  '.....KWWWWK.....',
+  '....KWWWWWWK....',
+  '...KWPPPPPPGK...',
+  '..KPLPPPPPPPGK..',
+  '..KPLLPPPPPPPK..',
+  '..KPLPPPPPPPPK..',
+  '..KPPPPPPPPDPK..',
+  '..KDPPPPPPPDDK..',
+  '...KDDPPPPDDK...',
+  '....KKDDDDKK....',
+  '......KKKK......',
+];
+const LEGEND = { K:'#2b2135', C:'#9c6b3e', W:'#bfd9e6', G:'#f4fbff', P:'#7a4fd6', L:'#b394f2', D:'#4e2f9e' };
+const N = 16;
+
+const S = {
+  grid: [], palette: [], sel: 0, tool: 'paint',
+  heightMode: 'uniform', hMin: 1, hMax: 4, seed: 42, darkHigh: true, defH: 1,
+  width: 50, base: true, baseH: 2, baseColor: '#2a2d33', bottom: 'solid',
+  sides: 'single', key: 'none', holeD: 4, loopIn: 4, loopOut: 8,
+  rot: [0, 0, 0], format: '3mf', grid3d: true,
+};
+{
+  const idx = {};
+  for (const row of SPRITE) for (const ch of row) {
+    if (ch === '.') { S.grid.push(-1); continue; }
+    if (!(ch in idx)) { idx[ch] = S.palette.length; S.palette.push({ hex: LEGEND[ch], h: S.defH }); }
+    S.grid.push(idx[ch]);
+  }
+}
+
+const $ = (id) => document.getElementById(id);
+const rgb = (hex) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+const lum = (hex) => { const [r, g, b] = rgb(hex); return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; };
+const dist = (a, b) => { const x = rgb(a), y = rgb(b); return Math.hypot(x[0]-y[0], x[1]-y[1], x[2]-y[2]); };
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const round1 = (v) => Math.round(v * 10) / 10;
+
+// ---------- undo ----------
+const past = [], future = [];
+const snap = () => JSON.stringify({ g: S.grid, p: S.palette });
+function commit() { past.push(snap()); if (past.length > 50) past.shift(); future.length = 0; syncUndo(); }
+function restore(s) { const o = JSON.parse(s); S.grid = o.g; S.palette = o.p; S.sel = Math.min(S.sel, S.palette.length - 1); refresh(); }
+$('undo').onclick = () => { if (!past.length) return; future.push(snap()); restore(past.pop()); syncUndo(); };
+$('redo').onclick = () => { if (!future.length) return; past.push(snap()); restore(future.pop()); syncUndo(); };
+function syncUndo() { $('undo').disabled = !past.length; $('redo').disabled = !future.length; }
+addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); $('undo').click(); }
+  if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) { e.preventDefault(); $('redo').click(); }
+});
+
+// ---------- heights ----------
+function applyHeightMode() {
+  const { hMin, hMax } = S;
+  if (S.heightMode === 'uniform') S.palette.forEach(p => p.h = S.defH);
+  if (S.heightMode === 'random') { const r = mulberry32(S.seed); S.palette.forEach(p => p.h = round1(hMin + r() * (hMax - hMin))); }
+  if (S.heightMode === 'brightness') S.palette.forEach(p => { const l = lum(p.hex); p.h = round1(hMin + (S.darkHigh ? 1 - l : l) * (hMax - hMin)); });
+}
+
+// ---------- palette UI ----------
+function renderPalette() {
+  const ul = $('pal'); ul.innerHTML = '';
+  S.palette.forEach((p, i) => {
+    const li = document.createElement('li'); if (i === S.sel) li.className = 'sel';
+    li.innerHTML = `
+      <button class="sw" style="background:${p.hex}" title="Paint with this colour"></button>
+      <label class="hex">${p.hex}<input type="color" value="${p.hex}" title="Recolour every pixel of this colour"></label>
+      <input type="range" min="0.2" max="10" step="0.1" value="${p.h}" aria-label="Height of ${p.hex}">
+      <span class="hv">${p.h.toFixed(1)} mm</span>
+      <button class="del" title="Delete colour (pixels move to the nearest colour)">×</button>`;
+    li.querySelector('.sw').onclick = () => { S.sel = i; if (S.tool === 'pick') setSeg('tool', 'paint'); renderPalette(); };
+    const ci = li.querySelector('input[type=color]');
+    ci.onchange = () => recolour(i, ci.value);
+    const rg = li.querySelector('input[type=range]');
+    rg.oninput = () => { p.h = +rg.value; li.querySelector('.hv').textContent = p.h.toFixed(1) + ' mm'; build(); };
+    rg.onchange = () => commit();
+    li.querySelector('.del').onclick = () => deleteColour(i);
+    ul.appendChild(li);
+  });
+  $('pcount').textContent = `${S.palette.length} colours`;
+  $('fcount').textContent = `${S.palette.length + (S.base ? 1 : 0)} filaments`;
+}
+function remap(from, to) {
+  S.grid = S.grid.map(v => v === from ? to : v > from ? v - 1 : v);
+  S.palette.splice(from, 1);
+}
+function deleteColour(i) {
+  if (S.palette.length < 2) return;
+  commit();
+  let best = -1, bd = Infinity;
+  S.palette.forEach((p, j) => { if (j !== i) { const d = dist(p.hex, S.palette[i].hex); if (d < bd) { bd = d; best = j; } } });
+  S.grid = S.grid.map(v => v === i ? best : v);
+  remap(i, best > i ? best - 1 : best);
+  S.sel = Math.min(S.sel, S.palette.length - 1);
+  refresh(); toast('Colour deleted. Its pixels now use the nearest colour.');
+}
+function recolour(i, hex) {
+  commit();
+  const twin = S.palette.findIndex((p, j) => j !== i && p.hex === hex);
+  if (twin >= 0) { S.grid = S.grid.map(v => v === i ? twin : v); remap(i, twin > i ? twin - 1 : twin); toast('Merged into the matching colour.'); }
+  else S.palette[i].hex = hex;
+  refresh();
+}
+$('addColour').onclick = () => { commit(); S.palette.push({ hex: '#e0715c', h: S.defH }); S.sel = S.palette.length - 1; setSeg('tool', 'paint'); refresh(); };
+
+// ---------- source canvas ----------
+const src = $('src'), sctx = src.getContext('2d'), CELL = 18;
+function drawSource() {
+  sctx.clearRect(0, 0, 288, 288);
+  S.grid.forEach((v, k) => { if (v < 0) return; sctx.fillStyle = S.palette[v].hex; sctx.fillRect((k % N) * CELL, Math.floor(k / N) * CELL, CELL, CELL); });
+  sctx.strokeStyle = '#ffffff14'; sctx.lineWidth = 1;
+  for (let i = 1; i < N; i++) { sctx.beginPath(); sctx.moveTo(i * CELL + .5, 0); sctx.lineTo(i * CELL + .5, 288); sctx.moveTo(0, i * CELL + .5); sctx.lineTo(288, i * CELL + .5); sctx.stroke(); }
+}
+let painting = false;
+function paintAt(e) {
+  const r = src.getBoundingClientRect();
+  const x = Math.floor((e.clientX - r.left) / r.width * N), y = Math.floor((e.clientY - r.top) / r.height * N);
+  if (x < 0 || y < 0 || x >= N || y >= N) return;
+  const k = y * N + x;
+  if (S.tool === 'pick') { if (S.grid[k] >= 0) { S.sel = S.grid[k]; renderPalette(); } return; }
+  const v = S.tool === 'erase' ? -1 : S.sel;
+  if (S.grid[k] === v) return;
+  S.grid[k] = v; drawSource(); build();
+}
+src.onpointerdown = (e) => { if (S.tool !== 'pick') commit(); painting = true; src.setPointerCapture(e.pointerId); paintAt(e); };
+src.onpointermove = (e) => { if (painting && S.tool !== 'pick') paintAt(e); };
+src.onpointerup = () => { painting = false; };
+
+// ---------- segmented controls & inputs ----------
+function setSeg(key, v) {
+  S[key] = v;
+  document.querySelectorAll(`.seg[data-key=${key}] button`).forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  syncVisibility();
+}
+document.querySelectorAll('.seg').forEach(seg => {
+  const key = seg.dataset.key;
+  seg.querySelectorAll('button').forEach(b => b.onclick = () => {
+    setSeg(key, b.dataset.v);
+    if (key === 'heightMode') { commit(); applyHeightMode(); renderPalette(); }
+    if (key !== 'tool') build();
+  });
+  setSeg(key, S[key]);
+});
+const bindNum = (id, key, rebuildHeights) => $(id).oninput = () => { S[key] = +$(id).value; if (rebuildHeights) { applyHeightMode(); renderPalette(); } build(); };
+bindNum('hMin', 'hMin', true); bindNum('hMax', 'hMax', true); bindNum('seed', 'seed', true);
+bindNum('width', 'width'); bindNum('baseH', 'baseH'); bindNum('holeD', 'holeD'); bindNum('loopIn', 'loopIn'); bindNum('loopOut', 'loopOut');
+$('darkHigh').onchange = () => { S.darkHigh = $('darkHigh').checked; applyHeightMode(); renderPalette(); build(); };
+$('reroll').onclick = () => { commit(); S.seed = Math.floor(Math.random() * 9999); $('seed').value = S.seed; setSeg('heightMode', 'random'); applyHeightMode(); renderPalette(); build(); };
+$('baseOn').onchange = () => { S.base = $('baseOn').checked; renderPalette(); build(); };
+$('baseColor').oninput = () => { S.baseColor = $('baseColor').value; build(); };
+
+function syncVisibility() {
+  const show = (id, on) => { const el = $(id); if (el) el.style.display = on ? '' : 'none'; };
+  show('rangeRow', S.heightMode !== 'uniform');
+  show('seedRow', S.heightMode !== 'brightness');
+  show('brightRow', S.heightMode === 'brightness');
+  show('wallRow', S.bottom !== 'solid');
+  show('holeRow', S.key === 'hole'); show('loopRow', S.key === 'loop'); show('keyHint', S.key !== 'none');
+  show('slicerRow', S.format === '3mf');
+  const hints = {
+    single: 'Pixels on the front only. Prints flat with no supports.',
+    solid: 'Pixels on both faces. The back is mirrored so it reads correctly from behind. Needs supports when printed flat.',
+    halves: 'Front and mirrored back as two flat-backed pieces. Print both, then glue. The cleanest finish.',
+  };
+  if ($('sidesHint')) $('sidesHint').textContent = hints[S.sides];
+}
+
+// ---------- 3D ----------
+const canvas = $('view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(devicePixelRatio);
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#16181c');
+const camera = new THREE.PerspectiveCamera(38, 1, 1, 2000); camera.up.set(0, 0, 1);
+const controls = new OrbitControls(camera, canvas); controls.enableDamping = true;
+scene.add(new THREE.HemisphereLight('#ffffff', '#3a3226', 1.6));
+const sun = new THREE.DirectionalLight('#ffffff', 1.8); sun.position.set(60, -80, 140); scene.add(sun);
+const fill = new THREE.DirectionalLight('#ffffff', 0.6); fill.position.set(-80, 60, -40); scene.add(fill);
+
+const plate = new THREE.Mesh(new THREE.PlaneGeometry(180, 180), new THREE.MeshStandardMaterial({ color: '#3b3324', roughness: .95 }));
+plate.position.z = -0.05; scene.add(plate);
+const grid = new THREE.GridHelper(180, 18, '#6b5a36', '#4a3f2a'); grid.rotation.x = Math.PI / 2; scene.add(grid);
+
+const holder = new THREE.Group(), pivot = new THREE.Group(); holder.add(pivot); scene.add(holder);
+const unit = new THREE.BoxGeometry(1, 1, 1);
+const mats = new Map();
+const mat = (hex) => { if (!mats.has(hex)) mats.set(hex, new THREE.MeshStandardMaterial({ color: hex, roughness: .55, flatShading: true })); return mats.get(hex); };
+
+function cellsOf(mirror) {
+  const byCol = new Map(), all = [];
+  S.grid.forEach((v, k) => {
+    if (v < 0) return;
+    let x = k % N; const y = N - 1 - Math.floor(k / N);
+    if (mirror) x = N - 1 - x;
+    all.push([x, y]);
+    if (!byCol.has(v)) byCol.set(v, []); byCol.get(v).push([x, y]);
+  });
+  return { byCol, all };
+}
+function slab(group, cells, hex, s, z0, h) {
+  if (!cells.length || h <= 0) return;
+  const m = new THREE.InstancedMesh(unit, mat(hex), cells.length);
+  const M = new THREE.Matrix4(), q = new THREE.Quaternion();
+  cells.forEach(([x, y], i) => m.setMatrixAt(i, M.compose(new THREE.Vector3((x + .5) * s, (y + .5) * s, z0 + h / 2), q, new THREE.Vector3(s, s, h))));
+  group.add(m);
+}
+function keychain(group, s, z0, t) {
+  if (S.key === 'none') return;
+  const { all } = cellsOf(false);
+  const top = (Math.max(...all.map(c => c[1])) + 1) * s, cx = N / 2 * s;
+  if (S.key === 'loop') {
+    const ro = S.loopOut / 2, ri = S.loopIn / 2;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry((ro + ri) / 2, (ro - ri) / 2, 16, 40), mat(S.base ? S.baseColor : S.palette[0].hex));
+    ring.scale.z = t / (ro - ri); ring.position.set(cx, top + ri, z0 + t / 2);
+    group.add(ring);
+  } else {
+    const hole = new THREE.Mesh(new THREE.CylinderGeometry(S.holeD / 2, S.holeD / 2, 40, 24), new THREE.MeshBasicMaterial({ color: '#0d0e10' }));
+    hole.rotation.x = Math.PI / 2; hole.position.set(cx, top - S.holeD / 2 - s * 1.2, 0); group.add(hole);
+  }
+}
+function body(s, baseT, front, back) {
+  const g = new THREE.Group();
+  const f = cellsOf(false), b = cellsOf(true);
+  if (baseT > 0) slab(g, f.all, S.baseColor, s, 0, baseT);
+  if (front) for (const [v, cells] of f.byCol) slab(g, cells, S.palette[v].hex, s, baseT, S.palette[v].h);
+  if (back) for (const [v, cells] of b.byCol) slab(g, cells, S.palette[v].hex, s, -S.palette[v].h, S.palette[v].h);
+  // in solid two-sided mode the loop spans the full middle (base) thickness
+  keychain(g, s, 0, baseT > 0 ? baseT : Math.min(...S.palette.map(p => p.h)));
+  return g;
+}
+function build() {
+  for (const c of [...pivot.children]) { pivot.remove(c); c.traverse(o => { if (o.isInstancedMesh) o.dispose(); }); }
+  const s = S.width / N, bt = S.base ? S.baseH : 0;
+  if (S.sides === 'single') pivot.add(body(s, bt, true, false));
+  if (S.sides === 'solid') pivot.add(body(s, bt, true, true));
+  if (S.sides === 'halves') {
+    const a = body(s, bt / 2, true, false);
+    // back half: mirrored art on its own flat base
+    const back = new THREE.Group();
+    const bc = cellsOf(true);
+    if (bt > 0) slab(back, bc.all, S.baseColor, s, 0, bt / 2);
+    for (const [v, cells] of bc.byCol) slab(back, cells, S.palette[v].hex, s, bt / 2, S.palette[v].h);
+    keychain(back, s, 0, bt > 0 ? bt / 2 : Math.min(...S.palette.map(p => p.h)));
+    back.position.x = S.width + 8;
+    pivot.add(a, back);
+  }
+  pivot.rotation.set(...S.rot.map(r => r * Math.PI / 2));
+  holder.position.set(0, 0, 0); holder.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(pivot), c = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3());
+  holder.position.set(-c.x, -c.y, -box.min.z);
+  $('dims').innerHTML = `<b>${sz.x.toFixed(1)} × ${sz.y.toFixed(1)} × ${sz.z.toFixed(1)} mm</b>&nbsp; ${S.sides === 'halves' ? 'two pieces' : 'one piece'}`;
+  $('heightOut').value = (S.width).toFixed(0);
+  const note = $('note');
+  const msg = S.bottom !== 'solid' ? `${S.bottom === 'shell' ? 'Shell' : 'Hollow'} bottom is applied on export. The preview shows the outside only.` : '';
+  note.textContent = msg; note.style.display = msg ? 'block' : 'none';
+  $('rotLabel').textContent = S.rot.some(Boolean) ? `X ${S.rot[0] * 90}°, Y ${S.rot[1] * 90}°, Z ${S.rot[2] * 90}°` : 'Flat';
+}
+function fitView() { camera.position.set(55, -95, 85); controls.target.set(0, 0, 4); controls.update(); }
+document.querySelectorAll('[data-rot]').forEach(b => b.onclick = () => { const a = +b.dataset.rot; S.rot[a] = (S.rot[a] + 1) % 4; build(); });
+$('flat').onclick = () => { S.rot = [0, 0, 0]; build(); };
+$('edge').onclick = () => { S.rot = [1, 0, 0]; build(); };
+$('resetView').onclick = fitView;
+$('toggleGrid').onclick = () => { grid.visible = !grid.visible; };
+
+function resize() {
+  const r = canvas.parentElement.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(canvas.parentElement);
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+
+// ---------- export & batch ----------
+function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2400); }
+$('export').onclick = () => {
+  const n = $('name').value || 'model';
+  const files = S.sides === 'halves' && S.format === 'stl' ? `${n}_front.stl and ${n}_back.stl` : `${n}.${S.format}`;
+  toast(`Exported ${files}` + (S.format === '3mf' ? `, filaments 1 to ${S.palette.length + (S.base ? 1 : 0)} assigned for ${$('slicer').value}.` : '.'));
+};
+function presetJson() {
+  return JSON.stringify({
+    version: 1,
+    general: {
+      colours: S.palette.length, size: { width: S.width, unit: 'mm' },
+      base: S.base ? { thickness: S.baseH, colour: S.baseColor, bottom: S.bottom } : null,
+      sides: S.sides, heights: { mode: S.heightMode, min: S.hMin, max: S.hMax, seed: S.seed },
+      keychain: S.key === 'none' ? null : { type: S.key, at: 'top-center' },
+      rotate: S.rot.map(r => r * 90), export: { format: S.format, slicer: 'bambu' },
+    },
+    colourRules: S.palette.map(p => ({ match: p.hex, tolerance: 8, height: p.h })),
+  }, null, 2);
+}
+$('openBatch').onclick = () => {
+  $('cli').textContent = `px3d convert ./sprites --preset potion.json --out ./models\n\n# or from Python\nrequests.post("http://localhost:7300/convert",\n  files={"image": open("ghost.png", "rb")},\n  data={"preset": open("potion.json").read()})`;
+  $('presetJson').textContent = presetJson();
+  $('batch').showModal();
+};
+$('closeBatch').onclick = () => $('batch').close();
+$('savePreset').onclick = () => { $('batch').close(); toast('Saved potion.json'); };
+
+function refresh() { renderPalette(); drawSource(); build(); }
+syncUndo(); refresh(); fitView();
+</script>
+</body>
+</html>
