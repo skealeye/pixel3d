@@ -6,6 +6,7 @@ import { traceLoops } from './outline';
 import { addLoop, cutBody } from './features';
 import type { Frame, Side, Solid } from './features';
 import { pieces } from './pieces';
+import { buildClicker } from './clicker';
 
 type Manifold = InstanceType<ManifoldToplevel['Manifold']>;
 type CrossSection = InstanceType<ManifoldToplevel['CrossSection']>;
@@ -13,7 +14,8 @@ type CrossSection = InstanceType<ManifoldToplevel['CrossSection']>;
 export interface Part {
   name: string;
   hex: string;
-  object: 'main' | 'front' | 'back' | 'cap' | 'body';
+  /** Printed object: one file / 3MF object each. `stem` and `socket` are the clicker fit-test coupons. */
+  object: 'main' | 'front' | 'back' | 'cap' | 'body' | 'stem' | 'socket';
   mesh: { vertProperties: Float32Array; triVerts: Uint32Array };
 }
 
@@ -38,7 +40,7 @@ export interface Model {
 const HALVES_GAP = 8;
 
 /** Opaque bounding box in y-up cell coordinates, or null when nothing is opaque. */
-function opaqueBox(g: Grid) {
+export function opaqueBox(g: Grid) {
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (let k = 0; k < g.cells.length; k++) {
     if (g.cells[k]! < 0) continue;
@@ -49,7 +51,7 @@ function opaqueBox(g: Grid) {
 }
 
 /** mm per pixel: explicit `pixelMm`, else the requested size over the opaque bounding box (R1). */
-function pixelSize(s: Settings, box: { w: number; h: number }) {
+export function pixelSize(s: Settings, box: { w: number; h: number }) {
   if (s.pixelMm) return s.pixelMm;
   const x = s.size.width / box.w;
   return { x, y: s.size.keepAspect ? x : s.size.height / box.h };
@@ -61,6 +63,7 @@ function pixelSize(s: Settings, box: { w: number; h: number }) {
  * are applied before rotation; size and placement come from the solids before any cut, so cuts never move the model.
  */
 export async function buildModel(g: Grid, s: Settings): Promise<Model> {
+  if (s.make === 'clicker') return buildClicker(g, s);
   const wasm = await initManifold();
   const box = opaqueBox(g);
   if (!box) return { parts: [], size: { x: 0, y: 0, z: 0 }, bounds: { min: [0, 0, 0], max: [0, 0, 0] }, pieces: 0, warnings: [], pauseZ: [] };
@@ -175,7 +178,7 @@ export async function buildModel(g: Grid, s: Settings): Promise<Model> {
   }
 }
 
-function bounds(ms: Manifold[]) {
+export function bounds(ms: Manifold[]) {
   const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
   for (const m of ms) {
     const b = m.boundingBox();
