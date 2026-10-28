@@ -43,6 +43,10 @@ export const settingsSchema = z.object({
     darkHigh: z.boolean(),
   }).strict(),
   base: z.object({ enabled: z.boolean(), height, color: hexSchema }).strict(),
+  /** Round the stepped pixel edge of the generated shapes: the base, the outline ring and the clicker's backing and body. */
+  smooth: z.boolean(),
+  /** A ring round the art's outer silhouette, as tall as the lowest color (spec §4.7b). */
+  outline: z.object({ on: z.boolean(), width: mm(0.5, 5), color: hexSchema }).strict(),
   inside: z.object({ mode: z.enum(['solid', 'shell', 'hollow']), wall: mm(0.8, 5) }).strict(),
   sides: z.object({
     mode: z.enum(['single', 'solid', 'halves']),
@@ -84,6 +88,8 @@ export const settingsSchema = z.object({
     /** Clearance between the cap and the well wall (per user reference, R22). */
     fitGap: mm(0.2, 1.5),
     switches: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+    /** The cap's backing: the base color, or each art pixel's color running the full depth of the cap. */
+    backing: z.enum(['base', 'art']),
   }).strict(),
 }).strict();
 
@@ -97,6 +103,8 @@ export const DEFAULTS: Settings = {
   colors: { max: 16 },
   heights: { mode: 'uniform', h: 1, min: 1, max: 4, seed: 42, darkHigh: true },
   base: { enabled: true, height: 2, color: '#2a2d33' },
+  smooth: false,
+  outline: { on: false, width: 1.5, color: '#000000' },
   inside: { mode: 'solid', wall: 1.2 },
   sides: { mode: 'single', heightsOn: 'both' },
   keychain: {
@@ -108,7 +116,7 @@ export const DEFAULTS: Settings = {
   rotation: [0, 0, 0],
   export: { format: '3mf', slicer: 'bambu', mono: false, monoColor: '#e8e4d8' },
   make: 'model',
-  clicker: { shape: 'outline', border: 3, capHeight: 2, fitGap: 0.5, switches: 1 },
+  clicker: { shape: 'outline', border: 3, capHeight: 2, fitGap: 0.5, switches: 1, backing: 'base' },
 };
 
 /** The `HeightMode` that `applyHeightMode` expects, from the settings. */

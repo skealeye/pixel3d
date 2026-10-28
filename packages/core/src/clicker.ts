@@ -2,8 +2,8 @@ import type { Grid } from './grid';
 import type { Settings } from './settings';
 import { initManifold } from './manifold';
 import type { ManifoldToplevel } from './manifold';
-import { traceLoops } from './outline';
 import { bounds, opaqueBox, pixelSize } from './mesh';
+import { bridge, fillHoles, grow, lowestUsed, nearestColors, regionMm, smoothRadius } from './shapes';
 import type { Model, Part } from './mesh';
 
 type Manifold = InstanceType<ManifoldToplevel['Manifold']>;
@@ -193,58 +193,77 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
   const trash: { delete(): void }[] = [];
   const keep: Keep = (o) => { trash.push(o); return o; };
   try {
-    // regions as cross-sections in mm, the opaque box at the origin
-    const region = (pick: (v: number) => boolean): CrossSection | null => {
-      const on = new Uint8Array(g.cells.length);
-      let any = false;
-      for (let k = 0; k < on.length; k++) if (pick(g.cells[k]!)) { on[k] = 1; any = true; }
-      if (!any) return null;
-      const cs = keep(new CrossSection(traceLoops(on, g.w, g.h), 'Positive'));
-      return keep(keep(cs.translate([-box.x0, -box.y0])).scale([px.x, px.y]));
-    };
-    const outline = region((v) => v >= 0)!;
-    // the outline with its interior holes filled (outer loops only): the cap's backing and the body's well follow
-    // it, so a transparent hole in the art never splits the cap or leaves body plastic over a switch
-    const outers = outline.toPolygons().filter((poly) => {
-      let a = 0;
-      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) a += poly[j]![0] * poly[i]![1] - poly[i]![0] * poly[j]![1];
-      return a > 0;
-    });
-    const filled = keep(CrossSection.ofPolygons(outers, 'NonZero'));
+    const region = (pick: (v: number) => boolean) => regionMm(wasm, g, pick, box.x0, box.y0, px, keep);
+    const art = region((v) => v >= 0)!;
+    // the art with its interior holes filled (outer loops only): the cap's backing and the body's well follow it, so a
+    // transparent hole in the art never splits the cap or leaves body plastic over a switch
+    const filled = fillHoles(wasm, art, keep);
     const colors = g.palette.map((_, i) => region((v) => v === i));
+    const r = smoothRadius(px);
+    // the cap's outline: grown to hold the outline ring, rounded by `smooth`, then separate islands bridged (a close of
+    // up to 3 mm) so the backing is one piece. The art itself is never changed.
+    const ringOuter = s.outline.on ? grow(filled, s.outline.width, s.smooth, r, keep) : null;
+    const capShape = bridge(wasm, ringOuter ?? (s.smooth ? grow(filled, r, true, r, keep) : filled), keep).cs;
+    const ring = ringOuter ? keep(ringOuter.subtract(filled)) : null;
     const spots = switchSpots(W, H, c.switches);
     const coverAt = (x: number, y: number) => keep(keep(CrossSection.square([MIN_ART, MIN_ART], true)).translate([x, y]));
-    const uncovered = spots.filter(([x, y]) => keep(coverAt(x, y).subtract(filled)).area() > 1e-3).length;
+    const uncovered = spots.filter(([x, y]) => keep(coverAt(x, y).subtract(capShape)).area() > 1e-3).length;
+    /** `cs` grown by `d`: round when smoothing, else mitered (which keeps the pixel corners and always clears `d`). */
+    const offset = (cs: CrossSection, d: number) => keep(s.smooth ? cs.offset(d, 'Round', 2, SEGMENTS / 2) : cs.offset(d, 'Miter', 2));
+    const prism = (cs: CrossSection, z0: number, h: number) => keep(keep(cs.extrude(h)).translate([0, 0, z0]));
 
-    // ---- cap, printed underside down: a solid backing (base color) minus the pockets, the art on top
+    // ---- cap, printed underside down: a solid backing minus the pockets, the art (and any outline ring) on top
     const capT = capThickness(s);
-    const backing = keep(filled.extrude(capT));
+    const low = lowestUsed(g);
     const capCuts = keep(Manifold.union(spots.map(([x, y]) => capCutter(wasm, x, y, keep))));
-    const capSolids: { name: string; hex: string; m: Manifold }[] = [{ name: 'base', hex: s.base.color, m: keep(backing.subtract(capCuts)) }];
-    g.palette.forEach((p, i) => {
-      const cs = colors[i];
-      if (cs) capSolids.push({ name: p.hex, hex: p.hex, m: keep(keep(cs.extrude(p.height)).translate([0, 0, capT])) });
-    });
+    const capSolids: { name: string; hex: string; m: Manifold }[] = [];
+    if (c.backing === 'base') {
+      capSolids.push({ name: 'base', hex: s.base.color, m: keep(prism(capShape, 0, capT).subtract(capCuts)) });
+      g.palette.forEach((p, i) => { const cs = colors[i]; if (cs) capSolids.push({ name: p.hex, hex: p.hex, m: prism(cs, capT, p.height) }); });
+      if (ring) capSolids.push({ name: 'outline', hex: s.outline.color, m: prism(ring, capT, low) });
+    } else {
+      // no base color: each art pixel's color runs from the underside to its top. The rest of the backing takes the
+      // nearest art pixel's color, except outside the art's silhouette when there is an outline ring: that is the ring's
+      const zone = ring ? filled : capShape;
+      const b = capShape.bounds();
+      const over = Math.max(-b.min[0]!, -b.min[1]!, b.max[0]! - W, b.max[1]! - H, 0);
+      const pad = Math.ceil(over / Math.min(px.x, px.y)) + 1;
+      const near = nearestColors(g, pad);
+      const nearGrid = { w: near.w, h: near.h, cells: near.cells, palette: g.palette };
+      g.palette.forEach((p, i) => {
+        const cs = colors[i];
+        if (!cs) return;
+        const under = keep(regionMm(wasm, nearGrid, (v) => v === i, box.x0 + pad, box.y0 + pad, px, keep)!.intersect(zone));
+        const m = keep(Manifold.union([prism(under, 0, capT), prism(cs, 0, capT + p.height)]));
+        capSolids.push({ name: p.hex, hex: p.hex, m: keep(m.subtract(capCuts)) });
+      });
+      if (ring) {
+        const m = keep(Manifold.union([prism(keep(capShape.subtract(filled)), 0, capT), prism(ring, 0, capT + low)]));
+        capSolids.push({ name: 'outline', hex: s.outline.color, m: keep(m.subtract(capCuts)) });
+      }
+    }
 
     // ---- body, printed underside down: footprint minus the well and each switch's seat
     const L = clickerLevels(s, capT);
-    // the border is the wall beyond the well (art + fit gap), so the two never eat into each other
-    const grow = c.fitGap + c.border;
+    // the border is the wall beyond the well (cap + fit gap), so the two never eat into each other
+    const wall = c.fitGap + c.border;
     let foot: CrossSection;
     if (c.shape === 'outline') {
-      foot = keep(filled.offset(grow, 'Miter'));
+      foot = offset(capShape, wall);
     } else if (c.shape === 'circle') {
-      let r = 0;
-      for (const poly of filled.toPolygons()) for (const [x, y] of poly) r = Math.max(r, Math.hypot(x - W / 2, y - H / 2));
-      foot = keep(keep(CrossSection.circle(r + grow, 2 * SEGMENTS)).translate([W / 2, H / 2]));
+      let rr = 0;
+      for (const poly of capShape.toPolygons()) for (const [x, y] of poly) rr = Math.max(rr, Math.hypot(x - W / 2, y - H / 2));
+      foot = keep(keep(CrossSection.circle(rr + wall, 2 * SEGMENTS)).translate([W / 2, H / 2]));
     } else {
-      const w = W + 2 * grow, h = H + 2 * grow, r = Math.min(4, w / 4, h / 4);
-      foot = keep(rounded(wasm, w, h, r, keep).translate([W / 2, H / 2]));
+      const b = capShape.bounds();
+      const w = b.max[0]! - b.min[0]! + 2 * wall, h = b.max[1]! - b.min[1]! + 2 * wall, rr = Math.min(4, w / 4, h / 4);
+      foot = keep(rounded(wasm, w, h, rr, keep).translate([(b.min[0]! + b.max[0]!) / 2, (b.min[1]! + b.max[1]!) / 2]));
     }
     // never less than a MIN_WALL wall round each switch's lead-in (small art at a thin border)
     const guard = MX.leadIn + 2 * MIN_WALL;
     foot = keep(CrossSection.union([foot, ...spots.map(([x, y]) => keep(rounded(wasm, guard, guard, MX.leadInR + MIN_WALL, keep).translate([x, y])))]));
-    const cuts: Manifold[] = [keep(keep(keep(filled.offset(c.fitGap, 'Miter')).extrude(L.rimTop + 1 - L.wellFloor)).translate([0, 0, L.wellFloor]))];
+    // the well: the cap's outline plus the fit gap
+    const cuts: Manifold[] = [prism(offset(capShape, c.fitGap), L.wellFloor, L.rimTop + 1 - L.wellFloor)];
     for (const [x, y] of spots) cuts.push(seatCutter(wasm, x, y, MX.shaft, L.shaftBottom, L.wellFloor + 0.01, keep));
     // neighboring switches: at 19.05 pitch the 19.0 columns (and the rounded corners of the 20.0 lead-ins) would
     // leave a thin fin between them, so join them with a straight slot
@@ -263,13 +282,18 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
     const dx = bb.max[0]! + APART - cb.min[0]!;
     for (const x of capSolids) x.m = keep(x.m.translate([dx, 0, 0]));
 
-    const pieces = Math.max(countPieces(wasm, capSolids.map((x) => x.m)), countPieces(wasm, [body]));
-    return toModel(
+    // pieces per printed object, so a warning can say which one is split
+    const counts = { cap: countPieces(wasm, capSolids.map((x) => x.m)), body: countPieces(wasm, [body]) };
+    const warnings = warningsOf(W, H, c.switches, uncovered);
+    if (counts.cap > 1) warnings.push(`The cap is in ${counts.cap} pieces. Move the islands closer together or join them.`);
+    if (counts.body > 1) warnings.push(`The body is in ${counts.body} pieces. Move the islands closer together or join them, or pick Circle or Square for the body shape.`);
+    const model = toModel(
       [{ object: 'cap', solids: capSolids }, { object: 'body', solids: [{ name: 'base', hex: s.base.color, m: body }] }],
-      pieces,
-      warningsOf(W, H, c.switches, uncovered),
+      Math.max(counts.cap, counts.body),
+      warnings,
       { capShift: [-dx, 0], restZ: L.capUnder, pressedZ: L.capUnder - MX.travel, rimZ: L.rimTop },
     );
+    return { ...model, pieceCounts: counts };
   } finally {
     for (const o of trash) o.delete();
   }

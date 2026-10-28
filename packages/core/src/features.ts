@@ -65,14 +65,15 @@ export function edgeAtAngle(g: Grid, deg: number): Edge {
 }
 
 /**
- * The keychain loop, z 0..thickness, centered `R = (inner + outer) / 4` mm out from `edge`.
+ * The keychain loop, z 0..thickness, centered `R = (inner + outer) / 4` mm out from `edge`, plus `out` mm (the base's
+ * margin past the pixel edge: the outline ring or the smoothed edge), so the ring never runs into the loop's hole.
  * Rounded: a torus (revolved circle) squashed to the thickness. Pixel: a square frame of exactly outer / inner mm.
  */
-export function loopSolid(wasm: Wasm, edge: Edge, s: Settings, thickness: number, f: Frame): Manifold {
+export function loopSolid(wasm: Wasm, edge: Edge, s: Settings, thickness: number, f: Frame, out = 0): Manifold {
   const { style, inner, outer } = s.keychain.loop;
   const ro = outer / 2, ri = inner / 2, R = (ro + ri) / 2, r = (ro - ri) / 2;
   const [ex, ey] = toMm(f, edge.u, edge.v);
-  const cx = ex + edge.nx * R, cy = ey + edge.ny * R;
+  const cx = ex + edge.nx * (R + out), cy = ey + edge.ny * (R + out);
   return scratch((k) => {
     if (style === 'pixel') {
       const frame = k(k(wasm.CrossSection.square([2 * ro, 2 * ro], true)).subtract(k(wasm.CrossSection.square([2 * ri, 2 * ri], true))));
@@ -167,37 +168,53 @@ type Keep = <O extends { delete(): void }>(o: O) => O;
 const outlineMm = (outline: CrossSection, f: Frame): CrossSection =>
   scratch((k) => k(outline.translate([-f.x0, -f.y0])).scale([f.px.x, f.px.y]));
 
-/** The loop for one body: as thick as its base, else the lowest color (halved for halves). The caller owns it. */
-const bodyLoop = (wasm: Wasm, g: Grid, s: Settings, f: Frame, side: Side, hasBase: boolean): Manifold =>
-  loopSolid(wasm, edgeAtAngle(g, s.keychain.loop.angle), s, hasBase ? side.baseT : minTop(g) * (side.kind === 'half' ? 0.5 : 1), f);
+/**
+ * The loop for one body: as thick as its base, else the lowest color (halved for halves), `out` mm further out than the
+ * pixel edge. The caller owns it.
+ */
+const bodyLoop = (wasm: Wasm, g: Grid, s: Settings, f: Frame, side: Side, hasBase: boolean, out: number): Manifold =>
+  loopSolid(wasm, edgeAtAngle(g, s.keychain.loop.angle), s, hasBase ? side.baseT : minTop(g) * (side.kind === 'half' ? 0.5 : 1), f, out);
 
 /**
  * Join the keychain loop to one body's solids (unmirrored): into the base, or, with no base, as its own
- * 'loop' part in the loop color that meets the outline flush.
+ * 'loop' part in the loop color that meets the outline (`outline`: the art and any outline ring, pixel units) flush.
+ * `out` moves it past the base's margin (shapes.ts `flatShapes`).
  */
-export function addLoop(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: CrossSection, solids: Solid[], side: Side, keep: Keep): Solid[] {
+export function addLoop(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: CrossSection, solids: Solid[], side: Side, keep: Keep, out = 0): Solid[] {
   if (!hasLoop(s)) return solids;
   const base = solids.find((x) => x.name === 'base');
-  const loop = keep(bodyLoop(wasm, g, s, f, side, !!base));
+  const loop = keep(bodyLoop(wasm, g, s, f, side, !!base, out));
   if (base) return solids.map((x) => (x === base ? { ...x, m: keep(x.m.add(loop)) } : x));
   const prism = keep(keep(keep(outlineMm(outline, f)).extrude(2 * REACH)).translate([0, 0, -REACH]));
   return [...solids, { name: 'loop', hex: s.keychain.loop.color, m: keep(loop.subtract(prism)) }];
+}
+
+/** The 2D shapes one body is built on, pixel units (shapes.ts `flatShapes`). */
+export interface Outlines {
+  /** Where material stands at least as tall as the lowest color: the art and any outline ring. Inside follows it. */
+  tall: CrossSection;
+  /** The body's footprint through its thinnest stack, for counting pieces: the base, else `tall`. */
+  proxy: CrossSection;
+  /** The base reaches past the art's pixel edge (outline ring, smoothing), so the art's pieces are not the body's. */
+  grown: boolean;
+  /** How far past the pixel edge the base reaches, mm. */
+  out: number;
 }
 
 /**
  * Cut the hole, magnet pockets and Inside cavity from one body's solids. Cutters are built unmirrored and
  * moved with `place` (the back half's mirror). Parts cut away entirely are dropped. `pause` is a sealed
  * pocket, placed, for the caller to turn into a pause height after rotation. `pieces` is null when neither
- * a loop nor a cut changed the body (its pieces are then the art's).
+ * a loop, a cut nor a grown base changed the body (its pieces are then the art's).
  */
-export function cutBody(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: CrossSection, solids: Solid[], side: Side,
+export function cutBody(wasm: Wasm, g: Grid, s: Settings, f: Frame, o: Outlines, solids: Solid[], side: Side,
   place: (m: Manifold) => Manifold, keep: Keep): { solids: Solid[]; warnings: string[]; pause: Manifold | null; pieces: number | null } {
   const mags = magnetCutters(wasm, g, s, f, side);
-  const inside = insideCutter(wasm, g, s, f, outline, side);
+  const inside = insideCutter(wasm, g, s, f, o.tall, side);
   const cutters = [holeCutter(wasm, g, s, f), ...mags.cutters, inside.cutter].filter((c): c is Manifold => c !== null).map(keep);
   const warnings = [...(mags.warning ? [mags.warning] : []), ...inside.warnings];
   const placed = cutters.map(place);
-  const pieces = cutters.length || hasLoop(s) ? bodyPieces(wasm, g, s, f, outline, solids, side, placed, place) : null;
+  const pieces = cutters.length || hasLoop(s) || o.grown ? bodyPieces(wasm, g, s, f, o, solids, side, placed, place) : null;
   if (!cutters.length) return { solids, warnings, pause: null, pieces };
   const all = keep(wasm.Manifold.union(placed));
   const cut = solids.map((x) => ({ ...x, m: keep(x.m.subtract(all)) })).filter((x) => !x.m.isEmpty());
@@ -214,19 +231,19 @@ export function cutBody(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: Cro
  * severs the thinnest stack but taller colors bridge it. A sealed void is its own negative-volume component and
  * is not counted.
  */
-function bodyPieces(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: CrossSection, solids: Solid[], side: Side,
+function bodyPieces(wasm: Wasm, g: Grid, s: Settings, f: Frame, o: Outlines, solids: Solid[], side: Side,
   cutters: Manifold[], place: (m: Manifold) => Manifold): number {
   return scratch((k) => {
     let lo = -Infinity, hi = Infinity, zMin = Infinity, zMax = -Infinity;
-    const colors = solids.filter((x) => x.name !== 'base' && x.name !== 'loop');
+    const colors = solids.filter((x) => x.name !== 'base' && x.name !== 'loop' && x.name !== 'outline');
     for (const x of solids) {
       const b = x.m.boundingBox();
       zMin = Math.min(zMin, b.min[2]!); zMax = Math.max(zMax, b.max[2]!);
       if (colors.includes(x)) { lo = Math.max(lo, b.min[2]!); hi = Math.min(hi, b.max[2]!); }
     }
     lo = Math.min(lo, 0); hi = Math.max(hi, side.baseT);
-    let proxy = k(k(k(outlineMm(outline, f)).extrude(hi - lo)).translate([0, 0, lo]));
-    if (hasLoop(s)) proxy = k(proxy.add(k(bodyLoop(wasm, g, s, f, side, solids.some((x) => x.name === 'base')))));
+    let proxy = k(k(k(outlineMm(o.proxy, f)).extrude(hi - lo)).translate([0, 0, lo]));
+    if (hasLoop(s)) proxy = k(proxy.add(k(bodyLoop(wasm, g, s, f, side, solids.some((x) => x.name === 'base'), o.out))));
     let body = place(proxy); // for the front this is `proxy` itself, which `k` already frees
     for (const c of cutters) {
       const b = c.boundingBox();

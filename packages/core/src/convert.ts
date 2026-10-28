@@ -168,7 +168,8 @@ export async function convert(bytes: Uint8Array, preset: Preset, name: string): 
     report.size = { x: r2(model.size.x), y: r2(model.size.y), z: r2(model.size.z) };
     report.pieces = model.pieces;
     report.warnings.push(...model.warnings);
-    if (model.pieces > 1) report.warnings.push(`${model.pieces} separate pieces`);
+    // a clicker names the split object in its own warning
+    if (model.pieces > 1 && !model.pieceCounts) report.warnings.push(`${model.pieces} separate pieces`);
 
     const files = await exportModel(model, settings, base);
     report.files = files.map((f) => f.name);

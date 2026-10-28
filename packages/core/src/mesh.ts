@@ -4,9 +4,10 @@ import { initManifold } from './manifold';
 import type { ManifoldToplevel } from './manifold';
 import { traceLoops } from './outline';
 import { addLoop, cutBody } from './features';
-import type { Frame, Side, Solid } from './features';
+import type { Frame, Outlines, Side, Solid } from './features';
 import { pieces } from './pieces';
 import { buildClicker } from './clicker';
+import { flatShapes, lowestUsed } from './shapes';
 
 type Manifold = InstanceType<ManifoldToplevel['Manifold']>;
 type CrossSection = InstanceType<ManifoldToplevel['CrossSection']>;
@@ -30,6 +31,8 @@ export interface Model {
   bounds: { min: [number, number, number]; max: [number, number, number] };
   /** Disconnected pieces of the printed result (the most in any one body), after the hole and other cuts. */
   pieces: number;
+  /** Clicker only: the pieces of each printed object (`pieces` is the larger). */
+  pieceCounts?: { cap: number; body: number };
   /** Filled by later stages (booleans, checks). */
   warnings: string[];
   /** Filament-change heights, mm; filled by later stages. */
@@ -88,31 +91,41 @@ export async function buildModel(g: Grid, s: Settings): Promise<Model> {
     };
     const outline = region((v) => v >= 0)!;
     const colors = g.palette.map((_, i) => region((v) => v === i));
+    // the base (smoothed, grown to hold the outline ring) and the ring, made in mm and taken back to pixel units
+    const grown = s.outline.on || (s.smooth && s.base.enabled);
+    const sh = grown ? flatShapes(wasm, g, s, box.x0, box.y0, px, keep) : null;
+    const toPx = (cs: CrossSection) => keep(keep(cs.scale([1 / px.x, 1 / px.y])).translate([box.x0, box.y0]));
+    const baseOutline = sh ? toPx(sh.base) : outline;
+    const tall = sh?.ring ? toPx(sh.tall) : outline;
+    const ring = sh?.ring ? toPx(sh.ring) : null;
+    const margin = sh?.margin ?? 0;
+    const outlines: Outlines = { tall, proxy: s.base.enabled ? baseOutline : tall, grown, out: margin };
 
     // a slab of `cs` from z0 to z0 + h, in mm with the opaque box at the origin
     const slab = (cs: CrossSection, z0: number, h: number): Manifold =>
       keep(keep(keep(cs.extrude(h)).translate([-box.x0, -box.y0, z0])).scale([px.x, px.y, 1]));
 
-    const uniform = s.heights.h;
-    // one side's layers: base 0..bt, each color bt..bt + h (and, double sided, -h'..0 underneath)
+    const uniform = s.heights.h, low = lowestUsed(g);
+    // one side's layers: base 0..bt, each color bt..bt + h (and, double sided, -h'..0 underneath), then the outline
+    // ring as tall as the lowest color, so it reads as a border round the art
     const layers = (bt: number, vary: boolean, under: false | 'vary' | 'uniform'): Solid[] => {
       const out: Solid[] = [];
-      if (s.base.enabled) out.push({ name: 'base', hex: s.base.color, m: slab(outline, 0, bt) });
+      if (s.base.enabled) out.push({ name: 'base', hex: s.base.color, m: slab(baseOutline, 0, bt) });
+      const stack = (cs: CrossSection, top: number, below: number) => {
+        const m = slab(cs, bt, top);
+        return under ? keep(wasm.Manifold.compose([m, slab(cs, -below, below)])) : m;
+      };
       g.palette.forEach((p, i) => {
         const cs = colors[i];
         if (!cs) return;
-        let m = slab(cs, bt, vary ? p.height : uniform);
-        if (under) {
-          const hu = under === 'vary' ? p.height : uniform;
-          m = keep(wasm.Manifold.compose([m, slab(cs, -hu, hu)]));
-        }
-        out.push({ name: p.hex, hex: p.hex, m });
+        out.push({ name: p.hex, hex: p.hex, m: stack(cs, vary ? p.height : uniform, under === 'vary' ? p.height : uniform) });
       });
+      if (ring) out.push({ name: 'outline', hex: s.outline.color, m: stack(ring, vary ? low : uniform, under === 'vary' ? low : uniform) });
       return out;
     };
     // one body's layers with the keychain loop joined on (before any mirroring)
     const body = (side: Side, vary: boolean, under: false | 'vary' | 'uniform') =>
-      addLoop(wasm, g, s, frame, outline, layers(side.baseT, vary, under), side, keep);
+      addLoop(wasm, g, s, frame, tall, layers(side.baseT, vary, under), side, keep, margin);
 
     const baseT = s.base.enabled ? s.base.height : 0;
     const top = s.sides.heightsOn === 'both';
@@ -140,7 +153,7 @@ export async function buildModel(g: Grid, s: Settings): Promise<Model> {
     const pauses: Manifold[] = [];
     let pieceCount: number | null = null;
     for (const o of objects) {
-      const r = cutBody(wasm, g, s, frame, outline, o.solids, o.side, o.place, keep);
+      const r = cutBody(wasm, g, s, frame, outlines, o.solids, o.side, o.place, keep);
       o.solids = r.solids;
       r.warnings.forEach((w) => warnings.add(w));
       if (r.pause) pauses.push(r.pause);
