@@ -18,8 +18,11 @@ class AppState {
   edits = $state.raw<Edit[]>([]);
   undo = $state.raw<Snapshot[]>([]);
   redo = $state.raw<Snapshot[]>([]);
-  /** Piece count of the last core model and the grid it was built from (view-only, never undone). */
-  built = $state.raw<{ grid: Grid; pieces: number } | null>(null);
+  /**
+   * Piece count of the last core model, the grid it was built from and whether it was a clicker, with a clicker's
+   * count per object (view-only, never undone).
+   */
+  built = $state.raw<{ grid: Grid; pieces: number; make: 'model' | 'clicker'; counts: { cap: number; body: number } | null } | null>(null);
   /** The grid's 4-connected pieces, largest first: worked out once per grid and shared by every reader. */
   parts = $derived(this.grid ? pieces(this.grid) : []);
 }

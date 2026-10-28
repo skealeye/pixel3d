@@ -67,8 +67,8 @@
       for (let j = 0; j <= g.h; j++) { const y = px(top + j * cell) + 0.5 / dpr; ctx.moveTo(left, y); ctx.lineTo(left + g.w * cell, y); }
       ctx.stroke();
     }
-    // everything but the largest piece gets a red outline
-    if (parts.length > 1) {
+    // everything but the largest piece gets a red outline (not on a clicker, whose backing joins them)
+    if (parts.length > 1 && app.settings.make !== 'clicker') {
       ctx.strokeStyle = '#e0715c';
       ctx.lineWidth = 2;
       for (const piece of parts.slice(1)) for (const k of piece) {
@@ -90,7 +90,7 @@
 
   $effect(() => {
     // redraw when any of these change
-    void [app.grid, ui.zoom, pan.x, pan.y, size, sel];
+    void [app.grid, ui.zoom, pan.x, pan.y, size, sel, app.settings.make];
     draw();
   });
 

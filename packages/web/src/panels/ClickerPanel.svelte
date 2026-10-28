@@ -11,6 +11,7 @@
   const on = $derived(s.make === 'clicker');
   const shapes = [['outline', 'Outline'], ['circle', 'Circle'], ['square', 'Square']] as const;
   const views = [['apart', 'Apart (as printed)'], ['assembled', 'Assembled']] as const;
+  const backings = [['base', 'Base color'], ['art', 'Art colors']] as const;
   const f1 = (v: number) => v.toFixed(1);
 
   const border = live(() => c.border, (v) => (c.border = v));
@@ -81,6 +82,16 @@
       <Slider id="clkProud" label="Cap height" min={0.5} max={4} step={0.5} value={c.capHeight} unit="mm" format={f1} {...capHeight} />
       <!-- spec §4.6b (R22): 0.2–1.5 mm, not the mockup's 0.1–0.6 -->
       <Slider id="clkTol" label="Fit gap" min={0.2} max={1.5} step={0.05} value={c.fitGap} unit="mm" format={(v) => v.toFixed(2)} {...fitGap} />
+      <!-- not in the mockup (user request 2026-10-28): the cap's backing color -->
+      <div class="row"><span class="lbl">Cap backing</span></div>
+      <div class="seg" data-key="clkBacking">
+        {#each backings as [v, label] (v)}
+          <button data-v={v} class:on={c.backing === v} onclick={() => c.backing !== v && setting(() => (c.backing = v))}>{label}</button>
+        {/each}
+      </div>
+      <p class="hint" id="clkBackingHint">{c.backing === 'art'
+        ? "Each art color runs the full depth of the cap, so the cap has no base color. Spots that aren't art take the nearest art color."
+        : 'The cap sits on a backing in the base color.'}</p>
       <div class="row"><span class="lbl">Switches</span></div>
       <div class="seg" data-key="clkSwitches">
         {#each [1, 2, 3] as const as n (n)}

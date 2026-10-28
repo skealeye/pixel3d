@@ -3,7 +3,7 @@ import type { Settings } from './settings';
 import { initManifold } from './manifold';
 import type { ManifoldToplevel } from './manifold';
 import { bounds, opaqueBox, pixelSize } from './mesh';
-import { bridge, fillHoles, grow, lowestUsed, nearestColors, regionMm, smoothRadius } from './shapes';
+import { bridge, fillHoles, grow, lowestUsed, nearestColors, regionCount, regionMm, smoothRadius } from './shapes';
 import type { Model, Part } from './mesh';
 
 type Manifold = InstanceType<ManifoldToplevel['Manifold']>;
@@ -103,16 +103,6 @@ const warningsOf = (w: number, h: number, n: number, uncovered: number): string[
   if (uncovered > 0) out.push(`The art doesn't fully cover ${n > 1 ? `${uncovered} of the switches` : 'the switch'}: it needs a solid ${min} mm square over each switch so the cap covers it.`);
   return out;
 };
-
-/** Pieces of a union of solids. */
-function countPieces(wasm: ManifoldToplevel, ms: Manifold[]): number {
-  const u = wasm.Manifold.union(ms);
-  const parts = u.decompose();
-  const n = parts.length;
-  for (const p of parts) p.delete();
-  u.delete();
-  return n;
-}
 
 type Objects = { object: Part['object']; solids: { name: string; hex: string; m: Manifold }[] }[];
 
@@ -282,8 +272,11 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
     const dx = bb.max[0]! + APART - cb.min[0]!;
     for (const x of capSolids) x.m = keep(x.m.translate([dx, 0, 0]));
 
-    // pieces per printed object, so a warning can say which one is split
-    const counts = { cap: countPieces(wasm, capSolids.map((x) => x.m)), body: countPieces(wasm, [body]) };
+    // pieces per printed object, so a warning can say which one is split. Each is its footprint's regions: the cap's
+    // pockets are blind (a roof stays over them) and every color stands on or in its backing; the body is solid from
+    // the bed up to the shaft floor. (A 3D union of every color takes seconds on busy art, and solids that only share
+    // faces, as the art-color backing's do, don't merge in it.)
+    const counts = { cap: regionCount(capShape), body: regionCount(foot) };
     const warnings = warningsOf(W, H, c.switches, uncovered);
     if (counts.cap > 1) warnings.push(`The cap is in ${counts.cap} pieces. Move the islands closer together or join them.`);
     if (counts.body > 1) warnings.push(`The body is in ${counts.body} pieces. Move the islands closer together or join them, or pick Circle or Square for the body shape.`);

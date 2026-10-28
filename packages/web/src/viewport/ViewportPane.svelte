@@ -1,12 +1,12 @@
 <script lang="ts">
   import { DEFAULTS, cornerTouches, type Grid, type Settings } from '@pixel3d/core';
   import { app, pushUndo, setting, toast, ui } from '../state.svelte';
-  import { pieceCount, removeStrays } from '../actions.svelte';
+  import { pieceCount, piecesNote, removeStrays } from '../actions.svelte';
   import { previewShown } from '../perf';
   import { fmt, gridLabel, gridStep, toUnit } from '../units';
   import { Viewport } from './Viewport';
   import { ModelBuilder } from './modelBuilder';
-  import { previewOf } from './previewMesh';
+  import { canPreview, loadShapes, previewOf } from './previewMesh';
   import { artFrame, handlesOf, modelToAnchor } from './handles';
   import { register } from '../hook';
 
@@ -30,7 +30,7 @@
   const dims = $derived.by(() => {
     if (!size) return null;
     const u = unit;
-    const note = buildError ? 'preview only, the model could not be built' : count > 1 ? `${count} separate pieces`
+    const note = buildError ? 'preview only, the model could not be built' : count > 1 ? piecesNote()!
       : app.settings.make === 'clicker' ? (ui.clkView === 'assembled' ? 'assembled, switch at rest' : 'cap and body') : 'one piece';
     return { size: `${fmt(toUnit(size.x, u), u)} × ${fmt(toUnit(size.y, u), u)} × ${fmt(toUnit(size.z, u), u)} ${u}`, note, warn: !!buildError || count > 1 };
   });
@@ -43,11 +43,14 @@
     else ui.dims = dims ? `${dims.size} ${dims.note}` : '';
   });
   const unit = $derived(app.settings.size.unit);
-  /** Stray pixels (every piece but the largest) and corner-only contacts, for the note. */
+  /**
+   * Stray pixels (every piece but the largest) and corner-only contacts, for the note. Not on a clicker: its backing
+   * bridges islands, and its own warning says whether the cap or the body is split.
+   */
   const strays = $derived.by(() => {
     const g = app.grid;
     const parts = app.parts;
-    if (!g || count < 2 || parts.length < 2) return null;
+    if (!g || app.settings.make === 'clicker' || count < 2 || parts.length < 2) return null;
     return { n: parts.length, pixels: parts.slice(1).reduce((a, p) => a + p.length, 0), corners: cornerTouches(g) > 0 };
   });
 
@@ -63,6 +66,8 @@
   let fitOnModel = false;
   /** What the view was last framed for: a flat model, or a clicker and its body shape. */
   let lastFraming: string | null = null;
+  /** manifold's 2D tools are loaded on the page (previewMesh.ts `loadShapes`). */
+  let shapesReady = $state(false);
   /** What the last preview and the last build were made from, so a change neither uses skips it. */
   let last: { grid: Grid | null; preview: string; build: string } = { grid: null, preview: '', build: '' };
 
@@ -76,7 +81,7 @@
     return true;
   }
   /** The settings the preview uses (previewMesh.ts). */
-  const previewKey = (s: Settings) => JSON.stringify([s.size.width, s.size.height, s.size.keepAspect, s.pixelMm, s.base, s.sides, s.heights.h]);
+  const previewKey = (s: Settings) => JSON.stringify([s.size.width, s.size.height, s.size.keepAspect, s.pixelMm, s.base, s.sides, s.heights.h, s.smooth, s.outline]);
   /**
    * Core builds the model unrotated; the viewport turns it, and units are display-only. The export settings don't
    * change the model (One color is a material, set below), so changing them doesn't rebuild it. Export builds afresh.
@@ -85,13 +90,16 @@
 
   $effect(() => {
     const v = new Viewport(canvas, main);
+    // the base and outline shapes of Smooth edges and Outline need manifold on the page too; until it loads, those
+    // settings show the model only. Once it is in, show the preview for what is up now.
+    loadShapes().then(() => { shapesReady = true; }, () => {});
     builder = new ModelBuilder(
       (model) => {
         v.setModel(model, { row: rowMm, switches: scheduledSwitches }); size = v.size; buildError = null;
         printed = model.clicker ? model.size : null;
         if (fitOnModel) { fitOnModel = false; v.fitView(); }
         warnings = model.warnings.filter((w) => !/ magnet needs about /.test(w));
-        if (scheduled) app.built = { grid: scheduled, pieces: model.pieces };
+        if (scheduled) app.built = { grid: scheduled, pieces: model.pieces, make: model.clicker ? 'clicker' : 'model', counts: model.pieceCounts ?? null };
       },
       (message) => { buildError = message; toast(`Couldn't build the model: ${message}`); },
     );
@@ -100,7 +108,7 @@
     const unregister = register({
       viewport: () => ({
         shown: v.shown, cut: ui.cut, grid: { ...ui.grid }, renders: v.renders, size: v.size, buildError, ...v.stats(), highlight: v.highlight(),
-        bounds: v.bounds(), handles: v.handleScreen(), gridStep: v.gridStep, clicker: v.clicker(), camera: v.cameraAt(),
+        bounds: v.bounds(), handles: v.handleScreen(), gridStep: v.gridStep, clicker: v.clicker(), camera: v.cameraAt(), parts: v.partNames(),
       }),
       failNextBuild: () => b.failNextBuild(),
     });
@@ -111,6 +119,7 @@
   // doesn't show (keychain, magnets, Inside) keeps the current model up until the new one arrives.
   $effect(() => {
     const grid = app.grid, settings = $state.snapshot(app.settings) as Settings, v = vp;
+    void shapesReady;
     if (!v || !builder) return;
     if (!grid) { builder.cancel(); v.clear(); size = null; warnings = []; last = { grid: null, preview: '', build: '' }; return; }
     const same = sameGrid(last.grid, grid), fresh = app.source !== lastSource;
@@ -123,8 +132,9 @@
     if (framing !== lastFraming) { if (lastFraming !== null) fitOnModel = true; lastFraming = framing; }
     if (!same || fresh || pk !== last.preview || v.shown !== 'model') {
       last.preview = pk;
-      if (clicker) {
-        // the fast preview can't show a clicker (cap, body, switch seats): what is shown stays until the model arrives
+      if (clicker || !canPreview(settings)) {
+        // the fast preview can't show a clicker (cap, body, switch seats), nor the base and outline shapes before
+        // manifold has loaded on the page: what is shown stays until the model arrives
         const f = artFrame(grid, settings);
         if (!f) { v.clear(); size = null; builder.cancel(); last.build = ''; return; }
         rowMm = f.px.y;
@@ -140,7 +150,7 @@
     if (fresh) {
       lastSource = app.source;
       // a clicker is framed when its model arrives
-      if (clicker) fitOnModel = true;
+      if (clicker || !canPreview(settings)) fitOnModel = true;
       else v.fitView();
     }
     if (!same || bk !== last.build || v.shown !== 'model') {
@@ -150,7 +160,7 @@
       builder.schedule(grid, build);
     } else {
       // the same grid content: the model shown (or on its way) is still this grid's
-      if (app.built && app.built.grid !== grid && sameGrid(app.built.grid, grid)) app.built = { grid, pieces: app.built.pieces };
+      if (app.built && app.built.grid !== grid && sameGrid(app.built.grid, grid)) app.built = { ...app.built, grid };
       scheduled = grid;
     }
   });

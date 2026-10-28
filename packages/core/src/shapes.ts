@@ -156,3 +156,19 @@ export function nearestColors(g: Grid, pad: number): { w: number; h: number; cel
   for (let k = 0; k < n; k++) cells[k] = src[k]! < 0 ? -1 : g.cells[src[k]!]!;
   return { w, h, cells };
 }
+
+/**
+ * The flat model's base and outline ring (`flatShapes`) as plain polygons in mm, opaque box corner at the origin, or
+ * null when nothing is opaque. For the web preview, which extrudes them itself; `wasm` must already be loaded.
+ */
+export function flatOutlines(wasm: Wasm, g: Grid, s: Settings, x0: number, y0: number, px: { x: number; y: number }):
+  { base: [number, number][][]; ring: [number, number][][] } {
+  const trash: { delete(): void }[] = [];
+  const keep: Keep = (o) => { trash.push(o); return o; };
+  try {
+    const sh = flatShapes(wasm, g, s, x0, y0, px, keep);
+    return { base: polygonsOf(sh.base), ring: polygonsOf(sh.ring) };
+  } finally {
+    for (const o of trash) o.delete();
+  }
+}

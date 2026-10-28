@@ -64,7 +64,7 @@ test.describe('keycap clicker', () => {
     expect((await settings(page)).make).toBe('clicker');
     await expect(page.locator('#makeHint')).toHaveText('Your art becomes a key cap that clicks on a mechanical keyboard switch (Cherry MX style). Prints as two parts: the cap and a body that holds the switch.');
     // the Clicker settings show directly below Make
-    await expect(page.locator('aside.right section > h2')).toHaveText([/^Make/, /^Clicker/, /^Size/, /^Base/, /^Inside/, /^Sides/, /^Keychain/, /^Magnets/, /^Orientation/]);
+    await expect(page.locator('aside.right section > h2')).toHaveText([/^Make/, /^Clicker/, /^Size/, /^Base/, /^Outline/, /^Inside/, /^Sides/, /^Keychain/, /^Magnets/, /^Orientation/]);
   });
 
   test('Clicker grays out Sides, Inside, Keychain, Magnets and Orientation with "Not used on a clicker"', async ({ page }) => {
@@ -108,7 +108,7 @@ test.describe('keycap clicker', () => {
     await page.locator('#clkBorder').fill('20');
     await page.locator('#clkBorder').press('Enter');
     const s = await snap(page);
-    expect(s.settings.clicker).toEqual({ shape: 'circle', border: 10, capHeight: 2, fitGap: 0.8, switches: 2 });
+    expect(s.settings.clicker).toEqual({ shape: 'circle', border: 10, capHeight: 2, fitGap: 0.8, switches: 2, backing: 'base' });
     expect(s.undo).toBe(u0 + 5);
     await expect(page.locator('#clkHint')).toContainText('Needs 2 MX-style switches. Press each switch into the body from above until it sits on the step, then push the cap on.');
     await expect(page.locator('#clkHint')).toContainText('even with Base off');

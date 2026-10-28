@@ -105,11 +105,25 @@ export function cropTo(c0: number, r0: number, c1: number, r1: number) {
   if (change(() => { app.source = next; app.edits = edits; }) && lost) toast('Painted pixels outside the crop were removed.');
 }
 
-/** Pieces in what is shown: the core model's count once it matches the grid, the grid's own until then. */
+/**
+ * Pieces in what is shown: the core model's count once it matches the grid, the grid's own until then. A clicker's
+ * backing bridges islands, so the grid's count means nothing there: until its model arrives the last clicker's count
+ * stands (one before there is any).
+ */
 export function pieceCount(): number {
-  const g = app.grid;
+  const g = app.grid, b = app.built;
   if (!g) return 0;
-  return app.built?.grid === g ? app.built.pieces : app.parts.length;
+  if (app.settings.make === 'clicker') return b?.make === 'clicker' ? b.pieces : 1;
+  return b?.grid === g && b.make === 'model' ? b.pieces : app.parts.length;
+}
+
+/** What is split, in plain words, or null for one piece: `3 separate pieces`, or on a clicker `cap in 3 pieces`. */
+export function piecesNote(): string | null {
+  const n = pieceCount();
+  if (n < 2) return null;
+  const counts = app.settings.make === 'clicker' && app.built?.make === 'clicker' ? app.built.counts : null;
+  if (!counts) return `${n} separate pieces`;
+  return (['cap', 'body'] as const).filter((k) => counts[k] > 1).map((k) => `${k} in ${counts[k]} pieces`).join(', ');
 }
 
 /** Painted cells moved onto a resampled grid: old cell (x, y), offset by (x0, y0), scaled by (kx, ky). */

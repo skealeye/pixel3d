@@ -284,6 +284,11 @@ export class Viewport {
   /** The camera position, world space (for the e2e checks). */
   cameraAt(): Vec3 { return this.camera.position.toArray(); }
 
+  /** Each shown mesh as `object:part` (`main` for the preview), e.g. `main:outline` (for the e2e checks). */
+  partNames(): string[] {
+    return this.meshes.map((m) => `${(m.userData.object as string | undefined) ?? 'main'}:${m.userData.part as string}`);
+  }
+
   /** Materials in use and how many of them the cut plane clips (for the e2e checks). */
   stats() {
     let clipped = 0;

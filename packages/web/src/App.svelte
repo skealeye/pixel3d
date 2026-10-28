@@ -10,6 +10,7 @@
   import ClickerPanel from './panels/ClickerPanel.svelte';
   import SizePanel from './panels/SizePanel.svelte';
   import BasePanel from './panels/BasePanel.svelte';
+  import OutlinePanel from './panels/OutlinePanel.svelte';
   import InsidePanel from './panels/InsidePanel.svelte';
   import SidesPanel from './panels/SidesPanel.svelte';
   import KeychainPanel from './panels/KeychainPanel.svelte';
@@ -78,6 +79,7 @@
   <ClickerPanel />
   <SizePanel />
   <BasePanel />
+  <OutlinePanel />
   <InsidePanel />
   <SidesPanel />
   <KeychainPanel />

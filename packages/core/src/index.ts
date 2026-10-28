@@ -25,6 +25,7 @@ export type { Settings, Anchor } from './settings';
 export { parsePreset, presetSettings, colorRuleEdits, placeRelative, presetFromState, PresetError } from './preset';
 export type { Preset, ColorRule } from './preset';
 export { buildModel, opaqueBox, pixelSize } from './mesh';
+export { flatOutlines, smoothRadius, lowestUsed, BRIDGE_MAX } from './shapes';
 export { filamentColors, filamentSlots } from './filaments';
 export type { Model, Part } from './mesh';
 export { MX, TRAVEL_MARGIN, CAP_ROOF, MIN_ART, MIN_WALL, FIT_STEPS, capThickness, buildClicker, clickerLevels, fitTest } from './clicker';
