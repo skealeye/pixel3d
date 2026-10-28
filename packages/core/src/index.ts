@@ -29,4 +29,7 @@ export type { Model, Part } from './mesh';
 export { edgeAtAngle, loopSolid, holeCutter, magnetCutters, insideCutter } from './features';
 export type { Frame, Edge, Side } from './features';
 export { initManifold } from './manifold';
+export { toSTL } from './export/stl';
+export { to3MF } from './export/threemf';
+export type { ThreeMFOptions, Slicer } from './export/threemf';
 export type { ManifoldToplevel } from './manifold';

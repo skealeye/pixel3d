@@ -1,12 +1,13 @@
 {
   "name": "pixel3d",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p packages/core --noEmit",
-    "fixtures": "tsx packages/core/test/fixtures/make-fixtures.ts"
+    "fixtures": "tsx packages/core/test/fixtures/make-fixtures.ts",
+    "sample-3mf": "tsx packages/core/scripts/sample-3mf.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -18,6 +19,7 @@
   },
   "dependencies": {
     "@jsquash/webp": "^1.4.0",
+    "fflate": "^0.8.3",
     "jpeg-js": "^0.4.4",
     "manifold-3d": "^3.5.4",
     "omggif": "^1.0.10",
