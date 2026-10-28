@@ -69,6 +69,8 @@ Success means the user can drop in a sprite, adjust heights and colours, and get
   - An "add colour" button creates a new palette entry to paint with.
   - Painting a pixel into a previously empty spot extends the model.
 - Undo and redo (50 steps) cover all palette, paint and height edits.
+- **Restore colours:** brings back the original colours and pixels after deletes or recolours, and keeps the heights set for colours that still exist.
+- **Reload image:** returns to the original image, undoing all colour, paint and height edits. Both actions can be undone.
 
 ### 4.4 Heights (new)
 - Each colour has a height, measured from the top of the base, or from the bed if there is no base. The range is 0.2–20 mm.
@@ -86,13 +88,18 @@ Success means the user can drop in a sprite, adjust heights and colours, and get
 - Width and height of the model's outline, in mm or inches, each set with a **slider plus a number box**.
   - "Keep aspect ratio" is on by default. Turned off, width and height scale independently, so pixels become rectangles.
 - Every size and thickness control in the app (base, wall, hole, loop, pixel height) is a slider with a number box.
-- Optional base with its own height and colour. The base follows the pixel outline.
+- Optional base with its own height and colour. The base follows the pixel outline. Base settings are hidden while the base is off.
+- **Favourite colours:** five slots, saved in the browser.
+  - Click a slot to use that colour. "Save" adds the current colour. Right-click a slot to remove it.
+  - The same favourites row appears wherever a model colour is chosen: the base, and the loop when there is no base.
 - **The base colour is exported correctly** (bug fix).
-- **Bottom style (new):** `solid` (default), `shell` or `hollow`. *(Confirmed by the user.)*
+- **Inside (new; the UI calls it "Inside", not "Bottom"):** `solid` (default), `shell` or `hollow`. *(Confirmed by the user.)*
   - `shell`: the inside is hollowed out to save filament and weight. A closed bottom skin and side walls of a set thickness remain.
   - `hollow`: as `shell`, but the bottom is left open, like an upside-down tray.
   - Wall and floor thickness: 0.8–5 mm.
-  - Ignored for `halves`, where the flat glue faces must stay solid.
+  - Not available for `halves`, where the flat glue faces must stay solid. Double sided allows `shell` only, since it has no flat bottom.
+  - A warning appears when the model is too thin to hollow out.
+  - **Cut view:** a viewport toggle that slices the model through the middle of a pixel row. Solid cut faces show in gold and empty space stays empty, so `shell`, `hollow` and magnet pockets can be seen. It switches on automatically the first time `shell` or `hollow` is picked.
 
 ### 4.6 Two-sided (new)
 A setting with three values, labelled in the UI as **One side / Double sided / Two halves**:
@@ -109,15 +116,20 @@ A setting with three values, labelled in the UI as **One side / Double sided / T
   - For export: one 3MF with two plates or objects, or two STL files (`name_front`, `name_back`).
 
 ### 4.7 Keychain (parity, reworked)
-- **Hole:** a cylinder, diameter 2–8 mm, shown as a handle you **drag anywhere on the model**. It cuts through every layer: base, pixels, and both faces or halves.
-- **Loop:** a ring joined to the model's outside edge. You **drag it and it slides along the outline**, snapping to the nearest pixel edge. Inner and outer diameter settings.
-  - Two styles: **Rounded loop**, a smooth ring, and **Pixel loop**, a square ring made of whole pixels that matches the art.
+- **Hole:** **Round** or **Pixel** (a square of whole pixels snapped to the grid), 2–10 mm. A flat gold marker on the model's top surface is dragged to move it. It cuts through every layer: base, pixels, and both faces or halves. Moving the hole never moves or lifts the model: handles are not counted in the model's size or position.
+- **Loop:** a ring joined to the model's outside edge. Its place is a **Position slider from 0 to 359°** (0° is straight up, clockwise). It is not dragged. The engine walks outwards from the shape's centre at that angle and attaches the loop to the outward-facing pixel edge where it leaves the shape. Inner and outer diameter settings.
+  - Colour: the base colour when there is a base. Otherwise there is a loop colour setting with favourites.
+  - Two styles: **Rounded loop**, a smooth ring, and **Pixel loop**, a square ring made of whole pixels that matches the art. The hole always stays centred: when the pixel counts can't be centred evenly, the hole is shrunk or the ring grown by one pixel.
   - The loop is **merged into one watertight body** with the base, or with the full outline when there is no base, in both STL and 3MF.
 - Loop thickness equals the base thickness, or the lowest colour height when there is no base. *(Claude's call.)*
 - The keychain works in all two-sided modes. In `halves`, the loop or hole is split across both halves, with each half getting half the thickness, so the glued loop is full thickness.
 
 ### 4.8 Magnets, viewer, export, misc (parity)
-- **Magnet pockets:** presets plus a custom size. Depth or centred placement, and a readout of the material left above and below.
+- **Magnet pockets** are real cut-outs (boolean subtraction) in the model, with presets plus a custom size.
+  - **Pocket in bottom:** open on the bed face, so the magnet is pressed in after printing.
+  - **Sealed in centre:** an enclosed pocket inside the base. The 3MF includes a pause at the layer that closes the pocket, so the magnet can be dropped in during the print.
+  - Double sided always uses the sealed pocket. Halves always use pockets open on the glue face.
+  - A readout shows the material left above and below the pocket.
   - "Place a magnet" enters placement mode: click the model to drop one, or press Esc to cancel. Placed magnets can be dragged and removed one by one, and there is a Clear all.
   - A warning appears when the base is too thin for the chosen magnet.
 - **Viewer:** orbit, zoom, pan, reset, and a grid in mm or inches. **Grid options:** show or hide, colour, and opacity (0–100%).
@@ -138,6 +150,8 @@ A setting with three values, labelled in the UI as **One side / Double sided / T
   - The setting is included in presets.
   - The two-sided `solid` model defaults to flat, with a note recommending `halves` for the cleanest finish.
 - Resizable panels, a mobile layout and keyboard shortcuts.
+- **Export lives in the top bar:** an Export button opens a panel with All colours / One colour, format, slicer, file name and a summary line (files, filament count, dimensions). The settings column scrolls on its own, with nothing pinned to the bottom.
+- **The 3D view must not flicker while the window or panels are resized:** it redraws in the same frame as the resize.
 
 ### 4.9 Reference-app bugs that must not carry over
 - The base colour is ignored on export.

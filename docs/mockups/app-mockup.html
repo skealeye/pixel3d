@@ -36,8 +36,8 @@
   :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
   header {
-    grid-area: top; display: flex; align-items: center; gap: 16px;
-    padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--panel);
+    grid-area: top; display: flex; align-items: center; gap: 12px;
+    padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--panel); position: relative; z-index: 10;
   }
   .mark { font-family: Silkscreen, monospace; font-size: 22px; letter-spacing: 1px; color: var(--gold); line-height: 1; }
   .mark span { color: var(--text); }
@@ -52,6 +52,7 @@
   .btn.on { border-color: var(--gold); color: var(--gold); }
   .btn.primary { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); font-weight: 600; }
   .btn.primary:hover { filter: brightness(1.08); }
+  .btn.primary.on { color: var(--gold-ink); box-shadow: 0 0 0 2px #d9a44155; }
   .btn.small { padding: 3px 8px; font-size: 12px; }
   .btn.icon { padding: 6px 9px; }
   .btn:disabled { opacity: .4; cursor: default; }
@@ -62,11 +63,13 @@
   section { padding: 14px 16px 16px; border-bottom: 1px solid var(--line); }
   h2 { margin: 0 0 10px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
   h2 small { color: var(--muted); font-weight: 400; margin-left: auto; }
+  h2 .btn { margin-left: auto; }
+  h2 small + .btn { margin-left: 0; }
   .row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .row > label:first-child { flex: 1; color: var(--muted); }
-  .sl { display: grid; grid-template-columns: 88px 1fr 58px 22px; align-items: center; gap: 8px; margin-top: 8px; }
+  .sl { display: grid; grid-template-columns: 80px 1fr 58px 22px; align-items: center; gap: 8px; margin-top: 8px; }
   .sl label { color: var(--muted); }
-  .sl .unit { color: var(--muted); font-size: 12px; }
+  .unit { color: var(--muted); font-size: 12px; }
   .hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
   .warn { color: var(--danger); }
   .num {
@@ -75,12 +78,24 @@
   }
   .row .num { width: 64px; }
   select { background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; }
-  .seg { display: flex; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 2px; gap: 2px; }
+  .seg { display: flex; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 2px; gap: 2px; margin-top: 8px; }
+  h2 + .seg { margin-top: 0; }
   .seg button { flex: 1; border: 0; background: none; padding: 5px 6px; border-radius: 3px; cursor: pointer; color: var(--muted); white-space: nowrap; }
   .seg button.on { background: var(--raised); color: var(--text); box-shadow: inset 0 -2px 0 var(--gold); }
+  .seg button:disabled { opacity: .35; cursor: not-allowed; }
   input[type=range] { accent-color: var(--gold); width: 100%; min-width: 0; }
   input[type=checkbox] { accent-color: var(--gold); }
+  input[type=color] { width: 40px; height: 26px; padding: 0 2px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); cursor: pointer; }
   .check { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: var(--muted); cursor: pointer; }
+
+  /* colour + favourites */
+  .favs { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+  .favs .lbl { color: var(--muted); flex: 1; }
+  .fav { width: 22px; height: 22px; border-radius: 50%; border: 1px solid #0008; cursor: pointer; padding: 0; box-shadow: inset 0 0 0 1px #ffffff1a; }
+  .fav.cur { outline: 2px solid var(--gold); outline-offset: 1px; }
+  .fav.empty { background: none; border: 1px dashed var(--line); cursor: default; }
+  .star { white-space: nowrap; background: none; border: 1px solid var(--line); border-radius: var(--r-s); color: var(--muted); cursor: pointer; padding: 1px 6px; }
+  .star:hover { color: var(--gold); border-color: var(--gold); }
 
   /* source image */
   .source { background:
@@ -88,7 +103,7 @@
     border: 1px solid var(--line); border-radius: var(--r-s); display: grid; place-items: center; padding: 10px; }
   #src { image-rendering: pixelated; cursor: crosshair; touch-action: none; display: block; }
   .tools { display: flex; gap: 6px; margin-top: 8px; }
-  .tools .seg { flex: 1; }
+  .tools .seg { flex: 1; margin-top: 0; }
 
   /* palette */
   .pal { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
@@ -100,21 +115,23 @@
   .sw { width: 26px; height: 26px; border-radius: 3px; border: 1px solid #0006; cursor: pointer; padding: 0; }
   .hex { position: relative; cursor: pointer; color: var(--muted); font-size: 12px; }
   .hex:hover { color: var(--text); text-decoration: underline dotted; }
-  .hex input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .hex input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
   .hv { text-align: right; font-size: 12px; }
   .del { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 15px; padding: 0; }
   .del:hover { color: var(--danger); }
   .heights { display: grid; gap: 4px; margin-bottom: 12px; }
+  .heights .seg { margin-top: 0; }
 
   /* viewport */
-  main { grid-area: view; position: relative; min-width: 0; min-height: 0; }
-  #view { width: 100%; height: 100%; display: block; }
-  #resizer { position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 5; }
+  main { grid-area: view; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #16181c; }
+  #view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #resizer { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 5; }
   #resizer:hover, #resizer.drag { background: var(--gold); opacity: .5; }
   .vtools { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; align-items: flex-start; }
   .vtools .btn { background: #23272ee6; }
+  .vtools .btn.on { background: #23272ee6; }
   .pop {
-    position: absolute; top: 40px; left: 0; width: 220px; background: var(--panel); border: 1px solid var(--line);
+    position: absolute; top: 40px; left: 0; width: 230px; background: var(--panel); border: 1px solid var(--line);
     border-radius: var(--r-m); padding: 6px 12px 12px; display: none; box-shadow: 0 8px 24px #0006;
   }
   .pop.open { display: block; }
@@ -127,16 +144,24 @@
   .dims b { color: var(--text); font-weight: 500; }
   .mode { bottom: 12px; left: 50%; transform: translateX(-50%); border-left: 3px solid var(--gold); color: var(--text); display: none; }
   .note {
-    position: absolute; top: 12px; right: 12px; max-width: 260px; background: #23272ee6;
+    position: absolute; top: 12px; right: 12px; max-width: 280px; background: #23272ee6;
     border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: var(--r-s);
     padding: 8px 10px; color: var(--muted); display: none;
   }
+  .note b { color: var(--text); font-weight: 500; }
   .maglist { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 2px; color: var(--muted); }
   .maglist li { display: flex; justify-content: space-between; }
 
-  .export { position: sticky; bottom: 0; background: var(--panel); border-top: 1px solid var(--line); border-bottom: 0; }
-  .export .btn.primary { width: 100%; padding: 9px; margin-top: 10px; }
+  /* export panel, opened from the top bar */
+  .exportWrap { position: relative; }
+  #exportPop {
+    position: absolute; right: 0; top: 44px; width: 300px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--r-m); box-shadow: 0 12px 32px #0008; padding: 14px 16px 16px; display: none;
+  }
+  #exportPop.open { display: block; }
+  #exportPop .btn.primary { width: 100%; padding: 9px; margin-top: 12px; }
   #name { flex: 1; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; min-width: 0; }
+  .summary { margin-top: 10px; color: var(--muted); font-size: 12px; }
 
   footer {
     grid-area: status; display: flex; align-items: center; gap: 20px; padding: 0 16px;
@@ -165,7 +190,6 @@
 
   @media (max-width: 960px) {
     body { grid-template: 52px 55vh auto auto 30px / 1fr; grid-template-areas: "top" "view" "left" "right" "status"; overflow: auto; }
-    .export { position: static; }
     #resizer { display: none; }
   }
 </style>
@@ -186,11 +210,32 @@
   <button class="btn icon" id="redo" title="Redo (Ctrl+Y)">↷</button>
   <button class="btn" id="openBatch">Batch and API</button>
   <button class="btn">Open image</button>
+  <div class="exportWrap">
+    <button class="btn primary" id="exportBtn">Export</button>
+    <div id="exportPop">
+      <h2>Export</h2>
+      <div class="seg" data-key="colourMode">
+        <button data-v="full">All colours</button>
+        <button data-v="mono">One colour</button>
+      </div>
+      <div class="row" id="monoRow"><label>Print colour</label><input type="color" id="monoColor" value="#e8e4d8"></div>
+      <div class="seg" data-key="format">
+        <button data-v="3mf">3MF</button>
+        <button data-v="stl">STL</button>
+      </div>
+      <div class="row" id="slicerRow"><label>Slicer</label>
+        <select id="slicer"><option>Bambu Studio</option><option>OrcaSlicer</option><option>PrusaSlicer</option><option>Other</option></select>
+      </div>
+      <div class="row"><label style="flex:0">Name</label><input id="name" value="potion"></div>
+      <div class="summary" id="summary"></div>
+      <button class="btn primary" id="export">Export file</button>
+    </div>
+  </div>
 </header>
 
 <aside class="left">
   <section>
-    <h2>Image <button class="btn small" id="expand" style="margin-left:auto">Expand</button></h2>
+    <h2>Image <button class="btn small" id="reloadImg" title="Undo every edit and go back to the original image">Reload image</button><button class="btn small" id="expand">Expand</button></h2>
     <div class="source" id="sourceBox"><canvas id="src"></canvas></div>
     <div class="tools">
       <div class="seg" data-key="tool">
@@ -204,7 +249,7 @@
   </section>
 
   <section>
-    <h2>Colours and heights <small id="pcount"></small></h2>
+    <h2>Colours and heights <small id="pcount"></small><button class="btn small" id="restoreCols" title="Bring back deleted and recoloured colours. Heights are kept.">Restore colours</button></h2>
     <div class="heights">
       <div class="seg" data-key="heightMode">
         <button data-v="uniform">All the same</button>
@@ -228,18 +273,19 @@
 </aside>
 
 <main>
-  <div id="resizer" title="Drag to resize"></div>
   <canvas id="view"></canvas>
+  <div id="resizer" title="Drag to resize"></div>
   <div class="vtools">
     <button class="btn" id="resetView">Reset view</button>
     <div style="position:relative">
       <button class="btn" id="gridBtn">Grid</button>
       <div class="pop" id="gridPop">
         <label class="check"><input type="checkbox" id="gridOn" checked> Show grid</label>
-        <div class="sl"><label>Colour</label><input type="color" id="gridColor" value="#8a7446" style="width:100%;height:24px"><span></span></div>
+        <div class="sl"><label>Colour</label><input type="color" id="gridColor" value="#8a7446" style="width:100%"><span></span></div>
         <div class="sl"><label>Opacity</label><input type="range" id="gridOpacity" min="0" max="100" value="70"><span class="unit" id="gridOpacityV">70%</span></div>
       </div>
     </div>
+    <button class="btn" id="cutBtn" title="Slice the model in half to see inside">Cut view</button>
   </div>
   <div class="note" id="note"></div>
   <div class="mode" id="mode"></div>
@@ -256,14 +302,21 @@
 
   <section>
     <h2>Base <input type="checkbox" id="baseOn" checked style="margin-left:auto"></h2>
-    <div class="sl"><label>Thickness</label><input type="range" id="baseHR" min="0.5" max="6" step="0.1"><input class="num" id="baseH"><span class="unit">mm</span></div>
+    <div id="baseRows">
+    <div class="sl"><label>Thickness</label><input type="range" id="baseHR" min="0.5" max="8" step="0.1"><input class="num" id="baseH"><span class="unit">mm</span></div>
     <div class="row"><label>Colour</label><input type="color" id="baseColor" value="#2a2d33"></div>
-    <div class="row"><label>Bottom</label></div>
-    <div class="seg" data-key="bottom" style="margin-top:6px">
+    <div class="favs" id="baseFavs"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Inside</h2>
+    <div class="seg" data-key="bottom">
       <button data-v="solid">Solid</button>
       <button data-v="shell">Shell</button>
       <button data-v="hollow">Hollow</button>
     </div>
+    <p class="hint" id="bottomHint"></p>
     <div class="sl" id="wallRow"><label>Wall</label><input type="range" id="wallR" min="0.8" max="5" step="0.1"><input class="num" id="wall"><span class="unit">mm</span></div>
   </section>
 
@@ -277,7 +330,7 @@
     <p class="hint" id="sidesHint"></p>
     <div id="applyRow">
       <div class="row"><label>Colour heights apply to</label></div>
-      <div class="seg" data-key="heightsOn" style="margin-top:6px">
+      <div class="seg" data-key="heightsOn">
         <button data-v="both" id="hoBoth">Both sides</button>
         <button data-v="top" id="hoTop">Top side only</button>
       </div>
@@ -291,22 +344,39 @@
       <button data-v="hole">Hole</button>
       <button data-v="loop">Loop</button>
     </div>
-    <div class="sl" id="holeRow"><label>Diameter</label><input type="range" id="holeDR" min="2" max="8" step="0.5"><input class="num" id="holeD"><span class="unit">mm</span></div>
+    <div id="holeRows">
+      <div class="seg" data-key="holeStyle">
+        <button data-v="round">Round hole</button>
+        <button data-v="pixel">Pixel hole</button>
+      </div>
+      <div class="sl"><label>Size</label><input type="range" id="holeDR" min="2" max="10" step="0.5"><input class="num" id="holeD"><span class="unit">mm</span></div>
+    </div>
     <div id="loopRows">
-      <div class="seg" data-key="loopStyle" style="margin-top:8px">
+      <div class="seg" data-key="loopStyle">
         <button data-v="round">Rounded loop</button>
         <button data-v="pixel">Pixel loop</button>
       </div>
-      <div class="sl"><label>Hole</label><input type="range" id="loopInR" min="2" max="8" step="0.5"><input class="num" id="loopIn"><span class="unit">mm</span></div>
-      <div class="sl"><label>Outside</label><input type="range" id="loopOutR" min="4" max="14" step="0.5"><input class="num" id="loopOut"><span class="unit">mm</span></div>
+      <div class="sl"><label>Position</label><input type="range" id="loopAngleR" min="0" max="359" step="1"><input class="num" id="loopAngle"><span class="unit">°</span></div>
+      <div class="sl"><label>Hole</label><input type="range" id="loopInR" min="2" max="10" step="0.5"><input class="num" id="loopIn"><span class="unit">mm</span></div>
+      <div class="sl"><label>Outside</label><input type="range" id="loopOutR" min="4" max="16" step="0.5"><input class="num" id="loopOut"><span class="unit">mm</span></div>
+      <div id="loopColRows">
+        <div class="row"><label>Loop colour</label><input type="color" id="loopColor" value="#2a2d33"></div>
+        <div class="favs" id="loopFavs"></div>
+      </div>
     </div>
     <p class="hint" id="keyHint"></p>
   </section>
 
   <section>
     <h2>Magnets <small id="magCount">0 placed</small></h2>
-    <div class="row"><label>Size</label>
+    <div class="row" style="margin-top:0"><label>Size</label>
       <select id="magSize"><option value="8x3">8 × 3 mm</option><option value="6x2">6 × 2 mm</option><option value="10x3">10 × 3 mm</option></select>
+    </div>
+    <div id="magPosRow">
+      <div class="seg" data-key="magPos">
+        <button data-v="bottom">Pocket in bottom</button>
+        <button data-v="centre">Sealed in centre</button>
+      </div>
     </div>
     <div class="row"><button class="btn" id="placeMag">Place a magnet</button><button class="btn" id="clearMag">Clear all</button></div>
     <ul class="maglist" id="magList"></ul>
@@ -325,24 +395,6 @@
       <button class="btn" id="edge">On edge</button>
       <span class="hint" style="margin:0" id="rotLabel"></span>
     </div>
-  </section>
-
-  <section class="export">
-    <h2>Export</h2>
-    <div class="seg" data-key="colourMode" style="margin-bottom:8px">
-      <button data-v="full">All colours</button>
-      <button data-v="mono">One colour</button>
-    </div>
-    <div class="row" id="monoRow" style="margin:0 0 8px"><label>Print colour</label><input type="color" id="monoColor" value="#e8e4d8"></div>
-    <div class="seg" data-key="format">
-      <button data-v="3mf">3MF</button>
-      <button data-v="stl">STL</button>
-    </div>
-    <div class="row" id="slicerRow"><label>Slicer</label>
-      <select id="slicer"><option>Bambu Studio</option><option>OrcaSlicer</option><option>PrusaSlicer</option><option>Other</option></select>
-    </div>
-    <div class="row"><label style="flex:0">Name</label><input id="name" value="potion"></div>
-    <button class="btn primary" id="export">Export</button>
   </section>
 </aside>
 
@@ -398,9 +450,10 @@ const S = {
   heightMode: 'uniform', hMin: 1, hMax: 4, seed: 42, darkHigh: true, defH: 1,
   w: 40, h: 40, lock: true, base: true, baseH: 2, baseColor: '#2a2d33', bottom: 'solid', wall: 1.2,
   sides: 'single', heightsOn: 'both',
-  key: 'none', holeD: 4, loopStyle: 'round', loopIn: 4, loopOut: 8, hole: null, loop: null,
-  magnets: [], magSize: '8x3', placing: false,
-  rot: [0, 0, 0], format: '3mf', colourMode: 'full', monoColor: '#e8e4d8',
+  key: 'none', holeStyle: 'round', holeD: 4, hole: null,
+  loopStyle: 'round', loopIn: 4, loopOut: 8, loopAngle: 0, loopColor: '#2a2d33',
+  magnets: [], magSize: '8x3', magPos: 'bottom', placing: false,
+  rot: [0, 0, 0], format: '3mf', colourMode: 'full', monoColor: '#e8e4d8', cut: false,
 };
 {
   const idx = {};
@@ -410,6 +463,7 @@ const S = {
     S.grid.push(idx[ch]);
   }
 }
+const ORIGINAL = JSON.stringify({ grid: S.grid, palette: S.palette });
 
 const $ = (id) => document.getElementById(id);
 const rgb = (hex) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
@@ -418,9 +472,11 @@ const dist = (a, b) => { const x = rgb(a), y = rgb(b); return Math.hypot(x[0]-y[
 function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const round1 = (v) => Math.round(v * 10) / 10;
 const magDims = () => S.magSize.split('x').map(Number);
+const mono = () => S.colourMode === 'mono';
 
 // pixel space: u right, v up, one unit per pixel; cell (x, y) spans [x, x+1] × [y, y+1]
 const opaque = (x, y) => x >= 0 && y >= 0 && x < N && y < N && S.grid[(N - 1 - y) * N + x] >= 0;
+const colourAt = (x, y) => S.grid[(N - 1 - y) * N + x];
 function bbox() {
   let x0 = N, x1 = -1, y0 = N, y1 = -1;
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (opaque(x, y)) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
@@ -433,27 +489,59 @@ function edges() {
       out.push({ u: x + .5 + dx * .5, v: y + .5 + dy * .5, nx: dx, ny: dy, cx: x, cy: y });
   return out;
 }
-function nearestEdge(p) {
+function centroid() {
+  let su = 0, sv = 0, n = 0;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (opaque(x, y)) { su += x + .5; sv += y + .5; n++; }
+  return { u: su / n, v: sv / n };
+}
+// loop position: 0° is straight up, clockwise. Walk out from the centre to the last solid pixel, then take the outward edge there.
+function edgeAtAngle(deg) {
+  const c = centroid(), a = deg * Math.PI / 180, d = { u: Math.sin(a), v: Math.cos(a) };
+  let last = 0;
+  for (let t = 0; t < N * 1.5; t += 0.05) if (opaque(Math.floor(c.u + d.u * t), Math.floor(c.v + d.v * t))) last = t;
+  const q = { u: c.u + d.u * (last + .05), v: c.v + d.v * (last + .05) };
+  const all = edges(), facing = all.filter(e => e.nx * d.u + e.ny * d.v > 0.3);
   let best = null, bd = Infinity;
-  for (const e of edges()) { const d = Math.hypot(e.u - p.u, e.v - p.v); if (d < bd) { bd = d; best = e; } }
+  for (const e of (facing.length ? facing : all)) { const dd = Math.hypot(e.u - q.u, e.v - q.v); if (dd < bd) { bd = dd; best = e; } }
   return best;
 }
-function defaults() {
-  const top = edges().filter(e => e.ny === 1).sort((a, b) => b.v - a.v || Math.abs(a.u - N / 2) - Math.abs(b.u - N / 2))[0];
-  if (!S.loop) S.loop = top;
-  if (!S.hole) S.hole = { u: top.u, v: top.v - 1.6 };
+function defaultHole() {
+  const top = edgeAtAngle(0);
+  S.hole = { u: top.u, v: top.v - 1.6 };
 }
+
+// ---------- favourites (kept between visits) ----------
+const FAV_KEY = 'px3d.favs';
+let favs = JSON.parse(localStorage.getItem(FAV_KEY) || 'null') || ['#2a2d33', '#f2efe6', '#111111', '#d9a441', '#3d6fb6'];
+function favRow(boxId, key, inputId) {
+  const box = $(boxId);
+  const render = () => {
+    box.innerHTML = '<span class="lbl">Favourites</span>' + Array.from({ length: 5 }, (_, i) => favs[i]
+      ? `<button class="fav${favs[i] === S[key] ? ' cur' : ''}" style="background:${favs[i]}" data-c="${favs[i]}" title="Use ${favs[i]}. Right-click to remove."></button>`
+      : '<span class="fav empty" title="Empty slot"></span>').join('') +
+      '<button class="star" title="Save the current colour as a favourite">☆ Save</button>';
+    box.querySelectorAll('[data-c]').forEach(b => {
+      b.onclick = () => { S[key] = b.dataset.c; $(inputId).value = S[key]; renderFavs(); build(); };
+      b.oncontextmenu = (e) => { e.preventDefault(); favs = favs.filter(c => c !== b.dataset.c); saveFavs(); };
+    });
+    box.querySelector('.star').onclick = () => { favs = [S[key], ...favs.filter(c => c !== S[key])].slice(0, 5); saveFavs(); toast('Saved to favourites.'); };
+  };
+  return render;
+}
+const favRenderers = [];
+function renderFavs() { favRenderers.forEach(r => r()); }
+function saveFavs() { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); renderFavs(); }
 
 // ---------- undo ----------
 const past = [], future = [];
-const snap = () => JSON.stringify({ g: S.grid, p: S.palette, m: S.magnets, h: S.hole, l: S.loop });
+const snap = () => JSON.stringify({ g: S.grid, p: S.palette, m: S.magnets, h: S.hole });
 function commit() { past.push(snap()); if (past.length > 50) past.shift(); future.length = 0; syncUndo(); }
-function restore(s) { const o = JSON.parse(s); Object.assign(S, { grid: o.g, palette: o.p, magnets: o.m, hole: o.h, loop: o.l }); S.sel = Math.min(S.sel, S.palette.length - 1); refresh(); }
+function restore(s) { const o = JSON.parse(s); Object.assign(S, { grid: o.g, palette: o.p, magnets: o.m, hole: o.h }); S.sel = Math.min(S.sel, S.palette.length - 1); refresh(); }
 $('undo').onclick = () => { if (!past.length) return; future.push(snap()); restore(past.pop()); syncUndo(); };
 $('redo').onclick = () => { if (!future.length) return; past.push(snap()); restore(future.pop()); syncUndo(); };
 function syncUndo() { $('undo').disabled = !past.length; $('redo').disabled = !future.length; }
 addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && S.placing) { S.placing = false; syncMode(); }
+  if (e.key === 'Escape') { if (S.placing) { S.placing = false; syncMode(); } $('exportPop').classList.remove('open'); $('exportBtn').classList.remove('on'); }
   if (!(e.ctrlKey || e.metaKey)) return;
   if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); $('undo').click(); }
   if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) { e.preventDefault(); $('redo').click(); }
@@ -487,7 +575,8 @@ function renderPalette() {
     li.querySelector('.del').onclick = () => deleteColour(i);
     ul.appendChild(li);
   });
-  $('pcount').textContent = `${S.palette.length} colours`;
+  const orig = JSON.parse(ORIGINAL).palette.length;
+  $('pcount').textContent = `${S.palette.length} of ${orig}`;
   syncVisibility();
 }
 function remap(from, to) {
@@ -512,6 +601,19 @@ function recolour(i, hex) {
   refresh();
 }
 $('addColour').onclick = () => { commit(); S.palette.push({ hex: '#e0715c', h: S.defH }); S.sel = S.palette.length - 1; setSeg('tool', 'paint'); refresh(); };
+// Restore colours: original colours and pixels come back; heights you set are kept where the colour still exists
+$('restoreCols').onclick = () => {
+  commit();
+  const o = JSON.parse(ORIGINAL), keep = new Map(S.palette.map(p => [p.hex, p.h]));
+  S.grid = o.grid; S.palette = o.palette.map(p => ({ hex: p.hex, h: keep.get(p.hex) ?? S.defH }));
+  S.sel = 0; refresh(); toast('Original colours restored. Your heights were kept.');
+};
+$('reloadImg').onclick = () => {
+  commit();
+  const o = JSON.parse(ORIGINAL);
+  S.grid = o.grid; S.palette = o.palette; S.sel = 0;
+  applyHeightMode(); refresh(); toast('Image reloaded. Press Ctrl+Z to undo.');
+};
 
 // ---------- source canvas ----------
 const src = $('src'), sctx = src.getContext('2d');
@@ -576,12 +678,13 @@ document.querySelectorAll('.seg').forEach(seg => {
   seg.querySelectorAll('button').forEach(b => b.onclick = () => {
     setSeg(key, b.dataset.v);
     if (key === 'heightMode') { commit(); applyHeightMode(); renderPalette(); }
-    if (key === 'key' && S.key !== 'none') defaults();
+    if (key === 'key' && S.key === 'hole' && !S.hole) defaultHole();
+    if (key === 'bottom' && S.bottom !== 'solid' && !S.cut) setCut(true);
+    if (key === 'sides') fixBottom();
     if (key !== 'tool') build();
   });
   setSeg(key, S[key]);
 });
-// slider + number pairs
 function pair(id, key, fmt, after) {
   const r = $(id + 'R'), n = $(id);
   const show = () => { r.value = S[key]; n.value = fmt ? fmt(S[key]) : S[key]; };
@@ -600,6 +703,7 @@ $('lock').onchange = () => { S.lock = $('lock').checked; };
 pair('baseH', 'baseH', f1);
 pair('wall', 'wall', f1);
 pair('holeD', 'holeD', f1);
+pair('loopAngle', 'loopAngle', (v) => Math.round(v));
 pair('loopIn', 'loopIn', f1, () => { if (S.loopOut < S.loopIn + 2) { S.loopOut = S.loopIn + 2; showLoopOut(); } });
 const showLoopOut = pair('loopOut', 'loopOut', f1, () => { if (S.loopIn > S.loopOut - 2) { S.loopIn = S.loopOut - 2; showLoopIn(); } });
 const showLoopIn = () => { $('loopInR').value = S.loopIn; $('loopIn').value = f1(S.loopIn); };
@@ -608,12 +712,22 @@ const bindNum = (id, key) => $(id).oninput = () => { S[key] = +$(id).value; appl
 bindNum('hMin', 'hMin'); bindNum('hMax', 'hMax'); bindNum('seed', 'seed');
 $('darkHigh').onchange = () => { S.darkHigh = $('darkHigh').checked; applyHeightMode(); renderPalette(); build(); };
 $('reroll').onclick = () => { commit(); S.seed = Math.floor(Math.random() * 9999); $('seed').value = S.seed; setSeg('heightMode', 'random'); applyHeightMode(); renderPalette(); build(); };
-$('baseOn').onchange = () => { S.base = $('baseOn').checked; renderPalette(); build(); };
-$('baseColor').oninput = () => { S.baseColor = $('baseColor').value; build(); };
+$('baseOn').onchange = () => { S.base = $('baseOn').checked; syncVisibility(); build(); };
+$('baseColor').oninput = () => { S.baseColor = $('baseColor').value; renderFavs(); build(); };
+$('loopColor').oninput = () => { S.loopColor = $('loopColor').value; renderFavs(); build(); };
 $('monoColor').oninput = () => { S.monoColor = $('monoColor').value; build(); };
 $('magSize').onchange = () => { S.magSize = $('magSize').value; build(); };
 $('placeMag').onclick = () => { S.placing = !S.placing; syncMode(); };
 $('clearMag').onclick = () => { commit(); S.magnets = []; build(); };
+favRenderers.push(favRow('baseFavs', 'baseColor', 'baseColor'), favRow('loopFavs', 'loopColor', 'loopColor'));
+renderFavs();
+
+// shell/hollow only make sense where there is a flat bottom
+function fixBottom() {
+  const allowed = { single: ['solid', 'shell', 'hollow'], solid: ['solid', 'shell'], halves: ['solid'] }[S.sides];
+  document.querySelectorAll('.seg[data-key=bottom] button').forEach(b => b.disabled = !allowed.includes(b.dataset.v));
+  if (!allowed.includes(S.bottom)) setSeg('bottom', 'solid');
+}
 
 function syncVisibility() {
   const show = (id, on) => { const el = $(id); if (el) el.style.display = on ? '' : 'none'; };
@@ -622,11 +736,14 @@ function syncVisibility() {
   show('seedRow', S.heightMode !== 'brightness');
   show('brightRow', S.heightMode === 'brightness');
   show('wallRow', S.bottom !== 'solid');
-  show('holeRow', S.key === 'hole'); show('loopRows', S.key === 'loop'); show('keyHint', S.key !== 'none');
+  show('holeRows', S.key === 'hole'); show('loopRows', S.key === 'loop'); show('keyHint', S.key !== 'none');
+  show('loopColRows', !S.base && !mono());
+  show('baseRows', S.base);
   show('slicerRow', S.format === '3mf');
-  show('monoRow', S.colourMode === 'mono');
-  if ($('fcount') && S.palette.length) $('fcount').textContent = S.colourMode === 'mono' ? '1 filament' : `${S.palette.length + (S.base ? 1 : 0)} filaments`;
+  show('monoRow', mono());
   show('applyRow', S.sides !== 'single');
+  show('magPosRow', S.sides === 'single');
+  if ($('fcount') && S.palette.length) $('fcount').textContent = mono() ? '1 filament' : `${S.palette.length + (S.base ? 1 : 0)} filaments`;
   if ($('hoBoth')) { $('hoBoth').textContent = S.sides === 'halves' ? 'Both halves' : 'Both sides'; $('hoTop').textContent = S.sides === 'halves' ? 'Front half only' : 'Top side only'; }
   const hints = {
     single: 'Pixels on the front only. Prints flat with no supports.',
@@ -634,15 +751,22 @@ function syncVisibility() {
     halves: 'Front and back as two flat-backed pieces. Print both, then glue. The cleanest finish.',
   };
   if ($('sidesHint')) $('sidesHint').textContent = hints[S.sides];
+  const bottomHints = {
+    solid: 'Filled all the way through.',
+    shell: 'Hollow inside with a closed floor, to save filament and weight. Use Cut view to see inside.',
+    hollow: 'Hollow inside and open underneath, like an upside-down tray.',
+  };
+  if ($('bottomHint')) $('bottomHint').textContent = S.sides === 'halves' ? 'Halves stay solid so the glue faces are flat.' : bottomHints[S.bottom];
   if ($('keyHint')) $('keyHint').textContent = S.key === 'hole'
-    ? 'Drag the gold cylinder on the model to move the hole. It cuts through every layer.'
-    : 'Drag the loop to slide it around the edge of the model.';
+    ? 'Drag the gold marker on the model to move the hole. It cuts through every layer.'
+    : (S.base ? 'The loop uses the base colour.' : 'Move the slider to slide the loop around the edge.');
 }
 
 // ---------- 3D ----------
 const canvas = $('view');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(devicePixelRatio);
+renderer.localClippingEnabled = true;
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#16181c');
 const camera = new THREE.PerspectiveCamera(38, 1, 1, 2000); camera.up.set(0, 0, 1);
 const controls = new OrbitControls(camera, canvas); controls.enableDamping = true;
@@ -669,29 +793,41 @@ $('gridColor').oninput = makeGrid;
 $('gridOn').onchange = makeGrid;
 $('gridOpacity').oninput = () => { $('gridOpacityV').textContent = $('gridOpacity').value + '%'; makeGrid(); };
 
+// cut view: clip away the near half; cut faces of solid material show in gold, empty space stays empty
+const cutPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const capHook = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n  if (!gl_FrontFacing) gl_FragColor = vec4(0.85, 0.64, 0.26, 1.0);'); };
 const holder = new THREE.Group(), pivot = new THREE.Group(); holder.add(pivot); scene.add(holder);
 const unit = new THREE.BoxGeometry(1, 1, 1);
 const mats = new Map();
-const mat = (hex) => { if (!mats.has(hex)) mats.set(hex, new THREE.MeshStandardMaterial({ color: hex, roughness: .55, flatShading: true })); return mats.get(hex); };
+function mat(hex) {
+  if (!mats.has(hex)) {
+    const m = new THREE.MeshStandardMaterial({ color: hex, roughness: .55, flatShading: true });
+    m.onBeforeCompile = capHook; m.customProgramCacheKey = () => 'cap';
+    styleCut(m); mats.set(hex, m);
+  }
+  return mats.get(hex);
+}
+const pocketMat = new THREE.MeshStandardMaterial({ color: '#0e0f12', roughness: .9, side: THREE.BackSide });
+function styleCut(m) { m.clippingPlanes = S.cut ? [cutPlane] : null; m.side = S.cut ? THREE.DoubleSide : THREE.FrontSide; m.needsUpdate = true; }
+function setCut(on) {
+  S.cut = on; $('cutBtn').classList.toggle('on', on);
+  mats.forEach(styleCut);
+  pocketMat.clippingPlanes = on ? [cutPlane] : null; pocketMat.needsUpdate = true;
+  build();
+}
+$('cutBtn').onclick = () => setCut(!S.cut);
 const ghostGold = new THREE.MeshBasicMaterial({ color: '#d9a441', transparent: true, opacity: .45, depthTest: false });
-const ghostMag = new THREE.MeshBasicMaterial({ color: '#e0715c', transparent: true, opacity: .6, depthTest: false });
+const ghostMag = new THREE.MeshBasicMaterial({ color: '#e0715c', transparent: true, opacity: .35, depthTest: false });
 
 let SC = { sx: 1, sy: 1 };
 let drag = null;
 
-function slab(group, cells, hex, z0, h) {
-  if (!cells.length || h <= 0) return null;
-  const m = new THREE.InstancedMesh(unit, mat(S.colourMode === 'mono' ? S.monoColor : hex), cells.length);
-  const M = new THREE.Matrix4(), q = new THREE.Quaternion();
-  cells.forEach(([x, y], i) => m.setMatrixAt(i, M.compose(new THREE.Vector3((x + .5) * SC.sx, (y + .5) * SC.sy, z0 + h / 2), q, new THREE.Vector3(SC.sx, SC.sy, h))));
-  group.add(m);
-  return m;
-}
-function loopCells() {
-  // square ring of whole pixels, built outward from the chosen edge
-  const e = S.loop, s = (SC.sx + SC.sy) / 2;
-  const n = Math.max(3, Math.round(S.loopOut / s)), m = Math.min(Math.max(1, Math.round(S.loopIn / s)), n - 2), a = Math.floor((n - m) / 2);
-  const tx = -e.ny, ty = e.nx, cells = [];
+function pixelLoopCells(e) {
+  // square ring of whole pixels, built outward from the chosen edge; the hole is kept centred by matching parity
+  const s = (SC.sx + SC.sy) / 2;
+  let n = Math.max(3, Math.round(S.loopOut / s)), m = Math.min(Math.max(1, Math.round(S.loopIn / s)), n - 2);
+  if ((n - m) % 2) { if (m > 1) m -= 1; else n += 1; }
+  const a = (n - m) / 2, tx = -e.ny, ty = e.nx, cells = [];
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
     if (i >= a && i < a + m && j >= a && j < a + m) continue;
     const o = i - Math.floor(n / 2);
@@ -699,94 +835,164 @@ function loopCells() {
   }
   return cells;
 }
-// opts: mirror (back half), baseT, top/under (pixel layers), topVary/underVary (colour heights or flat)
-function body({ mirror = false, baseT, top = true, under = false, topVary = true, underVary = true, idx }) {
-  const g = new THREE.Group(); g.userData = { mirror, idx, baseT };
-  const mx = (x) => mirror ? N - 1 - x : x;          // mirror a cell column
-  const mu = (u) => mirror ? N - u : u;              // mirror a point
-  const hR = S.holeD / 2;
-  const cut = (x, y) => S.key === 'hole' && Math.hypot((x + .5 - S.hole.u) * SC.sx, (y + .5 - S.hole.v) * SC.sy) < hR;
-  const byCol = new Map(), all = [];
+function holeTest() {
+  if (S.key !== 'hole') return () => false;
+  const { u, v } = S.hole;
+  if (S.holeStyle === 'pixel') {
+    const m = Math.max(1, Math.round(S.holeD / ((SC.sx + SC.sy) / 2))), x0 = Math.round(u - m / 2), y0 = Math.round(v - m / 2);
+    const f = (x, y) => x >= x0 && x < x0 + m && y >= y0 && y < y0 + m;
+    f.box = { x0, y0, m }; return f;
+  }
+  return (x, y) => Math.hypot((x + .5 - u) * SC.sx, (y + .5 - v) * SC.sy) < S.holeD / 2;
+}
+// solid interval [a, b] minus a list of empty intervals
+function subtract(a, b, holes) {
+  let parts = [[a, b]];
+  for (const [c0, c1] of holes) parts = parts.flatMap(([p, q]) => [[p, Math.min(q, c0)], [Math.max(p, c1), q]]).filter(([p, q]) => q - p > 0.01);
+  return parts;
+}
+function erode(k, isCut) {
+  const inside = new Set();
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    if (!opaque(x, y) || cut(x, y)) continue;
-    const c = [mx(x), y]; all.push(c);
-    const v = S.grid[(N - 1 - y) * N + x];
-    if (!byCol.has(v)) byCol.set(v, []); byCol.get(v).push(c);
+    let ok = true;
+    for (let dy = -k; dy <= k && ok; dy++) for (let dx = -k; dx <= k && ok; dx++) if (!opaque(x + dx, y + dy) || isCut(x + dx, y + dy)) ok = false;
+    if (ok) inside.add(x + ',' + y);
   }
-  const H = (p, vary) => vary ? p.h : S.defH;
-  if (baseT > 0) slab(g, all, S.baseColor, 0, baseT);
-  let zMax = baseT, zMin = 0;
-  if (top) for (const [v, cells] of byCol) { const h = H(S.palette[v], topVary); slab(g, cells, S.palette[v].hex, baseT, h); zMax = Math.max(zMax, baseT + h); }
-  if (under) for (const [v, cells] of byCol) { const h = H(S.palette[v], underVary); slab(g, cells, S.palette[v].hex, -h, h); zMin = Math.min(zMin, -h); }
+  return inside;
+}
 
-  // keychain
-  const t = baseT > 0 ? baseT : Math.min(...S.palette.map(p => p.h));
-  const loopHex = S.colourMode === 'mono' ? S.monoColor : S.base ? S.baseColor : S.palette[0].hex;
-  if (S.key === 'hole') {
-    const cyl = new THREE.Mesh(new THREE.CylinderGeometry(hR, hR, zMax - zMin + 2, 32), ghostGold);
-    cyl.rotation.x = Math.PI / 2; cyl.position.set(mu(S.hole.u) * SC.sx, S.hole.v * SC.sy, (zMax + zMin) / 2);
-    cyl.renderOrder = 10; cyl.userData.handle = { kind: 'hole' }; g.add(cyl);
+// one printable body. opts: mirror (back half), baseT, top/under pixel layers, topVary/underVary (colour heights or flat), cavity
+function body({ mirror = false, baseT, top = true, under = false, topVary = true, underVary = true, idx, cavity = null, magZ }) {
+  const g = new THREE.Group(); g.userData = { mirror, idx, baseT };
+  const mx = (x) => mirror ? N - 1 - x : x, mu = (u) => mirror ? N - u : u;
+  const isCut = holeTest();
+  const [md, mh] = magDims();
+  const segs = new Map();
+  const add = (hex, x, y, a, b, holes) => {
+    const k = mono() ? S.monoColor : hex;
+    for (const [p, q] of subtract(a, b, holes)) { if (!segs.has(k)) segs.set(k, []); segs.get(k).push([mx(x), y, p, q - p]); }
+  };
+  const H = (p, vary) => vary ? p.h : S.defH;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    if (!opaque(x, y) || isCut(x, y)) continue;
+    const holes = [];
+    if (cavity && cavity.cells.has(x + ',' + y)) holes.push(cavity.z);
+    for (const m of S.magnets) if (Math.hypot((x + .5 - m.u) * SC.sx, (y + .5 - m.v) * SC.sy) < md / 2 + .3) holes.push([magZ, magZ + mh]);
+    const p = S.palette[colourAt(x, y)];
+    if (baseT > 0) add(S.baseColor, x, y, 0, baseT, holes);
+    if (top) add(p.hex, x, y, baseT, baseT + H(p, topVary), holes);
+    if (under) add(p.hex, x, y, -H(p, underVary), 0, holes);
   }
+  // keychain loop joins the outline; colour follows the base, or its own colour when there is no base
+  const t = baseT > 0 ? baseT : Math.min(...S.palette.map(p => p.h));
+  const loopHex = S.base ? S.baseColor : S.loopColor;
   if (S.key === 'loop') {
-    const e = S.loop;
+    const e = edgeAtAngle(S.loopAngle);
     if (S.loopStyle === 'pixel') {
-      const ring = slab(g, loopCells().map(([x, y]) => [mx(x), y]), loopHex, 0, t);
-      if (ring) ring.userData.handle = { kind: 'loop' };
+      for (const [x, y] of pixelLoopCells(e)) add(loopHex, x, y, 0, t, []);
     } else {
       const ro = S.loopOut / 2, ri = S.loopIn / 2, R = (ro + ri) / 2, r = (ro - ri) / 2;
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(R, r, 16, 48), mat(loopHex));
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(R, r, 16, 48), mat(mono() ? S.monoColor : loopHex));
       ring.scale.z = t / (2 * r);
-      const nx = mirror ? -e.nx : e.nx;
-      ring.position.set(mu(e.u) * SC.sx + nx * R, e.v * SC.sy + e.ny * R, t / 2);
-      ring.userData.handle = { kind: 'loop' }; g.add(ring);
+      ring.position.set(mu(e.u) * SC.sx + (mirror ? -e.nx : e.nx) * R, e.v * SC.sy + e.ny * R, t / 2);
+      g.add(ring);
     }
   }
-  // magnet pockets: open on the glue face for halves, centred in the base for double sided, 0.5 mm up otherwise
-  const [md, mh] = magDims();
-  const z0 = S.sides === 'halves' ? 0 : S.sides === 'solid' ? (baseT - mh) / 2 : 0.5;
+  const M = new THREE.Matrix4(), q = new THREE.Quaternion();
+  for (const [hex, list] of segs) {
+    const m = new THREE.InstancedMesh(unit, mat(hex), list.length);
+    list.forEach(([x, y, z0, h], i) => m.setMatrixAt(i, M.compose(new THREE.Vector3((x + .5) * SC.sx, (y + .5) * SC.sy, z0 + h / 2), q, new THREE.Vector3(SC.sx, SC.sy, h))));
+    g.add(m);
+  }
+  // drag handles (not part of the model, not counted in its size)
+  const zTop = g.children.length ? new THREE.Box3().setFromObject(g).max.z : baseT;
+  if (S.key === 'hole') {
+    let hnd;
+    if (S.holeStyle === 'pixel') {
+      const { x0, y0, m } = isCut.box;
+      hnd = new THREE.Mesh(new THREE.BoxGeometry(m * SC.sx, m * SC.sy, 0.6), ghostGold);
+      hnd.position.set(mu(x0 + m / 2) * SC.sx, (y0 + m / 2) * SC.sy, zTop + .3);
+    } else {
+      hnd = new THREE.Mesh(new THREE.CylinderGeometry(S.holeD / 2, S.holeD / 2, 0.6, 32), ghostGold);
+      hnd.rotation.x = Math.PI / 2; hnd.position.set(mu(S.hole.u) * SC.sx, S.hole.v * SC.sy, zTop + .3);
+    }
+    hnd.renderOrder = 10; hnd.userData = { handle: { kind: 'hole' }, ghost: true }; g.add(hnd);
+  }
   S.magnets.forEach((m, i) => {
-    const c = new THREE.Mesh(new THREE.CylinderGeometry(md / 2, md / 2, mh, 32), ghostMag);
-    c.rotation.x = Math.PI / 2; c.position.set(mu(m.u) * SC.sx, m.v * SC.sy, z0 + mh / 2);
-    c.renderOrder = 11; c.userData.handle = { kind: 'magnet', i }; g.add(c);
+    const pocket = new THREE.Mesh(new THREE.CylinderGeometry(md / 2, md / 2, mh, 32), pocketMat);
+    pocket.rotation.x = Math.PI / 2; pocket.position.set(mu(m.u) * SC.sx, m.v * SC.sy, magZ + mh / 2);
+    pocket.userData.ghost = true; g.add(pocket);
+    const hnd = new THREE.Mesh(new THREE.CylinderGeometry(md / 2, md / 2, 0.4, 32), ghostMag);
+    hnd.rotation.x = Math.PI / 2; hnd.position.set(mu(m.u) * SC.sx, m.v * SC.sy, zTop + .2);
+    hnd.renderOrder = 11; hnd.userData = { handle: { kind: 'magnet', i }, ghost: true }; g.add(hnd);
   });
   return g;
 }
+function modelBounds() {
+  const box = new THREE.Box3();
+  pivot.updateMatrixWorld(true);
+  pivot.traverse(o => { if (o.isMesh && !o.userData.ghost) box.expandByObject(o); });
+  return box;
+}
 function build() {
   for (const c of [...pivot.children]) { pivot.remove(c); c.traverse(o => { if (o.isInstancedMesh) o.dispose(); else if (o.geometry && o.geometry !== unit) o.geometry.dispose(); }); }
-  if (S.key !== 'none') defaults();
+  if (S.key === 'hole' && !S.hole) defaultHole();
   const b = bbox(); SC = { sx: S.w / b.bw, sy: S.h / b.bh };
   const bt = S.base ? S.baseH : 0, both = S.heightsOn === 'both';
-  if (S.sides === 'single') pivot.add(body({ baseT: bt, idx: 0 }));
-  if (S.sides === 'solid') pivot.add(body({ baseT: bt, under: true, underVary: both, idx: 0 }));
+  const [, mh] = magDims();
+  const minTop = Math.min(...S.palette.map(p => p.h)), minUnder = both ? minTop : S.defH;
+
+  // inside: shell keeps a floor and walls, hollow opens the floor
+  let cavity = null, cavityMsg = '';
+  if (S.bottom !== 'solid' && S.sides !== 'halves') {
+    const k = Math.max(1, Math.ceil(S.wall / Math.min(SC.sx, SC.sy)));
+    const top = bt + minTop - S.wall;
+    const bottom = S.sides === 'solid' ? -minUnder + S.wall : S.bottom === 'shell' ? S.wall : -1;
+    const cells = erode(k, holeTest());
+    if (top - Math.max(bottom, 0) < 0.4 || !cells.size) cavityMsg = 'Too thin to hollow out. Make the base thicker or the wall thinner.';
+    else cavity = { cells, z: [bottom, top] };
+  }
+  if (S.sides === 'single') {
+    pivot.add(body({ baseT: bt, idx: 0, cavity, magZ: S.magPos === 'bottom' ? -0.01 : Math.max(0, (bt - mh) / 2) }));
+  }
+  if (S.sides === 'solid') pivot.add(body({ baseT: bt, under: true, underVary: both, idx: 0, cavity, magZ: (bt - mh) / 2 }));
   if (S.sides === 'halves') {
-    // the back is printed flat side down, then flipped onto the front: its art is mirrored
-    const back = body({ mirror: true, baseT: bt / 2, topVary: both, idx: 1 });
+    // the back is printed flat side down, then flipped onto the front, so its art is mirrored. Pockets open on the glue face.
+    const back = body({ mirror: true, baseT: bt / 2, topVary: both, idx: 1, magZ: -0.01 });
     back.position.x = N * SC.sx + 8;
-    pivot.add(body({ baseT: bt / 2, idx: 0 }), back);
+    pivot.add(body({ baseT: bt / 2, idx: 0, magZ: -0.01 }), back);
   }
   pivot.rotation.set(...S.rot.map(r => r * Math.PI / 2));
   if (!drag) {
     holder.position.set(0, 0, 0); holder.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(pivot), c = box.getCenter(new THREE.Vector3());
+    const box = modelBounds(), c = box.getCenter(new THREE.Vector3());
     holder.position.set(-c.x, -c.y, -box.min.z);
   }
   holder.updateMatrixWorld(true);
-  const sz = new THREE.Box3().setFromObject(pivot).getSize(new THREE.Vector3());
+  // cut through the middle of a pixel row, never along pixel faces (that would flicker)
+  if (pivot.children[0]) {
+    const mid = pivot.children[0].localToWorld(new THREE.Vector3(0, (Math.floor(b.y0 + b.bh / 2) + .5) * SC.sy, 0));
+    cutPlane.constant = -mid.y;
+  }
+  const sz = modelBounds().getSize(new THREE.Vector3());
   $('dims').innerHTML = `<b>${sz.x.toFixed(1)} × ${sz.y.toFixed(1)} × ${sz.z.toFixed(1)} mm</b>&nbsp; ${S.sides === 'halves' ? 'two pieces' : 'one piece'}`;
-  const note = $('note');
-  const msg = S.bottom !== 'solid' ? `${S.bottom === 'shell' ? 'Shell' : 'Hollow'} bottom is applied on export. The preview shows the outside only.` : '';
-  note.textContent = msg; note.style.display = msg ? 'block' : 'none';
+  const notes = [];
+  if (cavityMsg) notes.push(`<span class="warn">${cavityMsg}</span>`);
+  if (S.cut) notes.push('<b>Cut view.</b> Gold is solid material. Empty space shows what is hollow.');
+  $('note').innerHTML = notes.join('<br>'); $('note').style.display = notes.length ? 'block' : 'none';
   $('rotLabel').textContent = S.rot.some(Boolean) ? `X ${S.rot[0] * 90}°, Y ${S.rot[1] * 90}°, Z ${S.rot[2] * 90}°` : 'Flat';
   // magnets panel
-  const [md, mh] = magDims();
+  const [md] = magDims();
   $('magCount').textContent = `${S.magnets.length} placed`;
   $('magList').innerHTML = S.magnets.map((m, i) => `<li>Magnet ${i + 1}<button class="del" data-m="${i}" title="Remove">×</button></li>`).join('');
   $('magList').querySelectorAll('[data-m]').forEach(x => x.onclick = () => { commit(); S.magnets.splice(+x.dataset.m, 1); build(); });
-  const need = S.sides === 'halves' ? mh : mh + 1;
-  const have = S.sides === 'halves' ? bt / 2 + Math.min(...S.palette.map(p => p.h)) : bt;
+  const sealed = S.sides === 'solid' || (S.sides === 'single' && S.magPos === 'centre');
+  const need = sealed ? mh + 1.2 : mh + 0.6, have = S.sides === 'halves' ? bt / 2 + minTop : bt;
   $('magHint').innerHTML = S.magnets.length
-    ? (have < need ? `<span class="warn">A ${md} × ${mh} mm magnet needs about ${need} mm of base. Make the base thicker or pick a smaller magnet.</span>` : 'Drag a magnet to move it. Pockets are hidden inside the model.')
+    ? (have < need ? `<span class="warn">A ${md} × ${mh} mm magnet needs about ${round1(need)} mm here. Make the base thicker or pick a smaller magnet.</span>`
+      : sealed ? 'Sealed inside. The print pauses at this layer so you can drop the magnet in.' : 'Open on the bottom, so you can press the magnet in after printing. Drag to move.')
     : (S.sides === 'halves' ? 'Pockets open on the glue face, so the magnet ends up sealed inside.' : '');
+  updateSummary();
 }
 function fitView() { camera.position.set(55, -95, 85); controls.target.set(0, 0, 4); controls.update(); }
 document.querySelectorAll('[data-rot]').forEach(b => b.onclick = () => { const a = +b.dataset.rot; S.rot[a] = (S.rot[a] + 1) % 4; build(); });
@@ -794,7 +1000,7 @@ $('flat').onclick = () => { S.rot = [0, 0, 0]; build(); };
 $('edge').onclick = () => { S.rot = [1, 0, 0]; build(); };
 $('resetView').onclick = fitView;
 
-// ---------- direct manipulation: drag hole, loop, magnets; click to place magnets ----------
+// ---------- direct manipulation: drag the hole and magnets; click to place magnets ----------
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 function setRay(e) { const r = canvas.getBoundingClientRect(); ndc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(ndc, camera); }
 function handles() { const hs = []; pivot.traverse(o => { if (o.userData.handle) hs.push(o); }); return hs; }
@@ -815,7 +1021,7 @@ canvas.addEventListener('pointerdown', (e) => {
   setRay(e);
   if (S.placing) {
     controls.enabled = false;
-    const hit = ray.intersectObjects(pivot.children, true).find(h => !h.object.userData.handle);
+    const hit = ray.intersectObjects(pivot.children, true).find(h => !h.object.userData.ghost);
     if (hit) { commit(); S.magnets.push(toUV(bodyOf(hit.object), hit.point)); S.placing = false; syncMode(); build(); }
     return;
   }
@@ -834,7 +1040,6 @@ addEventListener('pointermove', (e) => {
   const p = toUV(b, pt);
   if (drag.kind === 'hole') S.hole = p;
   if (drag.kind === 'magnet') S.magnets[drag.i] = p;
-  if (drag.kind === 'loop') S.loop = nearestEdge(p);
   build();
 });
 addEventListener('pointerup', () => {
@@ -842,34 +1047,49 @@ addEventListener('pointerup', () => {
   if (drag) { drag = null; canvas.style.cursor = ''; build(); }
 });
 
+// render straight after a resize so the canvas never shows a cleared frame
 function resize() {
-  const r = canvas.parentElement.getBoundingClientRect();
-  renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix();
+  const main = canvas.parentElement, w = main.clientWidth, h = main.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  renderer.render(scene, camera);
 }
 new ResizeObserver(resize).observe(canvas.parentElement);
 renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
 
 // ---------- export & batch ----------
 function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2400); }
-$('export').onclick = () => {
+$('exportBtn').onclick = (e) => { e.stopPropagation(); $('exportPop').classList.toggle('open'); $('exportBtn').classList.toggle('on'); updateSummary(); };
+$('exportPop').onclick = (e) => e.stopPropagation();
+addEventListener('click', () => { $('exportPop').classList.remove('open'); $('exportBtn').classList.remove('on'); });
+function fileNames() {
   const n = $('name').value || 'model';
-  const files = S.sides === 'halves' && S.format === 'stl' ? `${n}_front.stl and ${n}_back.stl` : `${n}.${S.format}`;
-  toast(`Exported ${files}` + (S.colourMode === 'mono' ? ' in one colour.' : S.format === '3mf' ? `, filaments 1 to ${S.palette.length + (S.base ? 1 : 0)} assigned for ${$('slicer').value}.` : '.'));
+  return S.sides === 'halves' && S.format === 'stl' ? `${n}_front.stl and ${n}_back.stl` : `${n}.${S.format}`;
+}
+function updateSummary() {
+  const fil = mono() ? 'one filament' : `${S.palette.length + (S.base ? 1 : 0)} filaments`;
+  $('summary').textContent = `${fileNames()}, ${fil}, ${$('dims').textContent.replace(/\s+/, ' ')}`;
+}
+$('name').oninput = updateSummary;
+$('export').onclick = () => {
+  toast(`Exported ${fileNames()}` + (mono() ? ' in one colour.' : S.format === '3mf' ? `, filaments 1 to ${S.palette.length + (S.base ? 1 : 0)} assigned for ${$('slicer').value}.` : '.'));
+  $('exportPop').classList.remove('open'); $('exportBtn').classList.remove('on');
 };
 function presetJson() {
   return JSON.stringify({
     version: 1,
     general: {
       colours: S.palette.length, size: { width: S.w, height: S.h, keepAspect: S.lock, unit: 'mm' },
-      base: S.base ? { thickness: S.baseH, colour: S.baseColor, bottom: S.bottom, wall: S.wall } : null,
+      base: S.base ? { thickness: S.baseH, colour: S.baseColor } : null,
+      inside: { style: S.bottom, wall: S.wall },
       sides: S.sides, heightsApplyTo: S.heightsOn,
       heights: { mode: S.heightMode, pixelHeight: S.defH, min: S.hMin, max: S.hMax, seed: S.seed },
       keychain: S.key === 'none' ? null : S.key === 'hole'
-        ? { type: 'hole', diameter: S.holeD, at: 'top-center' }
-        : { type: 'loop', style: S.loopStyle, inner: S.loopIn, outer: S.loopOut, at: 'top-center' },
-      magnets: S.magnets.length ? { size: S.magSize, count: S.magnets.length } : null,
+        ? { type: 'hole', style: S.holeStyle, size: S.holeD, at: 'top-center' }
+        : { type: 'loop', style: S.loopStyle, inner: S.loopIn, outer: S.loopOut, angle: S.loopAngle, colour: S.base ? 'base' : S.loopColor },
+      magnets: S.magnets.length ? { size: S.magSize, pocket: S.magPos, count: S.magnets.length } : null,
       rotate: S.rot.map(r => r * 90),
-      export: { format: S.format, slicer: 'bambu', singleColour: S.colourMode === 'mono' ? S.monoColor : null },
+      export: { format: S.format, slicer: 'bambu', singleColour: mono() ? S.monoColor : null },
     },
     colourRules: S.palette.map(p => ({ match: p.hex, tolerance: 8, height: p.h })),
   }, null, 2);
@@ -883,7 +1103,7 @@ $('closeBatch').onclick = () => $('batch').close();
 $('savePreset').onclick = () => { $('batch').close(); toast('Saved potion.json'); };
 
 function refresh() { renderPalette(); drawSource(); build(); }
-syncUndo(); syncMode(); refresh(); fitView();
+fixBottom(); syncUndo(); syncMode(); refresh(); fitView();
 </script>
 </body>
 </html>
