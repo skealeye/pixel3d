@@ -24,3 +24,7 @@ export { DEFAULTS, settingsSchema, heightModeOf } from './settings';
 export type { Settings, Anchor } from './settings';
 export { parsePreset, resolvePreset, placeRelative, presetFromState, PresetError } from './preset';
 export type { Preset, ColourRule } from './preset';
+export { buildModel } from './mesh';
+export type { Model, Part } from './mesh';
+export { initManifold } from './manifold';
+export type { ManifoldToplevel } from './manifold';
