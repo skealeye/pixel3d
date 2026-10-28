@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { pieces } from '@pixel3d/core';
+  import { cornerTouches, pieces, type Grid } from '@pixel3d/core';
   import { app, toast, ui } from '../state.svelte';
+  import { pieceCount, removeStrays } from '../actions.svelte';
+  import { previewShown } from '../perf';
   import { Viewport } from './Viewport';
   import { ModelBuilder } from './modelBuilder';
   import { previewOf } from './previewMesh';
@@ -16,17 +18,26 @@
   /** Why the last core build failed; the preview stays up meanwhile. Cleared by the next model. */
   let buildError = $state<string | null>(null);
 
-  const count = $derived(app.grid ? pieces(app.grid).length : 0);
+  const count = $derived(pieceCount());
+  /** Stray pixels (every piece but the largest) and corner-only contacts, for the note. */
+  const strays = $derived.by(() => {
+    const g = app.grid;
+    const parts = g ? pieces(g) : [];
+    if (!g || parts.length < 2) return null;
+    return { pixels: parts.slice(1).reduce((a, p) => a + p.length, 0), corners: cornerTouches(g) > 0 };
+  });
 
   let builder: ModelBuilder | undefined;
   /** mm per pixel row, so the cut runs through the middle of a row. */
   let rowMm = 1;
   let lastSource: unknown;
+  /** The grid of the newest build request: only the newest result is delivered, so it is the grid of any model that arrives. */
+  let scheduled: Grid | null = null;
 
   $effect(() => {
     const v = new Viewport(canvas, main);
     builder = new ModelBuilder(
-      (model) => { v.setModel(model, { row: rowMm }); size = v.size; buildError = null; },
+      (model) => { v.setModel(model, { row: rowMm }); size = v.size; buildError = null; if (scheduled) app.built = { grid: scheduled, pieces: model.pieces }; },
       (message) => { buildError = message; toast(`Couldn't build the model: ${message}`); },
     );
     vp = v;
@@ -46,9 +57,10 @@
     const p = previewOf(grid, settings);
     rowMm = p?.px.y ?? 1;
     v.setPreview(p);
+    previewShown();
     size = v.size;
     if (app.source !== lastSource) { lastSource = app.source; v.fitView(); }
-    if (p) builder.schedule(grid, settings);
+    if (p) { scheduled = grid; builder.schedule(grid, settings); }
     else builder.cancel();
   });
 
@@ -80,7 +92,13 @@
     </div>
     <button class="btn" id="cutBtn" class:on={ui.cut} title="Slice the model in half to see inside" onclick={() => (ui.cut = !ui.cut)}>Cut view</button>
   </div>
-  <div class="note" id="note" style:display={ui.cut ? 'block' : 'none'}><b>Cut view.</b> Gold is solid material. Empty space shows what is hollow.</div>
+  <div class="note" id="note" style:display={ui.cut || strays ? 'block' : 'none'}>
+    {#if strays}
+      <span class="warn">{count} separate pieces. {strays.pixels} stray pixel{strays.pixels > 1 ? 's' : ''} (outlined in red in the image) don't share an edge with the rest, so they would print as loose parts.{strays.corners ? " Pixels that touch only at a corner don't count as joined." : ''} Paint pixels to connect them, or remove them.</span><br><button class="btn small" id="removeStrays" onclick={removeStrays}>Remove strays</button>
+      {#if ui.cut}<br>{/if}
+    {/if}
+    {#if ui.cut}<b>Cut view.</b> Gold is solid material. Empty space shows what is hollow.{/if}
+  </div>
   {#if size}
     <div class="dims" id="dims"><b>{size.x.toFixed(1)} × {size.y.toFixed(1)} × {size.z.toFixed(1)} mm</b>&nbsp; {#if buildError}<span class="warn">preview only, the model could not be built</span>{:else if count > 1}<span class="warn">{count} separate pieces</span>{:else}one piece{/if}</div>
   {/if}

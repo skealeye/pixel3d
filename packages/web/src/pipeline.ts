@@ -33,6 +33,8 @@ export interface Meta {
   how: BgHow;
   /** The part of the full image the grid covers; grid cell (i, j) maps to `region.x + (i + .5) * region.w / grid.w`. */
   region: Rect;
+  /** Colours in the image before the colour count reduces them (at most 64). */
+  colours: number;
 }
 
 // These mirror core convert.ts (toReducedGrid) so the app and batch runs make the same grid.
@@ -96,7 +98,8 @@ export function upscaleText(s: Scale): string {
   return `, detected from a ${s.sx === s.sy ? s.sx : `${s.sx} × ${s.sy}`}× upscale`;
 }
 
-export type Result = { grid: Grid; meta: Meta } | { error: string };
+/** `dropped`: edits that no longer apply (their colour or cell is gone). */
+export type Result = { grid: Grid; meta: Meta; dropped: Edit[] } | { error: string };
 
 /**
  * decode → scale → crop → background → (pixelate) → palette → heights → edits (spec §4.10).
@@ -124,10 +127,22 @@ export function computeGrid(src: Source, s: Settings, edits: Edit[], showBg = fa
     art = r.img;
   }
   if (!opaque(art)) return { error: `${src.name} is empty once the background is removed. Lower the tolerance.` };
-  const base = reducePalette(toGrid(art, EXACT_COLOURS), s.colours.max);
-  const grid = applyEdits(applyHeightMode(base, heightModeOf(s)), edits).grid;
+  const exact = toGrid(art, EXACT_COLOURS);
+  const base = reducePalette(exact, s.colours.max);
+  const { grid, dropped } = applyEdits(applyHeightMode(base, heightModeOf(s)), edits);
   const info = `${grid.w} × ${grid.h} px` + (pixelated ? ', pixelated' : upscaleText(scale));
-  return { grid, meta: { base, pixelated, showBg, info, bg: bg.bg, how: bg.how, region } };
+  return { grid, dropped, meta: { base, pixelated, showBg, info, bg: bg.bg, how: bg.how, region, colours: exact.palette.length } };
+}
+
+/** Opaque bounding box in y-up cell coordinates (as core mesh.ts), or null when nothing is opaque. */
+export function opaqueBox(g: Grid): { x0: number; y0: number; w: number; h: number } | null {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (let k = 0; k < g.cells.length; k++) {
+    if (g.cells[k]! < 0) continue;
+    const x = k % g.w, y = g.h - 1 - (k - x) / g.w;
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  return x0 > x1 ? null : { x0, y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
 }
 
 /** The full-resolution pixel under grid cell (i, j), as #rrggbb. */

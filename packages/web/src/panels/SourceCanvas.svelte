@@ -1,7 +1,8 @@
 <script lang="ts">
   import { pieces } from '@pixel3d/core';
   import { change, app, ui } from '../state.svelte';
-  import { cellsToCrop, colourAt } from '../pipeline';
+  import { colourAt } from '../pipeline';
+  import { cropTo, paintCells } from '../actions.svelte';
 
   const MAX_ZOOM = 16;
   let box: HTMLDivElement;
@@ -9,7 +10,12 @@
   /** CSS size of the square canvas. */
   let size = $state(160);
   let pan = $state({ x: 0, y: 0 });
-  let drag: { kind: 'pan'; x: number; y: number } | { kind: 'crop'; c0: number; r0: number } | null = null;
+  /** A pan remembers where it started so a click (no movement) can pick a colour; a paint stroke its last cell. */
+  let drag:
+    | { kind: 'pan'; x: number; y: number; at: { x: number; y: number } }
+    | { kind: 'crop'; c0: number; r0: number }
+    | { kind: 'paint'; i: number; j: number; pushed: boolean }
+    | null = null;
   let sel = $state<{ c0: number; r0: number; c1: number; r1: number } | null>(null);
   /** Pieces of the current grid, worked out once per grid rather than on every pan or zoom redraw. */
   const parts = $derived(app.grid ? pieces(app.grid) : []);
@@ -129,25 +135,56 @@
       sel = { c0: c, r0: r, c1: c, r1: r };
       return;
     }
-    drag = { kind: 'pan', x: e.clientX - pan.x, y: e.clientY - pan.y };
+    if (ui.tool !== 'select' && e.button === 0 && at) {
+      drag = { kind: 'paint', i: at.i, j: at.j, pushed: false };
+      stroke([{ x: at.i, y: at.j }]);
+      return;
+    }
+    drag = { kind: 'pan', x: e.clientX - pan.x, y: e.clientY - pan.y, at: { x: e.clientX, y: e.clientY } };
+  }
+
+  /** Paint cells as part of the current stroke: the first cell that changes makes the stroke's one undo step. */
+  function stroke(cells: { x: number; y: number }[]) {
+    if (drag?.kind !== 'paint') return;
+    if (paintCells(cells, !drag.pushed)) drag.pushed = true;
+  }
+
+  /** Cells on the line from (i0, j0) to (i1, j1), excluding the first, so a fast drag leaves no gaps. */
+  function line(i0: number, j0: number, i1: number, j1: number) {
+    const out: { x: number; y: number }[] = [];
+    const n = Math.max(Math.abs(i1 - i0), Math.abs(j1 - j0));
+    for (let t = 1; t <= n; t++) out.push({ x: Math.round(i0 + ((i1 - i0) * t) / n), y: Math.round(j0 + ((j1 - j0) * t) / n) });
+    return out;
   }
 
   function move(e: PointerEvent) {
     if (!drag) return;
     if (drag.kind === 'pan') { pan = { x: e.clientX - drag.x, y: e.clientY - drag.y }; return; }
     const at = cellAt(e);
-    if (at) sel = { c0: drag.c0, r0: drag.r0, c1: clampCell(at.i, at.g.w), r1: clampCell(at.j, at.g.h) };
+    if (!at) return;
+    if (drag.kind === 'paint') {
+      if (at.i === drag.i && at.j === drag.j) return;
+      const cells = line(drag.i, drag.j, at.i, at.j);
+      drag.i = at.i;
+      drag.j = at.j;
+      stroke(cells);
+      return;
+    }
+    sel = { c0: drag.c0, r0: drag.r0, c1: clampCell(at.i, at.g.w), r1: clampCell(at.j, at.g.h) };
   }
 
-  function up() {
+  function up(e: PointerEvent) {
     const d = drag, s = sel;
     drag = null;
     sel = null;
-    if (d?.kind !== 'crop' || !s || !app.source || !app.meta || !app.grid) return;
-    const g = app.grid, src = app.source;
-    const crop = cellsToCrop(app.meta, g.w, g.h, Math.min(s.c0, s.c1), Math.min(s.r0, s.r1), Math.max(s.c0, s.c1) + 1, Math.max(s.r0, s.r1) + 1);
-    ui.cropping = false;
-    change(() => { app.source = { ...src, crop }; });
+    // Select: a click without a drag picks the colour under the pointer
+    if (d?.kind === 'pan' && ui.tool === 'select' && Math.hypot(e.clientX - d.at.x, e.clientY - d.at.y) < 4) {
+      const at = cellAt(e), v = at?.inside ? at.g.cells[at.j * at.g.w + at.i]! : -1;
+      if (at && v >= 0) ui.sel = at.g.palette[v]!.hex;
+      return;
+    }
+    if (d?.kind !== 'crop' || !s) return;
+    cropTo(Math.min(s.c0, s.c1), Math.min(s.r0, s.r1), Math.max(s.c0, s.c1) + 1, Math.max(s.r0, s.r1) + 1);
     reset();
   }
 
@@ -165,7 +202,8 @@
 </script>
 
 <div class="source" id="sourceBox" bind:this={box}>
-  <canvas id="src" bind:this={canvas} class:pan={!ui.picking && !ui.cropping} class:crop={ui.cropping}
+  <canvas id="src" bind:this={canvas} class:pan={!ui.picking && !ui.cropping && ui.tool === 'select'} class:crop={ui.cropping}
+    class:draw={!ui.picking && !ui.cropping && ui.tool !== 'select'}
     title="Scroll to zoom, drag to pan, double-click to fit"
     onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up} ondblclick={reset}></canvas>
 </div>

@@ -3,8 +3,10 @@
   import { redo, app, ui, undo, stopPicking } from './state.svelte';
   import { listen } from './load';
   import { register } from './hook';
+  import { latencies } from './perf';
   import Header from './Header.svelte';
   import ImagePanel from './panels/ImagePanel.svelte';
+  import PalettePanel from './panels/PalettePanel.svelte';
   import SettingsPlaceholder from './panels/SettingsPlaceholder.svelte';
   import ViewportPane from './viewport/ViewportPane.svelte';
   import Footer from './Footer.svelte';
@@ -27,6 +29,8 @@
       zoom: ui.zoom,
       version: VERSION,
     }),
+    /** Input-to-preview times, ms (perf.ts). */
+    latency: () => [...latencies],
   }));
 
   const typing = (t: EventTarget | null) =>
@@ -52,10 +56,7 @@
 
 <aside class="left">
   <ImagePanel />
-  <section>
-    <h2>Colours and heights</h2>
-    <p class="placeholder">{app.grid ? `${app.grid.palette.length} colours` : 'No image yet'}</p>
-  </section>
+  <PalettePanel />
 </aside>
 
 <ViewportPane />

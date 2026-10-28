@@ -18,11 +18,14 @@ export async function loadBytes(name: string, bytes: Uint8Array): Promise<boolea
   const ok = change(() => {
     app.source = source;
     app.edits = [];
+    // a new image sets a new pixel size (spec §4.5)
+    delete app.settings.pixelMm;
     // every new image starts from auto: pixel art stays as it is, anything else is pixelated
     app.settings.pixelate.enabled = 'auto';
     app.settings.background.enabled = true;
   });
   if (ok) {
+    ui.sel = null;
     const n = app.grid!.palette.length, meta = app.meta!;
     toast(`Loaded ${name}: ${n} colour${n === 1 ? '' : 's'}` +
       (meta.pixelated ? ', pixelated. Adjust Pixels across and Colours to taste.' : meta.bg ? ', background removed.' : '.'));

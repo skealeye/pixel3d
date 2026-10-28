@@ -93,6 +93,23 @@ input[type=color] { width: 40px; height: 26px; padding: 0 2px; background: var(-
 #src { image-rendering: pixelated; cursor: crosshair; touch-action: none; display: block; }
 .tools { display: flex; gap: 6px; margin-top: 8px; }
 .tools .seg { flex: 1; margin-top: 0; }
+
+/* palette */
+.pal { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.pal li {
+  display: grid; grid-template-columns: 26px 64px 1fr 50px 22px; align-items: center; gap: 8px;
+  padding: 4px 6px; border-radius: var(--r-s); border: 1px solid transparent;
+}
+.pal li.sel { border-color: var(--gold); background: #2a2a24; }
+.sw { width: 26px; height: 26px; border-radius: 3px; border: 1px solid #0006; cursor: pointer; padding: 0; }
+.hex { position: relative; cursor: pointer; color: var(--muted); font-size: 12px; }
+.hex:hover { color: var(--text); text-decoration: underline dotted; }
+.hex input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.hv { text-align: right; font-size: 12px; }
+.del { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 15px; padding: 0; }
+.del:hover { color: var(--danger); }
+.heights { display: grid; gap: 4px; margin-bottom: 12px; }
+.heights .seg { margin-top: 0; }
 /* viewport */
 main { grid-area: view; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #16181c; }
 #view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -145,5 +162,4 @@ footer .bad { color: var(--danger); }
 /* not in the mockup: the URL field, and the preview's pan and crop cursors */
 #url { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; }
 #src.pan { cursor: grab; }
-#src.crop { cursor: crosshair; }
-.placeholder { color: var(--muted); font-size: 12px; margin: 0; }
+#src.crop, #src.draw { cursor: crosshair; }

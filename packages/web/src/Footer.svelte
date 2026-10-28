@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { VERSION, pieces } from '@pixel3d/core';
+  import { VERSION } from '@pixel3d/core';
+  import { pieceCount } from './actions.svelte';
   import { app } from './state.svelte';
 
-  const count = $derived(app.grid ? pieces(app.grid).length : 0);
+  const count = $derived(pieceCount());
   const filaments = $derived(app.grid ? app.grid.palette.length + (app.settings.base.enabled ? 1 : 0) : 0);
 </script>
 

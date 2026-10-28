@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Grid, Settings } from '@pixel3d/core';
+import { opaqueBox } from '../pipeline';
 
 /** The preview in the same frame as core `buildModel`: mm, the opaque box at the origin, +Y up the image, +Z off the bed. */
 export interface Preview {
@@ -7,17 +8,6 @@ export interface Preview {
   columns: Map<string, number[]>;
   px: { x: number; y: number };
   size: { x: number; y: number; z: number };
-}
-
-/** Opaque bounding box in y-up cell coordinates (as core mesh.ts). */
-function opaqueBox(g: Grid) {
-  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-  for (let k = 0; k < g.cells.length; k++) {
-    if (g.cells[k]! < 0) continue;
-    const x = k % g.w, y = g.h - 1 - (k - x) / g.w;
-    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
-  }
-  return x0 > x1 ? null : { x0, y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
 }
 
 /**

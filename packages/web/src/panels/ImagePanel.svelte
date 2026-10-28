@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { change, pushUndo, recompute, stopPicking, app, toast, ui } from '../state.svelte';
+  import { change, live, recompute, stopPicking, app, toast, ui } from '../state.svelte';
   import { loadUrl } from '../load';
+  import { reloadImage } from '../actions.svelte';
   import SourceCanvas from './SourceCanvas.svelte';
   import Slider from './Slider.svelte';
 
@@ -21,11 +22,7 @@
     ui.left = ui.wide ? Math.round(innerWidth * 0.45) : 330;
   }
 
-  function reload() {
-    if (!app.source) { toast('Open an image first.'); return; }
-    const src = app.source;
-    if (change(() => { app.edits = []; app.source = { ...src, crop: null }; })) toast('Image reloaded. Press Ctrl+Z to undo.');
-  }
+  const tools = [['select', 'Select'], ['paint', 'Paint'], ['erase', 'Erase']] as const;
 
   function toggleCrop() {
     if (!loaded) { toast('Open an image first.'); return; }
@@ -55,37 +52,25 @@
     change(() => { s.pixelate.enabled = on; });
   }
 
-  /**
-   * Slider changes: one undo step per drag, at most one pipeline run per frame (pixelating a large image is slow).
-   * A value that leaves nothing to print goes back to the last one that worked, with one toast per drag.
-   */
-  function live(get: () => number, put: (v: number) => void, when: () => boolean) {
-    let good = 0, frame = 0, failed = false;
-    const run = () => {
-      frame = 0;
-      const err = recompute(false);
-      if (err === null) { good = get(); return; }
-      put(good);
-      if (!failed) { failed = true; toast(err); }
-    };
-    return {
-      begin: () => { good = get(); failed = false; if (loaded && when()) pushUndo(); },
-      set: (v: number) => { put(v); if (loaded && when() && !frame) frame = requestAnimationFrame(run); },
-    };
-  }
   const pixelated = () => !!meta?.pixelated;
   // pixelating clears the background at a fixed tolerance (as batch runs do), so the slider only works on pixel art
   const tol = live(() => s.background.tolPct, (v) => (s.background.tolPct = v), () => !pixelated());
-  const across = live(() => s.pixelate.across, (v) => (s.pixelate.across = v), pixelated);
+  // a new pixel count sets a new pixel size (spec §4.5)
+  const across = live(() => s.pixelate.across, (v) => { s.pixelate.across = v; delete s.pixelMm; }, pixelated);
   const colours = live(() => s.pixelate.colours, (v) => (s.pixelate.colours = v), pixelated);
 </script>
 
 <section>
   <h2>Image
-    <button class="btn small" id="reloadImg" title="Undo every edit and go back to the original image" onclick={reload}>Reload image</button><button class="btn small" id="expand" onclick={toggleWide}>{ui.wide ? 'Shrink' : 'Expand'}</button>
+    <button class="btn small" id="reloadImg" title="Undo every edit and go back to the original image" onclick={reloadImage}>Reload image</button><button class="btn small" id="expand" onclick={toggleWide}>{ui.wide ? 'Shrink' : 'Expand'}</button>
   </h2>
   <SourceCanvas />
   <div class="tools">
+    <div class="seg" data-key="tool">
+      {#each tools as [v, label] (v)}
+        <button data-v={v} class:on={ui.tool === v} onclick={() => (ui.tool = v)}>{label}</button>
+      {/each}
+    </div>
     <button class="btn" id="crop" class:on={ui.cropping} onclick={toggleCrop}>Crop</button>
   </div>
   <form class="row" onsubmit={(e) => { e.preventDefault(); void loadUrl(url).then((ok) => { if (ok) url = ''; }); }}>
