@@ -42,8 +42,18 @@ export function toast(text: string) {
   ui.toast = { text, n: ui.toast.n + 1 };
 }
 
+/**
+ * The current state as an undo step. A grid shown with its background (while picking) is never stored: the step gets
+ * the grid its settings make, so undoing back to it shows the background removed again.
+ */
 function snapshot(): Snapshot {
-  return { source: app.source, grid: app.grid, meta: app.meta, settings: $state.snapshot(app.settings), edits: app.edits };
+  const settings = $state.snapshot(app.settings);
+  let { grid, meta } = app;
+  if (meta?.showBg && app.source) {
+    const r = computeGrid(app.source, settings, app.edits);
+    if (!('error' in r)) ({ grid, meta } = r);
+  }
+  return { source: app.source, grid, meta, settings, edits: app.edits };
 }
 
 function restore(s: Snapshot) {
@@ -59,11 +69,6 @@ function restore(s: Snapshot) {
 export function pushUndo() {
   app.undo = [...app.undo, snapshot()].slice(-UNDO_LIMIT);
   app.redo = [];
-}
-
-/** Forget the step just pushed (the change it guarded did not happen). */
-export function dropUndo() {
-  app.undo = app.undo.slice(0, -1);
 }
 
 export function undo() {
@@ -82,24 +87,36 @@ export function redo() {
   restore(next);
 }
 
-/** Re-run the pipeline after a source or settings change. On failure shows the reason and keeps the last grid. */
-export function recompute(): boolean {
+/**
+ * Re-run the pipeline after a source or settings change. On failure keeps the last grid and returns the reason,
+ * shown as a toast unless `notify` is false.
+ */
+export function recompute(notify = true): string | null {
   const src = app.source;
-  if (!src) { app.grid = null; app.meta = null; return true; }
+  if (!src) { app.grid = null; app.meta = null; return null; }
   const r = computeGrid(src, $state.snapshot(app.settings), app.edits, ui.picking);
-  if ('error' in r) { toast(r.error); return false; }
+  if ('error' in r) { if (notify) toast(r.error); return r.error; }
   app.grid = r.grid;
   app.meta = r.meta;
-  return true;
+  return null;
 }
 
-/** Undoable change: push, apply, recompute; rolled back when the pipeline fails. */
+/** Leave Pick mode, showing the grid without its background again. */
+export function stopPicking() {
+  if (!ui.picking) return;
+  ui.picking = false;
+  recompute();
+}
+
+/** Undoable change: push, apply, recompute. When the pipeline fails, the state and the whole history are put back. */
 export function change(apply: () => void): boolean {
+  const history = { undo: app.undo, redo: app.redo };
   pushUndo();
   const before = app.undo.at(-1)!;
   apply();
-  if (recompute()) return true;
-  dropUndo();
+  if (recompute() === null) return true;
   restore(before);
+  app.undo = history.undo;
+  app.redo = history.redo;
   return false;
 }

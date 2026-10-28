@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { change, pushUndo, recompute, app, toast, ui } from '../state.svelte';
+  import { change, pushUndo, recompute, stopPicking, app, toast, ui } from '../state.svelte';
   import { loadUrl } from '../load';
   import SourceCanvas from './SourceCanvas.svelte';
   import Slider from './Slider.svelte';
@@ -48,7 +48,6 @@
     recompute();
     toast('Click the background colour in the image.');
   }
-  function stopPicking() { ui.picking = false; recompute(); }
 
   function setPixelate(box: HTMLInputElement) {
     const on = box.checked;
@@ -56,14 +55,29 @@
     change(() => { s.pixelate.enabled = on; });
   }
 
-  /** Slider changes: one undo step per drag. Pixelate sliders only matter while pixelating. */
-  const live = (apply: (v: number) => void, when = () => true) => ({
-    begin: () => { if (loaded && when()) pushUndo(); },
-    set: (v: number) => { apply(v); if (loaded && when()) recompute(); },
-  });
-  const tol = live((v) => (s.background.tolPct = v));
-  const across = live((v) => (s.pixelate.across = v), () => !!meta?.pixelated);
-  const colours = live((v) => (s.pixelate.colours = v), () => !!meta?.pixelated);
+  /**
+   * Slider changes: one undo step per drag, at most one pipeline run per frame (pixelating a large image is slow).
+   * A value that leaves nothing to print goes back to the last one that worked, with one toast per drag.
+   */
+  function live(get: () => number, put: (v: number) => void, when: () => boolean) {
+    let good = 0, frame = 0, failed = false;
+    const run = () => {
+      frame = 0;
+      const err = recompute(false);
+      if (err === null) { good = get(); return; }
+      put(good);
+      if (!failed) { failed = true; toast(err); }
+    };
+    return {
+      begin: () => { good = get(); failed = false; if (loaded && when()) pushUndo(); },
+      set: (v: number) => { put(v); if (loaded && when() && !frame) frame = requestAnimationFrame(run); },
+    };
+  }
+  const pixelated = () => !!meta?.pixelated;
+  // pixelating clears the background at a fixed tolerance (as batch runs do), so the slider only works on pixel art
+  const tol = live(() => s.background.tolPct, (v) => (s.background.tolPct = v), () => !pixelated());
+  const across = live(() => s.pixelate.across, (v) => (s.pixelate.across = v), pixelated);
+  const colours = live(() => s.pixelate.colours, (v) => (s.pixelate.colours = v), pixelated);
 </script>
 
 <section>
@@ -86,7 +100,8 @@
       <span class="bginfo" id="bgInfo">{bgText}</span>
       <button class="btn small" id="pickBg" class:on={ui.picking} title="Click, then click the background in the image" onclick={pick}>Pick</button>
     </div>
-    <Slider id="bgTol" label="Tolerance" min={0} max={50} value={s.background.tolPct} unit="%" {...tol} />
+    <Slider id="bgTol" label="Tolerance" min={0} max={50} value={s.background.tolPct} unit="%" disabled={!!meta?.pixelated} {...tol} />
+    {#if meta?.pixelated}<p class="hint" id="tolHint">Fixed while pixelating.</p>{/if}
     <p class="hint">Only background touching the image edge is removed, so the same colour inside the art stays.</p>
   </div>
   <label class="check"><input type="checkbox" id="pixelate" checked={!!meta?.pixelated} onchange={(e) => setPixelate(e.currentTarget)}> Pixelate: turn a photo or drawing into pixel art</label>

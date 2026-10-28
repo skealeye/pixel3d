@@ -20,9 +20,28 @@ const EYE = 'eye-on-white.png 10 × 6 px, detected from a 4× upscale';
 const EMPTY = 'Open an image, or drop one anywhere on the window';
 
 interface Snap { name: string | null; grid: { w: number; h: number; opaque: number; palette: { hex: string }[] } | null; settings: { background: { tolPct: number; enabled: boolean }; pixelate: { enabled: boolean | 'auto'; across: number } }; undo: number; redo: number; zoom: number }
-interface View { shown: 'none' | 'preview' | 'model'; cut: boolean; grid: { on: boolean; colour: string; opacity: number }; renders: number; size: { x: number; y: number; z: number } | null }
+interface View { shown: 'none' | 'preview' | 'model'; cut: boolean; materials: number; clipped: number; buildError: string | null; grid: { on: boolean; colour: string; opacity: number }; renders: number; size: { x: number; y: number; z: number } | null }
 const snap = (page: Page) => page.evaluate(() => (window as unknown as { __pixel3d: { snapshot(): Snap } }).__pixel3d.snapshot());
 const view = (page: Page) => page.evaluate(() => (window as unknown as { __pixel3d: { viewport(): View } }).__pixel3d.viewport());
+const opaque = async (page: Page) => (await snap(page)).grid!.opaque;
+/** Load eye-on-white and return how many cells are left once its white background is removed. */
+async function loadEye(page: Page) {
+  await loadFile(page, 'eye-on-white.png');
+  await expect(page.locator('#fileInfo')).toHaveText(EYE);
+  const n = await opaque(page);
+  expect(n).toBeLessThan(60);
+  return n;
+}
+async function startPick(page: Page) {
+  await page.locator('#pickBg').click();
+  await expect(page.locator('#pickBg')).toHaveClass(/\bon\b/);
+  await expect.poll(() => opaque(page)).toBe(60);
+}
+async function pickLeftEdge(page: Page) {
+  const b = (await page.locator('#src').boundingBox())!;
+  await page.locator('#src').click({ position: { x: 4, y: b.height / 2 } });
+  await expect(page.locator('#bgInfo')).toHaveText('Picked by you.');
+}
 
 async function open(page: Page) {
   await page.goto('/?test');
@@ -113,6 +132,21 @@ test.describe('loading', () => {
 });
 
 test.describe('model', () => {
+  test('a failed build shows a toast and keeps the preview', async ({ page }) => {
+    await open(page);
+    await page.evaluate(() => (window as unknown as { __pixel3d: { failNextBuild(): void } }).__pixel3d.failNextBuild());
+    await loadFile(page, 'potion.png');
+    await expect(page.locator('.toast')).toHaveText("Couldn't build the model: forced failure (test)");
+    expect(await view(page)).toMatchObject({ shown: 'preview', buildError: 'forced failure (test)' });
+    await expect(page.locator('.dims')).toHaveText('40.0 × 53.3 × 3.0 mm preview only, the model could not be built');
+    // the next build succeeds and clears the flag
+    await page.locator('#bgTol').fill('12');
+    await page.locator('#bgTol').press('Enter');
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+    expect((await view(page)).buildError).toBeNull();
+    await expect(page.locator('.dims')).toHaveText('40.0 × 53.3 × 3.0 mm one piece');
+  });
+
   test('preview then the core model, with the size readout', async ({ page }) => {
     await open(page);
     await loadFile(page, 'potion.png');
@@ -132,8 +166,13 @@ test.describe('model', () => {
     await page.locator('#cutBtn').click();
     await expect(page.locator('#cutBtn')).toHaveClass(/\bon\b/);
     await expect(page.locator('.note')).toHaveText('Cut view. Gold is solid material. Empty space shows what is hollow.');
-    expect((await view(page)).cut).toBe(true);
+    await expect.poll(async () => (await view(page)).cut).toBe(true);
+    // every material in use is clipped by the cut plane
+    const on = await view(page);
+    expect(on.materials).toBeGreaterThan(0);
+    expect(on.clipped).toBe(on.materials);
     await page.locator('#cutBtn').click();
+    await expect.poll(async () => (await view(page)).clipped).toBe(0);
     expect((await view(page)).cut).toBe(false);
     await expect(page.locator('.note')).toBeHidden();
 
@@ -176,16 +215,118 @@ test.describe('undo', () => {
     expect((await snap(page)).undo).toBe(50);
   });
 
-  test('Esc closes the grid popover', async ({ page }) => {
+  test('Esc closes the grid popover and cancels Pick and Crop', async ({ page }) => {
     await open(page);
     await page.locator('#gridBtn').click();
     await expect(page.locator('#gridPop')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.locator('#gridPop')).toBeHidden();
+
+    const cleared = await loadEye(page);
+    await startPick(page);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#pickBg')).not.toHaveClass(/\bon\b/);
+    await expect.poll(() => opaque(page)).toBe(cleared);
+
+    await page.locator('#crop').click();
+    await expect(page.locator('#crop')).toHaveClass(/\bon\b/);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#crop')).not.toHaveClass(/\bon\b/);
+  });
+
+  test('a change that fails keeps redo and the oldest step', async ({ page }) => {
+    await open(page);
+    await loadFile(page, 'potion.png');
+    await expect(page.locator('#fileInfo')).toHaveText(POTION);
+    // a full history plus one redo step
+    for (let i = 0; i < 52; i++) await page.locator('#pixelate').click();
+    await page.keyboard.press('Control+z');
+    const before = await snap(page);
+    expect(before).toMatchObject({ undo: 49, redo: 1 });
+    // a crop to one transparent cell can't make a model, so it changes nothing
+    await page.locator('#crop').click();
+    const b = (await page.locator('#src').boundingBox())!;
+    await page.mouse.move(b.x + 2, b.y + 2);
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect(page.locator('.toast')).toHaveText('potion.png is empty once the background is removed. Lower the tolerance.');
+    const after = await snap(page);
+    expect(after).toMatchObject({ undo: 49, redo: 1 });
+    expect(after.grid).toEqual(before.grid);
+    await page.keyboard.press('Control+y');
+    expect(await snap(page)).toMatchObject({ undo: 50, redo: 0 });
+  });
+
+  test('a change that fails with a full history keeps the oldest step', async ({ page }) => {
+    await open(page);
+    await loadFile(page, 'potion.png');
+    await expect(page.locator('#fileInfo')).toHaveText(POTION);
+    for (let i = 0; i < 52; i++) await page.locator('#pixelate').click();
+    expect((await snap(page)).undo).toBe(50);
+    await page.locator('#crop').click();
+    const b = (await page.locator('#src').boundingBox())!;
+    await page.mouse.move(b.x + 2, b.y + 2);
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect(page.locator('.toast')).toHaveText('potion.png is empty once the background is removed. Lower the tolerance.');
+    expect((await snap(page)).undo).toBe(50);
+  });
+});
+
+test.describe('undo while picking', () => {
+  test('pick a colour, then undo: removal is back on and the background is removed again', async ({ page }) => {
+    await open(page);
+    const cleared = await loadEye(page);
+    await startPick(page);
+    await pickLeftEdge(page);
+    await page.keyboard.press('Control+z');
+    await expect(page.locator('#bgInfo')).toHaveText('Found in the corners.');
+    await expect(page.locator('#removeBg')).toBeChecked();
+    await expect(page.locator('#pickBg')).not.toHaveClass(/\bon\b/);
+    expect(await opaque(page)).toBe(cleared);
+    await page.keyboard.press('Control+y');
+    await expect(page.locator('#bgInfo')).toHaveText('Picked by you.');
+    expect(await opaque(page)).toBe(cleared);
+  });
+
+  test('load mid-pick, then undo', async ({ page }) => {
+    await open(page);
+    const cleared = await loadEye(page);
+    await startPick(page);
+    await loadFile(page, 'potion.png');
+    await expect(page.locator('#fileInfo')).toHaveText(POTION);
+    await page.keyboard.press('Control+z');
+    await expect(page.locator('#fileInfo')).toHaveText(EYE);
+    await expect(page.locator('#pickBg')).not.toHaveClass(/\bon\b/);
+    expect(await opaque(page)).toBe(cleared);
+  });
+
+  test('turn Remove background off mid-pick, then undo', async ({ page }) => {
+    await open(page);
+    const cleared = await loadEye(page);
+    await startPick(page);
+    await page.locator('#removeBg').uncheck();
+    await expect(page.locator('#pickBg')).not.toHaveClass(/\bon\b/);
+    expect(await opaque(page)).toBe(60);
+    await page.keyboard.press('Control+z');
+    await expect(page.locator('#removeBg')).toBeChecked();
+    expect(await opaque(page)).toBe(cleared);
   });
 });
 
 test.describe('background', () => {
+  test('Tolerance is fixed while pixelating', async ({ page }) => {
+    await open(page);
+    await loadFile(page, 'gradient-photo.png');
+    await expect(page.locator('#pixelate')).toBeChecked();
+    await expect(page.locator('#bgTolR')).toBeDisabled();
+    await expect(page.locator('#bgTol')).toBeDisabled();
+    await expect(page.locator('#tolHint')).toHaveText('Fixed while pixelating.');
+    await page.locator('#pixelate').uncheck();
+    await expect(page.locator('#bgTolR')).toBeEnabled();
+    await expect(page.locator('#tolHint')).toBeHidden();
+  });
+
   test('swatch, tolerance and Pick', async ({ page }) => {
     await open(page);
     await loadFile(page, 'potion.png');

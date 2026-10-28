@@ -116,6 +116,13 @@ export class Viewport {
     this.dirty = true;
   }
 
+  /** Materials in use and how many of them the cut plane clips (for the e2e checks). */
+  stats() {
+    let clipped = 0;
+    this.mats.forEach((m) => { if (m.clippingPlanes?.length) clipped++; });
+    return { materials: this.mats.size, clipped };
+  }
+
   dispose() {
     this.ro.disconnect();
     this.renderer.setAnimationLoop(null);
@@ -189,6 +196,10 @@ export class Viewport {
     this.clearHolder();
     this.size = size;
     if (row) this.row = row;
+    // keep only the materials still in use, so recolouring doesn't pile up shader programs
+    const used = new Set<THREE.Material>();
+    for (const o of objects) if (o instanceof THREE.Mesh) used.add(o.material as THREE.Material);
+    for (const [hex, m] of this.mats) if (!used.has(m)) { m.dispose(); this.mats.delete(hex); }
     if (objects.length) {
       this.holder.add(...objects);
       this.holder.position.set(0, 0, 0);

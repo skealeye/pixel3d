@@ -1,6 +1,6 @@
 <script lang="ts">
   import { VERSION } from '@pixel3d/core';
-  import { redo, app, ui, undo, recompute } from './state.svelte';
+  import { redo, app, ui, undo, stopPicking } from './state.svelte';
   import { listen } from './load';
   import { register } from './hook';
   import Header from './Header.svelte';
@@ -36,7 +36,7 @@
     if (e.key === 'Escape') {
       ui.popover = null;
       ui.cropping = false;
-      if (ui.picking) { ui.picking = false; recompute(); }
+      stopPicking();
       return;
     }
     if (!(e.ctrlKey || e.metaKey) || typing(e.target)) return;

@@ -25,6 +25,8 @@ export interface Meta {
   /** The grid before edits and heights: what edits replay onto (spec §4.10). */
   base: Grid;
   pixelated: boolean;
+  /** Made with the background kept (Pick mode): a view-only grid that undo never stores. */
+  showBg: boolean;
   /** Header line after the file name, e.g. `16 × 16 px, detected from a 4× upscale`. */
   info: string;
   bg: string | null;
@@ -125,7 +127,7 @@ export function computeGrid(src: Source, s: Settings, edits: Edit[], showBg = fa
   const base = reducePalette(toGrid(art, EXACT_COLOURS), s.colours.max);
   const grid = applyEdits(applyHeightMode(base, heightModeOf(s)), edits).grid;
   const info = `${grid.w} × ${grid.h} px` + (pixelated ? ', pixelated' : upscaleText(scale));
-  return { grid, meta: { base, pixelated, info, bg: bg.bg, how: bg.how, region } };
+  return { grid, meta: { base, pixelated, showBg, info, bg: bg.bg, how: bg.how, region } };
 }
 
 /** The full-resolution pixel under grid cell (i, j), as #rrggbb. */

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { pieces } from '@pixel3d/core';
-  import { app, ui } from '../state.svelte';
+  import { app, toast, ui } from '../state.svelte';
   import { Viewport } from './Viewport';
   import { ModelBuilder } from './modelBuilder';
   import { previewOf } from './previewMesh';
@@ -13,6 +13,8 @@
   /** Size of what is shown, mm: the preview's until the core model arrives, then the model's. */
   let size = $state<{ x: number; y: number; z: number } | null>(null);
   let resizing = $state(false);
+  /** Why the last core build failed; the preview stays up meanwhile. Cleared by the next model. */
+  let buildError = $state<string | null>(null);
 
   const count = $derived(app.grid ? pieces(app.grid).length : 0);
 
@@ -24,11 +26,15 @@
   $effect(() => {
     const v = new Viewport(canvas, main);
     builder = new ModelBuilder(
-      (model) => { v.setModel(model, { row: rowMm }); size = v.size; },
-      (message) => console.warn(`pixel3d: the model could not be built: ${message}`),
+      (model) => { v.setModel(model, { row: rowMm }); size = v.size; buildError = null; },
+      (message) => { buildError = message; toast(`Couldn't build the model: ${message}`); },
     );
     vp = v;
-    const unregister = register({ viewport: () => ({ shown: v.shown, cut: ui.cut, grid: { ...ui.grid }, renders: v.renders, size: v.size }) });
+    const b = builder;
+    const unregister = register({
+      viewport: () => ({ shown: v.shown, cut: ui.cut, grid: { ...ui.grid }, renders: v.renders, size: v.size, buildError, ...v.stats() }),
+      failNextBuild: () => b.failNextBuild(),
+    });
     return () => { unregister(); builder?.dispose(); v.dispose(); vp = builder = undefined; };
   });
 
@@ -60,7 +66,7 @@
 <main bind:this={main}>
   <canvas id="view" bind:this={canvas}></canvas>
   <div id="resizer" title="Drag to resize" role="separator" aria-orientation="vertical" class:drag={resizing} bind:this={resizer}
-    onpointerdown={resizeDown} onpointermove={resizeMove} onpointerup={() => (resizing = false)}></div>
+    onpointerdown={resizeDown} onpointermove={resizeMove} onpointerup={() => (resizing = false)} onpointercancel={() => (resizing = false)}></div>
   <div class="vtools">
     <button class="btn" id="resetView" onclick={() => vp?.fitView()}>Reset view</button>
     <div style="position:relative">
@@ -76,6 +82,6 @@
   </div>
   <div class="note" id="note" style:display={ui.cut ? 'block' : 'none'}><b>Cut view.</b> Gold is solid material. Empty space shows what is hollow.</div>
   {#if size}
-    <div class="dims" id="dims"><b>{size.x.toFixed(1)} × {size.y.toFixed(1)} × {size.z.toFixed(1)} mm</b>&nbsp; {#if count > 1}<span class="warn">{count} separate pieces</span>{:else}one piece{/if}</div>
+    <div class="dims" id="dims"><b>{size.x.toFixed(1)} × {size.y.toFixed(1)} × {size.z.toFixed(1)} mm</b>&nbsp; {#if buildError}<span class="warn">preview only, the model could not be built</span>{:else if count > 1}<span class="warn">{count} separate pieces</span>{:else}one piece{/if}</div>
   {/if}
 </main>
