@@ -49,7 +49,7 @@ Success means the user can drop in a sprite, adjust heights and colours, and get
 ## 4. Features
 
 ### 4.1 Input (parity)
-- Drag-and-drop, a file picker, or a URL. Accepts PNG, JPG, WebP and GIF (first frame).
+- Drag-and-drop anywhere on the window (a full-window "Drop an image to load it" overlay appears while dragging), the Open image button, paste from the clipboard, or a URL. Accepts PNG, JPG, WebP and GIF (first frame). Loading a new image can be undone.
 - Upscaled pixel art is detected automatically and shrunk back to native resolution. This includes different X and Y scales and a grid offset.
 - Pixels with alpha < 128 become transparent.
 - **Size cap raised from 256 to 512 px** on the longest side. Larger images are refused with a clear message.

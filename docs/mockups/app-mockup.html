@@ -43,6 +43,9 @@
   .mark span { color: var(--text); }
   .file { color: var(--muted); }
   .file b { color: var(--text); font-weight: 500; }
+  .dropzone { position: fixed; inset: 0; z-index: 50; display: none; place-items: center; background: rgba(27, 30, 35, .82); pointer-events: none; }
+  .dropzone.show { display: grid; }
+  .dropzone div { padding: 40px 64px; border: 2px dashed var(--gold); border-radius: 12px; color: var(--text); font-size: 18px; background: var(--panel); }
   .spacer { flex: 1; }
   .btn {
     background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-s);
@@ -206,12 +209,13 @@
 
 <header>
   <div class="mark">pixel<span>3d</span></div>
-  <div class="file"><b>potion.png</b>&nbsp; 16 × 16 px, detected from a 4× upscale</div>
+  <div class="file" id="fileInfo"><b>potion.png</b>&nbsp; 16 × 16 px, detected from a 4× upscale</div>
   <div class="spacer"></div>
   <button class="btn icon" id="undo" title="Undo (Ctrl+Z)">↶</button>
   <button class="btn icon" id="redo" title="Redo (Ctrl+Y)">↷</button>
   <button class="btn" id="openBatch">Batch and API</button>
-  <button class="btn">Open image</button>
+  <button class="btn" id="openImg" title="Open an image, or drop one anywhere on the window">Open image</button>
+  <input type="file" id="fileIn" accept="image/png,image/gif,image/webp,image/bmp,image/jpeg" hidden>
   <div class="exportWrap">
     <button class="btn primary" id="exportBtn">Export</button>
     <div id="exportPop">
@@ -247,7 +251,7 @@
       </div>
       <button class="btn">Crop</button>
     </div>
-    <label class="check"><input type="checkbox"> Remove background</label>
+    <label class="check"><input type="checkbox" id="removeBg"> Remove background</label>
   </section>
 
   <section>
@@ -405,7 +409,7 @@
   <span id="fcount"></span>
   <span class="spacer"></span>
   <span>Mockup, nothing is saved</span>
-  <span>v0.1.2</span>
+  <span>v0.1.3</span>
 </footer>
 
 <dialog id="batch">
@@ -420,6 +424,7 @@
 </dialog>
 
 <div class="toast" id="toast"></div>
+<div class="dropzone" id="dropzone"><div>Drop an image to load it</div></div>
 
 <script type="module">
 import * as THREE from 'three';
@@ -447,7 +452,7 @@ const SPRITE = [
   '......KKKK......',
 ];
 const LEGEND = { K:'#2b2135', C:'#9c6b3e', W:'#bfd9e6', G:'#f4fbff', P:'#7a4fd6', L:'#b394f2', D:'#4e2f9e' };
-const N = 16;
+let N = 16;
 
 const S = {
   grid: [], palette: [], sel: 0, tool: 'paint',
@@ -467,7 +472,7 @@ const S = {
     S.grid.push(idx[ch]);
   }
 }
-const ORIGINAL = JSON.stringify({ grid: S.grid, palette: S.palette });
+let ORIGINAL = JSON.stringify({ n: N, grid: S.grid, palette: S.palette });
 
 const $ = (id) => document.getElementById(id);
 const rgb = (hex) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
@@ -538,9 +543,9 @@ function saveFavs() { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); rende
 
 // ---------- undo ----------
 const past = [], future = [];
-const snap = () => JSON.stringify({ g: S.grid, p: S.palette, m: S.magnets, h: S.hole });
+const snap = () => JSON.stringify({ n: N, f: $('fileInfo').innerHTML, o: ORIGINAL, g: S.grid, p: S.palette, m: S.magnets, h: S.hole });
 function commit() { past.push(snap()); if (past.length > 50) past.shift(); future.length = 0; syncUndo(); }
-function restore(s) { const o = JSON.parse(s); Object.assign(S, { grid: o.g, palette: o.p, magnets: o.m, hole: o.h }); S.sel = Math.min(S.sel, S.palette.length - 1); refresh(); }
+function restore(s) { const o = JSON.parse(s); N = o.n; $('fileInfo').innerHTML = o.f; ORIGINAL = o.o; Object.assign(S, { grid: o.g, palette: o.p, magnets: o.m, hole: o.h }); S.sel = Math.min(S.sel, S.palette.length - 1); refresh(); }
 $('undo').onclick = () => { if (!past.length) return; future.push(snap()); restore(past.pop()); syncUndo(); };
 $('redo').onclick = () => { if (!future.length) return; past.push(snap()); restore(future.pop()); syncUndo(); };
 function syncUndo() { $('undo').disabled = !past.length; $('redo').disabled = !future.length; }
@@ -609,15 +614,80 @@ $('addColour').onclick = () => { commit(); S.palette.push({ hex: '#e0715c', h: S
 $('restoreCols').onclick = () => {
   commit();
   const o = JSON.parse(ORIGINAL), keep = new Map(S.palette.map(p => [p.hex, p.h]));
-  S.grid = o.grid; S.palette = o.palette.map(p => ({ hex: p.hex, h: keep.get(p.hex) ?? S.defH }));
+  N = o.n; S.grid = o.grid; S.palette = o.palette.map(p => ({ hex: p.hex, h: keep.get(p.hex) ?? S.defH }));
   S.sel = 0; refresh(); toast('Original colours restored. Your heights were kept.');
 };
 $('reloadImg').onclick = () => {
   commit();
   const o = JSON.parse(ORIGINAL);
-  S.grid = o.grid; S.palette = o.palette; S.sel = 0;
+  N = o.n; S.grid = o.grid; S.palette = o.palette; S.sel = 0;
   applyHeightMode(); refresh(); toast('Image reloaded. Press Ctrl+Z to undo.');
 };
+
+// ---------- open or drop an image ----------
+// detects an upscaled sprite (every run of identical pixels is a multiple of the scale), keeps up to 16 colours,
+// and treats a solid corner colour as background when the image has no transparency
+const MAX_PX = 128, MAX_COLOURS = 16;
+function detectScale(d, w, h) {
+  const same = (a, b) => d[a] === d[b] && d[a + 1] === d[b + 1] && d[a + 2] === d[b + 2] && d[a + 3] === d[b + 3];
+  const gcd = (a, b) => b ? gcd(b, a % b) : a;
+  let g = 0;
+  for (let y = 0; y < h && g !== 1; y++) { let run = 1; for (let x = 1; x <= w; x++) { if (x < w && same((y * w + x) * 4, (y * w + x - 1) * 4)) run++; else { g = gcd(g, run); run = 1; } } }
+  for (let x = 0; x < w && g !== 1; x++) { let run = 1; for (let y = 1; y <= h; y++) { if (y < h && same((y * w + x) * 4, ((y - 1) * w + x) * 4)) run++; else { g = gcd(g, run); run = 1; } } }
+  return Math.max(1, g);
+}
+function loadImage(file) {
+  if (!file || !file.type.startsWith('image/')) { toast('That file is not an image. Use PNG, GIF, WebP, BMP or JPEG.'); return; }
+  const url = URL.createObjectURL(file), img = new Image();
+  img.onerror = () => { URL.revokeObjectURL(url); toast(`Couldn't read ${file.name}. Try saving it as a PNG.`); };
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const cx = c.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0);
+    let d = cx.getImageData(0, 0, c.width, c.height).data;
+    const scale = detectScale(d, c.width, c.height);
+    let w = Math.round(c.width / scale), h = Math.round(c.height / scale), shrunk = false;
+    if (Math.max(w, h) > MAX_PX) { const k = MAX_PX / Math.max(w, h); w = Math.max(1, Math.round(w * k)); h = Math.max(1, Math.round(h * k)); shrunk = true; }
+    const s2 = document.createElement('canvas'); s2.width = w; s2.height = h;
+    const sx = s2.getContext('2d', { willReadFrequently: true }); sx.imageSmoothingEnabled = false; sx.drawImage(c, 0, 0, w, h);
+    d = sx.getImageData(0, 0, w, h).data;
+    const hexAt = (x, y) => { const i = (y * w + x) * 4; return d[i + 3] < 128 ? null : '#' + [d[i], d[i + 1], d[i + 2]].map(v => v.toString(16).padStart(2, '0')).join(''); };
+    let bg = null;
+    const corners = [hexAt(0, 0), hexAt(w - 1, 0), hexAt(0, h - 1), hexAt(w - 1, h - 1)];
+    if (!corners.includes(null) && corners.every(v => v === corners[0])) bg = corners[0];
+    // count colours, then fold the rarest into their nearest until 16 are left
+    const count = new Map();
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const v = hexAt(x, y); if (v && v !== bg) count.set(v, (count.get(v) || 0) + 1); }
+    if (!count.size) { toast(`${file.name} is empty once the background is removed.`); return; }
+    let keep = [...count.keys()].sort((a, b) => count.get(b) - count.get(a));
+    const reduced = keep.length > MAX_COLOURS; keep = keep.slice(0, MAX_COLOURS);
+    const near = (v) => keep.reduce((best, k) => dist(v, k) < dist(v, best) ? k : best, keep[0]);
+    commit();
+    N = Math.max(w, h);
+    const ox = Math.floor((N - w) / 2), oy = Math.floor((N - h) / 2);
+    S.palette = keep.map(hex => ({ hex, h: S.defH }));
+    S.grid = new Array(N * N).fill(-1);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const v = hexAt(x, y); if (v && v !== bg) S.grid[(y + oy) * N + x + ox] = keep.indexOf(near(v)); }
+    S.sel = 0; S.hole = null; S.magnets = [];
+    $('removeBg').checked = !!bg;
+    ORIGINAL = JSON.stringify({ n: N, grid: S.grid, palette: S.palette });
+    $('name').value = file.name.replace(/\.[^.]+$/, '');
+    $('fileInfo').innerHTML = `<b>${file.name}</b>&nbsp; ${w} × ${h} px` + (scale > 1 ? `, detected from a ${scale}× upscale` : '') + (shrunk ? ', scaled down to fit' : '');
+    if (S.lock) { const b = bbox(); S.h = round1(S.w * b.bh / b.bw); showH(); }
+    applyHeightMode(); refresh(); fitView();
+    toast(`Loaded ${file.name}: ${keep.length} colours` + (reduced ? ` (reduced from ${count.size})` : '') + (bg ? ', background removed.' : '.'));
+  };
+  img.src = url;
+}
+$('openImg').onclick = () => $('fileIn').click();
+$('fileIn').onchange = (e) => { loadImage(e.target.files[0]); e.target.value = ''; };
+let dragDepth = 0;
+const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+addEventListener('dragenter', (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth++; $('dropzone').classList.add('show'); });
+addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
+addEventListener('dragleave', (e) => { if (!hasFiles(e)) return; if (--dragDepth <= 0) { dragDepth = 0; $('dropzone').classList.remove('show'); } });
+addEventListener('drop', (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth = 0; $('dropzone').classList.remove('show'); loadImage(e.dataTransfer.files[0]); });
+addEventListener('paste', (e) => { const f = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith('image/')); if (f) loadImage(f); });
 
 // ---------- source canvas ----------
 const src = $('src'), sctx = src.getContext('2d');
