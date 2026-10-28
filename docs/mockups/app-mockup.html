@@ -45,6 +45,8 @@
   .file b { color: var(--text); font-weight: 500; }
   .dropzone { position: fixed; inset: 0; z-index: 50; display: none; place-items: center; background: rgba(27, 30, 35, .82); pointer-events: none; }
   .dropzone.show { display: grid; }
+  section.off { opacity: .35; pointer-events: none; }
+  section.off h2::after { content: 'Not used on a clicker'; margin-left: auto; font-size: 11px; font-weight: 400; color: var(--muted); }
   .bgsw { flex: none; width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--line); }
   .bginfo { flex: 1; color: var(--muted); font-size: 12px; }
   .dropzone div { padding: 40px 64px; border: 2px dashed var(--gold); border-radius: 12px; color: var(--text); font-size: 18px; background: var(--panel); }
@@ -347,13 +349,6 @@
       <button data-v="solid">Double sided</button>
       <button data-v="halves">Two halves</button>
     </div>
-    <div id="joinRow">
-      <div class="row"><label>Halves join with</label></div>
-      <div class="seg" data-key="join">
-        <button data-v="glue">Glue</button>
-        <button data-v="clicker">Magnets (clicker)</button>
-      </div>
-    </div>
     <p class="hint" id="sidesHint"></p>
     <div id="applyRow">
       <div class="row"><label>Colour heights apply to</label></div>
@@ -361,6 +356,32 @@
         <button data-v="both" id="hoBoth">Both sides</button>
         <button data-v="top" id="hoTop">Top side only</button>
       </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Clicker <input type="checkbox" id="clickerOn" style="margin-left:auto"></h2>
+    <p class="hint" style="margin-top:0">Turns the art into a key cap that clicks on a mechanical keyboard switch (Cherry MX style). Prints as two parts: the cap and a body that holds the switch.</p>
+    <div id="clkRows">
+      <div class="row"><label>Body shape</label></div>
+      <div class="seg" data-key="clkShape">
+        <button data-v="outline">Outline</button>
+        <button data-v="circle">Circle</button>
+        <button data-v="square">Square</button>
+      </div>
+      <div class="sl"><label>Border</label><input type="range" id="clkBorderR" min="1.5" max="10" step="0.5"><input class="num" id="clkBorder"><span class="unit">mm</span></div>
+      <div class="sl"><label>Cap height</label><input type="range" id="clkProudR" min="0.5" max="4" step="0.5"><input class="num" id="clkProud"><span class="unit">mm</span></div>
+      <div class="sl"><label>Fit gap</label><input type="range" id="clkTolR" min="0.1" max="0.6" step="0.05"><input class="num" id="clkTol"><span class="unit">mm</span></div>
+      <div class="row"><label>Switches</label></div>
+      <div class="seg" data-key="clkSwitches">
+        <button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button>
+      </div>
+      <div class="row"><label>View</label></div>
+      <div class="seg" data-key="clkView">
+        <button data-v="apart">Apart (as printed)</button>
+        <button data-v="assembled">Assembled</button>
+      </div>
+      <p class="hint" id="clkHint"></p>
     </div>
   </section>
 
@@ -401,8 +422,8 @@
     </div>
     <div id="magPosRow">
       <div class="seg" data-key="magPos">
-        <button data-v="bottom" id="magPosOpen">Pocket in bottom</button>
-        <button data-v="centre" id="magPosSealed">Sealed in centre</button>
+        <button data-v="bottom">Pocket in bottom</button>
+        <button data-v="centre">Sealed in centre</button>
       </div>
     </div>
     <div class="row"><button class="btn" id="placeMag">Place a magnet</button><button class="btn" id="clearMag">Clear all</button></div>
@@ -430,7 +451,7 @@
   <span id="fcount"></span>
   <span class="spacer"></span>
   <span>Mockup, nothing is saved</span>
-  <span>v0.1.7</span>
+  <span>v0.1.8</span>
 </footer>
 
 <dialog id="batch">
@@ -479,7 +500,8 @@ const S = {
   grid: [], palette: [], sel: 0, tool: 'paint',
   heightMode: 'uniform', hMin: 1, hMax: 4, seed: 42, darkHigh: true, defH: 1,
   w: 40, h: 40, lock: true, base: true, baseH: 2, baseColor: '#2a2d33', bottom: 'solid', wall: 1.2,
-  sides: 'single', heightsOn: 'both', join: 'glue', pixelate: false, pixW: 32, pixColours: 8,
+  sides: 'single', heightsOn: 'both', clicker: false, clkShape: 'outline', clkBorder: 3, clkProud: 2, clkTol: 0.3, clkSwitches: 1, clkView: 'apart',
+  pixelate: false, pixW: 32, pixColours: 8,
   removeBg: true, bgTol: 10, bgPick: null, bgFound: null, bgHow: 'none', pickingBg: false, fileLoaded: false, px: null,
   key: 'none', holeStyle: 'round', holeD: 4, hole: null,
   loopStyle: 'round', loopIn: 4, loopOut: 8, loopAngle: 0, loopColor: '#2a2d33',
@@ -562,22 +584,6 @@ function favRow(boxId, key, inputId) {
 const favRenderers = [];
 function renderFavs() { favRenderers.forEach(r => r()); }
 function saveFavs() { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); renderFavs(); }
-
-// ---------- fidget clicker ----------
-const SKIN = 0.4;
-const clicker = () => S.sides === 'halves' && S.join === 'clicker';
-// two magnets as far apart as the art allows along its long side, each with at least 1 mm of plastic around it
-function autoMagnets() {
-  const [md] = magDims(), b = bbox();
-  let cells = [];
-  for (let k = Math.ceil((md / 2 + 1) / Math.min(SC.sx, SC.sy)); k >= 0 && cells.length < 2; k--) cells = [...erode(k, holeTest())].map(c => c.split(',').map(Number));
-  if (cells.length < 2) { toast('The art is too small for two magnets. Try a smaller magnet.'); return; }
-  const long = b.bw * SC.sx >= b.bh * SC.sy ? 0 : 1, mid = long ? b.x0 + b.bw / 2 : b.y0 + b.bh / 2;
-  const score = (c, sign) => sign * c[long] - Math.abs(c[1 - long] + .5 - mid) * .01;
-  const pick = (sign) => cells.reduce((a, c) => score(c, sign) > score(a, sign) ? c : a);
-  S.magnets = [pick(-1), pick(1)].map(([x, y]) => ({ u: x + .5, v: y + .5 }));
-  build(); toast('Placed two magnet pairs. Drag them to move.');
-}
 
 // ---------- undo ----------
 const past = [], future = [];
@@ -939,19 +945,19 @@ $('expand').onclick = () => {
 // ---------- controls ----------
 function setSeg(key, v) {
   S[key] = v;
-  document.querySelectorAll(`.seg[data-key=${key}] button`).forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  document.querySelectorAll(`.seg[data-key=${key}] button`).forEach(b => b.classList.toggle('on', b.dataset.v === String(v)));
   syncVisibility();
 }
 document.querySelectorAll('.seg').forEach(seg => {
   const key = seg.dataset.key;
   seg.querySelectorAll('button').forEach(b => b.onclick = () => {
-    setSeg(key, b.dataset.v);
+    setSeg(key, key === 'clkSwitches' ? +b.dataset.v : b.dataset.v);
+    if (key === 'clkView' || key === 'clkShape') requestAnimationFrame(fitView);
     if (key === 'heightMode') { commit(); applyHeightMode(); renderPalette(); }
     if (key === 'key' && S.key === 'hole' && !S.hole) defaultHole();
     if (key === 'bottom' && S.bottom !== 'solid' && !S.cut) setCut(true);
     if (key === 'sides') fixBottom();
     if (key !== 'tool') build();
-    if ((key === 'join' || key === 'sides') && clicker() && !S.magnets.length) autoMagnets();
   });
   setSeg(key, S[key]);
 });
@@ -982,6 +988,10 @@ const bindNum = (id, key) => $(id).oninput = () => { S[key] = +$(id).value; appl
 bindNum('hMin', 'hMin'); bindNum('hMax', 'hMax'); bindNum('seed', 'seed');
 $('darkHigh').onchange = () => { S.darkHigh = $('darkHigh').checked; applyHeightMode(); renderPalette(); build(); };
 $('reroll').onclick = () => { commit(); S.seed = Math.floor(Math.random() * 9999); $('seed').value = S.seed; setSeg('heightMode', 'random'); applyHeightMode(); renderPalette(); build(); };
+$('clickerOn').onchange = () => { S.clicker = $('clickerOn').checked; syncVisibility(); build(); fitView(); };
+pair('clkBorder', 'clkBorder', f1);
+pair('clkProud', 'clkProud', f1);
+pair('clkTol', 'clkTol', (v) => (+v).toFixed(2));
 $('baseOn').onchange = () => { S.base = $('baseOn').checked; syncVisibility(); build(); };
 $('baseColor').oninput = () => { S.baseColor = $('baseColor').value; renderFavs(); build(); };
 $('loopColor').oninput = () => { S.loopColor = $('loopColor').value; renderFavs(); build(); };
@@ -1012,26 +1022,28 @@ function syncVisibility() {
   show('slicerRow', S.format === '3mf');
   show('monoRow', mono());
   show('applyRow', S.sides !== 'single');
-  show('joinRow', S.sides === 'halves');
   show('pixRows', S.pixelate);
   show('bgRows', S.removeBg || S.pickingBg);
-  show('magPosRow', S.sides === 'single' || clicker());
-  if ($('magPosOpen')) { $('magPosOpen').textContent = clicker() ? 'Open on face' : 'Pocket in bottom'; $('magPosSealed').textContent = clicker() ? 'Sealed under face' : 'Sealed in centre'; }
+  show('magPosRow', S.sides === 'single');
+  show('clkRows', S.clicker);
+  document.querySelectorAll('aside section').forEach(sec => {
+    const t = sec.querySelector('h2')?.firstChild?.textContent.trim();
+    if (['Inside', 'Sides', 'Keychain', 'Magnets'].includes(t)) sec.classList.toggle('off', S.clicker);
+  });
   if ($('fcount') && S.palette.length) $('fcount').textContent = mono() ? '1 filament' : `${S.palette.length + (S.base ? 1 : 0)} filaments`;
   if ($('hoBoth')) { $('hoBoth').textContent = S.sides === 'halves' ? 'Both halves' : 'Both sides'; $('hoTop').textContent = S.sides === 'halves' ? 'Front half only' : 'Top side only'; }
   const hints = {
     single: 'Pixels on the front only. Prints flat with no supports.',
     solid: 'Pixels on both faces in one piece. Needs supports when printed flat.',
     halves: 'Front and back as two flat-backed pieces. Print both, then glue. The cleanest finish.',
-    clicker: 'Front and back are two pieces held together by magnets. Pull them apart and they snap back with a click.',
   };
-  if ($('sidesHint')) $('sidesHint').textContent = hints[clicker() ? 'clicker' : S.sides];
+  if ($('sidesHint')) $('sidesHint').textContent = hints[S.sides];
   const bottomHints = {
     solid: 'Filled all the way through.',
     shell: 'Hollow inside with a closed floor, to save filament and weight. Use Cut view to see inside.',
     hollow: 'Hollow inside and open underneath, like an upside-down tray.',
   };
-  if ($('bottomHint')) $('bottomHint').textContent = S.sides === 'halves' ? (clicker() ? 'Halves stay solid so the inside faces sit flat together.' : 'Halves stay solid so the glue faces are flat.') : bottomHints[S.bottom];
+  if ($('bottomHint')) $('bottomHint').textContent = S.sides === 'halves' ? 'Halves stay solid so the glue faces are flat.' : bottomHints[S.bottom];
   if ($('keyHint')) $('keyHint').textContent = S.key === 'hole'
     ? 'Drag the gold marker on the model to move the hole. It cuts through every layer.'
     : (S.base ? 'The loop uses the base colour.' : 'Move the slider to slide the loop around the edge.');
@@ -1090,6 +1102,7 @@ function setCut(on) {
 }
 $('cutBtn').onclick = () => setCut(!S.cut);
 const ghostGold = new THREE.MeshBasicMaterial({ color: '#d9a441', transparent: true, opacity: .45, depthTest: false });
+const ghostSwitch = new THREE.MeshBasicMaterial({ color: '#c9ced6', transparent: true, opacity: .22, depthWrite: false });
 const ghostMag = new THREE.MeshBasicMaterial({ color: '#e0715c', transparent: true, opacity: .35, depthTest: false });
 
 let SC = { sx: 1, sy: 1 };
@@ -1135,14 +1148,123 @@ function erode(k, isCut) {
   return inside;
 }
 
+// ---------- keycap clicker ----------
+// the art becomes a key cap on a Cherry MX style switch, and a printed body holds the switch.
+// mm throughout; Z = 0 is the body's underside on the bed. Switch numbers are nominal: the builder confirms them with a fit-test print.
+const MX = { cut: 14, column: 15.6, plate: 1.5, below: 8.5, floor: 1.2, above: 11.6, stemD: 5.5, cross: [4.1, 1.3], engage: 3.8, stemLen: 4.5, travel: 4 };
+// outline of a set of cells ("x,y") as closed loops of grid corners; outer loops run anticlockwise, holes clockwise
+function traceLoops(cells) {
+  const has = (x, y) => cells.has(x + ',' + y), next = new Map();
+  const edge = (a, b) => { const k = a.join(','); if (!next.has(k)) next.set(k, []); next.get(k).push(b); };
+  for (const c of cells) {
+    const [x, y] = c.split(',').map(Number);
+    if (!has(x, y - 1)) edge([x, y], [x + 1, y]);
+    if (!has(x + 1, y)) edge([x + 1, y], [x + 1, y + 1]);
+    if (!has(x, y + 1)) edge([x + 1, y + 1], [x, y + 1]);
+    if (!has(x - 1, y)) edge([x, y + 1], [x, y]);
+  }
+  const loops = [];
+  for (const [k, list] of next) while (list.length) {
+    const start = k.split(',').map(Number), loop = [start];
+    let p = list.pop();
+    while (p.join(',') !== k) { loop.push(p); const l = next.get(p.join(',')); p = l.pop(); }
+    loops.push(loop);
+  }
+  return loops;
+}
+function shapesFrom(loops) {
+  const pts = loops.map(l => l.map(([x, y]) => new THREE.Vector2(x * SC.sx, y * SC.sy)));
+  const outer = pts.filter(l => !THREE.ShapeUtils.isClockWise(l)).map(l => new THREE.Shape(l));
+  const inside = (pt, poly) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) if ((poly[i].y > pt.y) !== (poly[j].y > pt.y) && pt.x < (poly[j].x - poly[i].x) * (pt.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x) c = !c; return c; };
+  for (const h of pts.filter(l => THREE.ShapeUtils.isClockWise(l))) {
+    const mid = h[0].clone().add(h[1]).multiplyScalar(.5);
+    const o = outer.find(s => inside(mid, s.getPoints()));
+    if (o) o.holes.push(new THREE.Path(h));
+  }
+  return outer;
+}
+const artCells = () => { const s = new Set(); for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (opaque(x, y)) s.add(x + ',' + y); return s; };
+function grow(cells, k) {
+  const out = new Set();
+  for (const c of cells) { const [x, y] = c.split(',').map(Number); for (let dy = -k; dy <= k; dy++) for (let dx = -k; dx <= k; dx++) if (dx * dx + dy * dy <= k * k + k) out.add((x + dx) + ',' + (y + dy)); }
+  return out;
+}
+const extrude = (shapes, z0, z1) => new THREE.ExtrudeGeometry(shapes, { depth: z1 - z0, bevelEnabled: false, curveSegments: 48 }).translate(0, 0, z0);
+// switch centres (mm): one in the middle, or 2-3 spaced at keyboard pitch along the long side
+function switchSpots() {
+  const b = bbox(), cx = (b.x0 + b.bw / 2) * SC.sx, cy = (b.y0 + b.bh / 2) * SC.sy, long = b.bw * SC.sx >= b.bh * SC.sy;
+  return Array.from({ length: S.clkSwitches }, (_, i) => { const o = (i - (S.clkSwitches - 1) / 2) * 19.05; return long ? [cx + o, cy] : [cx, cy + o]; });
+}
+function brushOf(geo) { const g = geo.index ? geo.toNonIndexed() : geo; for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal') g.deleteAttribute(k); const b = new Brush(g); b.updateMatrixWorld(); return b; }
+function clickerParts(bt) {
+  const cells = artCells(), spots = switchSpots();
+  const plateTop = MX.floor + MX.below + MX.plate, stemTop = plateTop + MX.above;
+  const capUnder = stemTop - MX.engage + MX.stemLen;            // cap underside when assembled, switch at rest
+  const capT = bt > 0 ? bt : Math.min(...S.palette.map(p => p.h));
+  const rimTop = capUnder + capT - S.clkProud;                    // the cap stands this far above the rim
+  const wellFloor = capUnder - MX.stemLen - MX.travel;            // room to press the cap all the way down
+  const hex = mono() ? S.monoColor : S.baseColor;
+  // body: footprint minus the well (cap outline), the switch column and the socket the switch clips into
+  const b = bbox(), cx = (b.x0 + b.bw / 2) * SC.sx, cy = (b.y0 + b.bh / 2) * SC.sy;
+  let foot;
+  if (S.clkShape === 'outline') foot = extrude(shapesFrom(traceLoops(grow(cells, Math.max(1, Math.round(S.clkBorder / Math.min(SC.sx, SC.sy)))))), 0, rimTop);
+  else if (S.clkShape === 'circle') {
+    let r = 0; for (const c of cells) { const [x, y] = c.split(',').map(Number); for (const [u, v] of [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]]) r = Math.max(r, Math.hypot(u * SC.sx - cx, v * SC.sy - cy)); }
+    foot = new THREE.CylinderGeometry(r + S.clkBorder, r + S.clkBorder, rimTop, 96).rotateX(Math.PI / 2).translate(cx, cy, rimTop / 2);
+  } else {
+    const w = b.bw * SC.sx + 2 * S.clkBorder, h = b.bh * SC.sy + 2 * S.clkBorder, r = Math.min(4, w / 4, h / 4), x0 = cx - w / 2, y0 = cy - h / 2, s = new THREE.Shape();
+    s.moveTo(x0 + r, y0); s.lineTo(x0 + w - r, y0); s.quadraticCurveTo(x0 + w, y0, x0 + w, y0 + r); s.lineTo(x0 + w, y0 + h - r); s.quadraticCurveTo(x0 + w, y0 + h, x0 + w - r, y0 + h);
+    s.lineTo(x0 + r, y0 + h); s.quadraticCurveTo(x0, y0 + h, x0, y0 + h - r); s.lineTo(x0, y0 + r); s.quadraticCurveTo(x0, y0, x0 + r, y0);
+    foot = extrude([s], 0, rimTop);
+  }
+  let solid = brushOf(foot);
+  const cuts = [extrude(shapesFrom(traceLoops(cells)), wellFloor, rimTop + 1)];
+  for (const [x, y] of spots) {
+    cuts.push(new THREE.BoxGeometry(MX.column, MX.column, MX.below).translate(x, y, MX.floor + MX.below / 2));
+    cuts.push(new THREE.BoxGeometry(MX.cut, MX.cut, MX.plate + .2).translate(x, y, MX.floor + MX.below + MX.plate / 2));
+    cuts.push(new THREE.BoxGeometry(MX.column, MX.column, wellFloor - plateTop + .1).translate(x, y, (plateTop + wellFloor) / 2));
+  }
+  for (const g of cuts) { solid = csg.evaluate(solid, brushOf(g), SUBTRACTION); solid.updateMatrixWorld(); }
+  const bodyG = new THREE.Group();
+  bodyG.add(new THREE.Mesh(solid.geometry, mat(hex)));
+  // cap: the art on its backing, a stem per switch with the cross socket, and a skirt round the edge so it stands flat
+  const cap = body({ baseT: bt, idx: 0, plain: true });
+  for (const [x, y] of spots) {
+    let st = brushOf(new THREE.CylinderGeometry(MX.stemD / 2, MX.stemD / 2, MX.stemLen, 32).rotateX(Math.PI / 2).translate(x, y, -MX.stemLen / 2));
+    for (const [w, h] of [MX.cross, [MX.cross[1], MX.cross[0]]]) { st = csg.evaluate(st, brushOf(new THREE.BoxGeometry(w, h, MX.engage * 2).translate(x, y, -MX.stemLen)), SUBTRACTION); st.updateMatrixWorld(); }
+    cap.add(new THREE.Mesh(st.geometry, mat(hex)));
+  }
+  const clear = MX.column / 2 + 1, skirt = [];
+  for (const c of cells) {
+    const [x, y] = c.split(',').map(Number);
+    if (cells.has((x - 1) + ',' + y) && cells.has((x + 1) + ',' + y) && cells.has(x + ',' + (y - 1)) && cells.has(x + ',' + (y + 1))) continue;
+    if (spots.some(([sx, sy]) => Math.abs((x + .5) * SC.sx - sx) < clear && Math.abs((y + .5) * SC.sy - sy) < clear)) continue;
+    skirt.push(new THREE.BoxGeometry(SC.sx, SC.sy, MX.stemLen).translate((x + .5) * SC.sx, (y + .5) * SC.sy, -MX.stemLen / 2));
+  }
+  if (skirt.length) cap.add(new THREE.Mesh(mergeGeometries(skirt), mat(hex)));
+  if (S.clkView === 'assembled') {
+    cap.position.z = capUnder;
+    // the switch, as a see-through stand-in (not part of the model)
+    for (const [x, y] of spots) {
+      const sw = new THREE.Mesh(new THREE.BoxGeometry(MX.cut, MX.cut, 5 + 6.6).translate(x, y, plateTop - 5 + 3.3 - MX.plate / 2), ghostSwitch);
+      const stem = new THREE.Mesh(new THREE.BoxGeometry(4, 4, stemTop - plateTop - 6.6).translate(x, y, (stemTop + plateTop + 6.6) / 2), ghostSwitch);
+      sw.userData.ghost = stem.userData.ghost = true; bodyG.add(sw, stem);
+    }
+  } else {
+    const box = new THREE.Box3().setFromObject(bodyG);
+    cap.position.set(box.max.x - box.min.x + 8, 0, MX.stemLen);
+  }
+  return { bodyG, cap, size: { h: rimTop, travel: MX.travel } };
+}
+
 // one printable body. opts: mirror (back half), baseT, top/under pixel layers, topVary/underVary (colour heights or flat), cavity
-function body({ mirror = false, baseT, top = true, under = false, topVary = true, underVary = true, idx, cavity = null, magZ }) {
+function body({ mirror = false, baseT, top = true, under = false, topVary = true, underVary = true, idx, cavity = null, magZ, plain = false }) {
   const g = new THREE.Group(); g.userData = { mirror, idx, baseT };
   const mx = (x) => mirror ? N - 1 - x : x, mu = (u) => mirror ? N - u : u;
   const [md, mh] = magDims();
   const segs = new Map(), cutSegs = new Map();
   // the hole runs right through; magnet pockets are cylinders at their own depth
-  const cutters = [holeCutter(), ...S.magnets.map(m => ({ round: true, cx: m.u * SC.sx, cy: m.v * SC.sy, r: md / 2, z0: magZ, z1: magZ + mh }))].filter(Boolean);
+  const cutters = plain ? [] : [holeCutter(), ...S.magnets.map(m => ({ round: true, cx: m.u * SC.sx, cy: m.v * SC.sy, r: md / 2, z0: magZ, z1: magZ + mh }))].filter(Boolean);
   const add = (hex, x, y, a, b, holes) => {
     const k = mono() ? S.monoColor : hex;
     for (const [p, q] of subtract(a, b, holes)) {
@@ -1164,7 +1286,7 @@ function body({ mirror = false, baseT, top = true, under = false, topVary = true
   // keychain loop joins the outline; colour follows the base, or its own colour when there is no base
   const t = baseT > 0 ? baseT : Math.min(...S.palette.map(p => p.h));
   const loopHex = S.base ? S.baseColor : S.loopColor;
-  if (S.key === 'loop') {
+  if (!plain && S.key === 'loop') {
     const e = edgeAtAngle(S.loopAngle);
     // both styles use the exact hole and outside sizes in mm, centred half a wall out from the edge
     const ro = S.loopOut / 2, ri = S.loopIn / 2, R = (ro + ri) / 2, r = (ro - ri) / 2;
@@ -1200,14 +1322,14 @@ function body({ mirror = false, baseT, top = true, under = false, topVary = true
   brushes.forEach(b => b.geometry.dispose());
   // drag handles (not part of the model, not counted in its size)
   const zTop = g.children.length ? new THREE.Box3().setFromObject(g).max.z : baseT;
-  if (S.key === 'hole') {
+  if (!plain && S.key === 'hole') {
     let hnd;
     if (S.holeStyle === 'square') hnd = new THREE.Mesh(new THREE.BoxGeometry(S.holeD, S.holeD, 0.6), ghostGold);
     else { hnd = new THREE.Mesh(new THREE.CylinderGeometry(S.holeD / 2, S.holeD / 2, 0.6, 32), ghostGold); hnd.rotation.x = Math.PI / 2; }
     hnd.position.set(mu(S.hole.u) * SC.sx, S.hole.v * SC.sy, zTop + .3);
     hnd.renderOrder = 10; hnd.userData = { handle: { kind: 'hole' }, ghost: true }; g.add(hnd);
   }
-  S.magnets.forEach((m, i) => {
+  (plain ? [] : S.magnets).forEach((m, i) => {
     const hnd = new THREE.Mesh(new THREE.CylinderGeometry(md / 2, md / 2, 0.4, 32), ghostMag);
     hnd.rotation.x = Math.PI / 2; hnd.position.set(mu(m.u) * SC.sx, m.v * SC.sy, zTop + .2);
     hnd.renderOrder = 11; hnd.userData = { handle: { kind: 'magnet', i }, ghost: true }; g.add(hnd);
@@ -1244,17 +1366,17 @@ function build() {
     if (top - Math.max(bottom, 0) < 0.4 || !cells.size) cavityMsg = 'Too thin to hollow out. Make the base thicker or the wall thinner.';
     else cavity = { cells, z: [bottom, top] };
   }
-  if (S.sides === 'single') {
+  let clk = null;
+  if (S.clicker) { clk = clickerParts(bt); pivot.add(clk.bodyG, clk.cap); }
+  else if (S.sides === 'single') {
     pivot.add(body({ baseT: bt, idx: 0, cavity, magZ: S.magPos === 'bottom' ? -0.01 : Math.max(0, (bt - mh) / 2) }));
   }
-  if (S.sides === 'solid') pivot.add(body({ baseT: bt, under: true, underVary: both, idx: 0, cavity, magZ: (bt - mh) / 2 }));
-  if (S.sides === 'halves') {
+  else if (S.sides === 'solid') pivot.add(body({ baseT: bt, under: true, underVary: both, idx: 0, cavity, magZ: (bt - mh) / 2 }));
+  else if (S.sides === 'halves') {
     // the back is printed flat side down, then flipped onto the front, so its art is mirrored. Pockets open on the glue face.
-    // clicker: no glue; magnet pairs line up face to face. Sealed pockets sit under a 0.4 mm skin and need a pause.
-    const mz = clicker() && S.magPos === 'centre' ? SKIN : -0.01;
-    const back = body({ mirror: true, baseT: bt / 2, topVary: both, idx: 1, magZ: mz });
+    const back = body({ mirror: true, baseT: bt / 2, topVary: both, idx: 1, magZ: -0.01 });
     back.position.x = N * SC.sx + 8;
-    pivot.add(body({ baseT: bt / 2, idx: 0, magZ: mz }), back);
+    pivot.add(body({ baseT: bt / 2, idx: 0, magZ: -0.01 }), back);
   }
   pivot.rotation.set(...S.rot.map(r => r * Math.PI / 2));
   if (!drag) {
@@ -1269,7 +1391,7 @@ function build() {
     cutPlane.constant = -mid.y;
   }
   const sz = modelBounds().getSize(new THREE.Vector3());
-  $('dims').innerHTML = `<b>${sz.x.toFixed(1)} × ${sz.y.toFixed(1)} × ${sz.z.toFixed(1)} mm</b>&nbsp; ${pieces().length > 1 ? `<span class="warn">${pieces().length} separate pieces</span>` : S.sides === 'halves' ? (clicker() ? 'two pieces that snap together' : 'two pieces') : 'one piece'}`;
+  $('dims').innerHTML = `<b>${sz.x.toFixed(1)} × ${sz.y.toFixed(1)} × ${sz.z.toFixed(1)} mm</b>&nbsp; ${pieces().length > 1 ? `<span class="warn">${pieces().length} separate pieces</span>` : S.clicker ? (S.clkView === 'assembled' ? 'assembled, switch at rest' : 'cap and body') : S.sides === 'halves' ? 'two pieces' : 'one piece'}`;
   const notes = [];
   if (cavityMsg) notes.push(`<span class="warn">${cavityMsg}</span>`);
   if (S.cut) notes.push('<b>Cut view.</b> Gold is solid material. Empty space shows what is hollow.');
@@ -1291,21 +1413,27 @@ function build() {
   $('rotLabel').textContent = S.rot.some(Boolean) ? `X ${S.rot[0] * 90}°, Y ${S.rot[1] * 90}°, Z ${S.rot[2] * 90}°` : 'Flat';
   // magnets panel
   const [md] = magDims();
-  $('magCount').textContent = clicker() ? `${S.magnets.length} pairs, ${S.magnets.length * 2} magnets` : `${S.magnets.length} placed`;
+  $('magCount').textContent = `${S.magnets.length} placed`;
   $('magList').innerHTML = S.magnets.map((m, i) => `<li>Magnet ${i + 1}<button class="del" data-m="${i}" title="Remove">×</button></li>`).join('');
   $('magList').querySelectorAll('[data-m]').forEach(x => x.onclick = () => { commit(); S.magnets.splice(+x.dataset.m, 1); build(); });
-  const sealed = S.sides === 'solid' || ((S.sides === 'single' || clicker()) && S.magPos === 'centre');
+  const sealed = S.sides === 'solid' || (S.sides === 'single' && S.magPos === 'centre');
   const need = sealed ? mh + 1.2 : mh + 0.6, have = S.sides === 'halves' ? bt / 2 + minTop : bt;
-  const polarity = ' Put each pair in with opposite poles facing: let the two magnets snap together first, then press them in without flipping either.';
   $('magHint').innerHTML = S.magnets.length
     ? (have < need ? `<span class="warn">A ${md} × ${mh} mm magnet needs about ${round1(need)} mm here. Make the base thicker or pick a smaller magnet.</span>`
-      : clicker() ? (sealed ? `Each half pauses at the layer above its pockets so you can drop the magnets in, 0.4 mm under the face.` : 'Pockets open on the inside faces, flush, so the halves meet flat.') + polarity
       : sealed ? 'Sealed inside. The print pauses at this layer so you can drop the magnet in.' : 'Open on the bottom, so you can press the magnet in after printing. Drag to move.')
-    : clicker() ? '<span class="warn">Place at least two magnets so the halves line up when they snap together.</span>'
     : (S.sides === 'halves' ? 'Pockets open on the glue face, so the magnet ends up sealed inside.' : '');
+  if (S.clicker) {
+    const small = Math.min(S.w, S.h) < MX.column + 2;
+    $('clkHint').innerHTML = (small ? `<span class="warn">The art is smaller than the switch. Make it at least ${MX.column + 2} mm across so the cap covers it.</span> ` : '') +
+      `Needs ${S.clkSwitches} MX-style switch${S.clkSwitches > 1 ? 'es' : ''}. Press the switch into the body from above until it clips in, then push the cap onto it. ${MX.travel} mm of travel. The cap prints art side up, standing on its stem and skirt.`;
+  }
   updateSummary();
 }
-function fitView() { camera.position.set(55, -95, 85); controls.target.set(0, 0, 4); controls.update(); }
+function fitView() {
+  // frame whatever is on the bed: the default view suits a ~70 mm diagonal, larger models pull the camera back
+  const sz = modelBounds().getSize(new THREE.Vector3()), k = Math.max(1, sz.length() / 70);
+  camera.position.set(55 * k, -95 * k, 85 * k); controls.target.set(0, 0, Math.min(sz.z / 2, 12)); controls.update();
+}
 document.querySelectorAll('[data-rot]').forEach(b => b.onclick = () => { const a = +b.dataset.rot; S.rot[a] = (S.rot[a] + 1) % 4; build(); });
 $('flat').onclick = () => { S.rot = [0, 0, 0]; build(); };
 $('edge').onclick = () => { S.rot = [1, 0, 0]; build(); };

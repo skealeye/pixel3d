@@ -126,11 +126,24 @@ A setting with three values, labelled in the UI as **One side / Double sided / T
   - Each half gets half the base thickness, so the glued result equals the `solid` version.
   - Magnet pockets open onto the glue face and are mirrored on the two halves, so the magnet is hidden inside once the halves are glued. *(Claude's call.)*
   - For export: one 3MF with two plates or objects, or two STL files (`name_front`, `name_back`).
-- **Halves join with** (shown for Two halves): **Glue** (default) or **Magnets (clicker)**.
-  - Clicker: a fidget toy. The two halves are not glued; magnet pairs hold them face to face, and pulling them apart and letting go makes them snap back with a click.
-  - Turning it on with no magnets placed auto-places two pairs, as far apart as the art allows along its long side with at least 1 mm of plastic around each. With fewer than two pairs a warning asks for more, since two are needed for the halves to line up.
-  - Pockets are either **Open on face** (flush with the inside face, magnet pressed in, faces meet flat) or **Sealed under face** (0.4 mm skin, 3MF pause at the layer that closes the pocket). The magnet count reads as pairs, for example "2 pairs, 4 magnets".
-  - The UI reminds the user about polarity: let each pair snap together first, then press them in without flipping either, so the halves attract.
+
+### 4.6b Keycap clicker (new)
+A fidget clicker in the style of the Vostok Labs Clicker Generator (user's reference): the art becomes a key cap that clips onto a real **Cherry MX style keyboard switch**, and a printed body holds the switch. Pressing the cap gives a real keyboard click. No magnets are involved.
+- **Clicker** on/off section. When on, it replaces the Sides, Inside, Keychain and Magnets settings, which are greyed out and labelled "Not used on a clicker". Size, Base, colours and heights still apply to the cap.
+- **Two printed parts:**
+  - **Cap:** the art with its colour heights on its backing (the base, or the lowest colour height with no base). Underneath it has one stem per switch (5.5 mm round, with an MX cross socket 4.1 × 1.3 mm, 3.8 mm deep) and a skirt round its edge, 4.5 mm tall like the stems. It prints art side up, standing on the stems and skirt, so it needs no supports. The skirt skips the area around each switch.
+  - **Body:** the footprint, with a **well** shaped like the cap outline plus the fit gap. In the well floor there's a 15.6 mm square column per switch, with a 1.5 mm plate holding a **14.0 mm square** socket the switch clips into, and 8.5 mm of clearance below for the switch body and pins, over a 1.2 mm floor. The well is deep enough for 4 mm of travel, so the cap can be pressed all the way down. It prints flat with no supports.
+- **Settings:**
+  - **Body shape:** Outline (default; the cap outline grown by the border, keeping the pixel look), Circle or Square (rounded corners).
+  - **Border:** 1.5–10 mm, default 3.
+  - **Cap height:** 0.5–4 mm, default 2. How far the cap's backing stands above the body's rim at rest.
+  - **Fit gap:** 0.1–0.6 mm, default 0.3. The clearance between the cap and the well wall.
+  - **Switches:** 1, 2 or 3 (default 1). Multiple switches are spaced at keyboard pitch (19.05 mm) along the art's long side, centred.
+  - **View:** Apart (as printed, cap beside the body) or Assembled. Assembled shows the cap on a see-through stand-in switch at rest. Cut view works in both.
+- **Warnings:** art smaller than the switch column plus 2 mm (17.6 mm) can't cover the switch. The hint states how many switches are needed and how to assemble it: clip the switch into the body from above, then push the cap on.
+- **Export:** the cap and body as two objects in one 3MF (the cap multi-colour, the body in the base colour), or two STLs (`name_cap`, `name_body`).
+- **Fit:** the switch numbers above are nominal MX values. The builder confirms them against the Cherry MX datasheet and adds a small **fit-test** export (a socket coupon plus a stem coupon), so the user can tune the fit gap and stem fit on their own printer before printing a full clicker. The user prints on a Bambu printer and can test this.
+- Presets include all clicker settings, so batch runs can produce clickers.
 
 ### 4.7 Keychain (parity, reworked)
 - **Hole:** **Round** (a cylinder) or **Square** (a square prism), 2–10 mm across, cut with a true boolean subtraction. It is not snapped to the pixel grid, so it can cut part-way through pixels. A flat gold marker on the model's top surface is dragged to move it. It cuts through every layer: base, pixels, and both faces or halves. Moving the hole never moves or lifts the model: handles are not counted in the model's size or position.
@@ -145,7 +158,7 @@ A setting with three values, labelled in the UI as **One side / Double sided / T
 - **Magnet pockets** are real cut-outs (boolean subtraction) in the model, with presets plus a custom size. Each pocket is a true cylinder matching the magnet, not a stack of whole pixels.
   - **Pocket in bottom:** open on the bed face, so the magnet is pressed in after printing.
   - **Sealed in centre:** an enclosed pocket inside the base. The 3MF includes a pause at the layer that closes the pocket, so the magnet can be dropped in during the print.
-  - Double sided always uses the sealed pocket. Glued halves always use pockets open on the glue face; clicker halves offer open or sealed (see 4.6).
+  - Double sided always uses the sealed pocket. Halves always use pockets open on the glue face.
   - A readout shows the material left above and below the pocket.
   - "Place a magnet" enters placement mode: click the model to drop one, or press Esc to cancel. Placed magnets can be dragged and removed one by one, and there is a Clear all.
   - A warning appears when the base is too thin for the chosen magnet.
@@ -226,7 +239,7 @@ All three interfaces call the same core function: `convert(image, preset) → { 
 
 ## 7. Quality bar / acceptance
 
-- Every exported mesh is manifold, checked by an automated test using manifold-3d. This covers: single, solid and halves; hole and loop; magnets; base on and off; corner-touching pixels.
+- Every exported mesh is manifold, checked by an automated test using manifold-3d. This covers: single, solid and halves; hole and loop; magnets; base on and off; corner-touching pixels; clicker cap and body (each shape, 1–3 switches).
 - **Golden-file tests:** fixed sprites + presets give stable output (by mesh stats or hash). CLI output equals the output from the core library called directly.
 - A 3MF from a fixture opens in **Bambu Studio** (manual check by the user) as one model, with each colour already on its own filament slot and the correct colours, including the base. Orca and Prusa output is checked by automated tests of the metadata structure only.
 - Performance: changing a height slider on a 128×128 sprite updates the preview within about 1 frame budget (<50 ms). A batch of 100 64×64 sprites finishes in under 30 s on the user's PC.
