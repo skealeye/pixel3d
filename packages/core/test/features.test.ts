@@ -96,6 +96,26 @@ describe('keychain hole', () => {
     }
   });
 
+  it('bounds are the uncut box where the parts sit: a hole cutting the outermost column leaves them as they were', async () => {
+    // 4 mm pixels; the top-right pixel sticks out alone, and the hole takes it away
+    const g = art(['0000000000', '000000000.', '000000000.']);
+    for (const rotation of [[0, 0, 0], [3, 0, 0], [0, 1, 1]] as [number, number, number][]) {
+      const none = await buildModel(g, settings((s) => { s.rotation = rotation; }));
+      const m = await buildModel(g, settings((s) => { s.rotation = rotation; s.keychain.type = 'hole'; s.keychain.hole = { style: 'square', size: 6, at: { fx: 1, fy: 0 } }; }));
+      const b = bounds(none.parts);
+      for (let a = 0; a < 3; a++) {
+        expect(none.bounds.min[a]).toBeCloseTo(b.min[a]!, 4);
+        expect(none.bounds.max[a]).toBeCloseTo(b.max[a]!, 4);
+      }
+      expect(m.bounds).toEqual(none.bounds);
+      // the cut parts themselves no longer reach the uncut box
+      const c = bounds(m.parts);
+      expect([0, 1, 2].some((k) => Math.abs(c.max[k]! - b.max[k]!) > 0.1 || Math.abs(c.min[k]! - b.min[k]!) > 0.1)).toBe(true);
+      expect(none.bounds.min[2]).toBe(0);
+      expect(none.bounds.max[2]).toBeCloseTo(none.size.z, 6);
+    }
+  });
+
   it('cuts every part of both halves', async () => {
     const none = await buildModel(potion, settings((s) => { s.sides.mode = 'halves'; }));
     const m = await buildModel(potion, settings((s) => { s.sides.mode = 'halves'; s.keychain.type = 'hole'; s.keychain.hole = { style: 'square', size: 4, at: centre }; }));

@@ -19,6 +19,11 @@
   let resizing = $state(false);
   /** Why the last core build failed; the preview stays up meanwhile. Cleared by the next model. */
   let buildError = $state<string | null>(null);
+  /**
+   * The last model's warnings (too thin to hollow out, Hollow built as Shell...). The thin-base magnet warning is
+   * left out: the Magnets panel shows it.
+   */
+  let warnings = $state<string[]>([]);
 
   const count = $derived(pieceCount());
   const unit = $derived(app.settings.size.unit);
@@ -56,7 +61,11 @@
   $effect(() => {
     const v = new Viewport(canvas, main);
     builder = new ModelBuilder(
-      (model) => { v.setModel(model, { row: rowMm }); size = v.size; buildError = null; if (scheduled) app.built = { grid: scheduled, pieces: model.pieces }; },
+      (model) => {
+        v.setModel(model, { row: rowMm }); size = v.size; buildError = null;
+        warnings = model.warnings.filter((w) => !/ magnet needs about /.test(w));
+        if (scheduled) app.built = { grid: scheduled, pieces: model.pieces };
+      },
       (message) => { buildError = message; toast(`Couldn't build the model: ${message}`); },
     );
     vp = v;
@@ -76,7 +85,7 @@
   $effect(() => {
     const grid = app.grid, settings = $state.snapshot(app.settings) as Settings, v = vp;
     if (!v || !builder) return;
-    if (!grid) { builder.cancel(); v.clear(); size = null; last = { grid: null, preview: '', build: '' }; return; }
+    if (!grid) { builder.cancel(); v.clear(); size = null; warnings = []; last = { grid: null, preview: '', build: '' }; return; }
     const same = sameGrid(last.grid, grid), fresh = app.source !== lastSource;
     const build = forBuild(settings), pk = previewKey(settings), bk = JSON.stringify(build);
     last.grid = grid;
@@ -119,7 +128,7 @@
   function anchorAt(x: number, y: number, object: string) {
     const g = app.grid, v = vp;
     if (!g || !v) return null;
-    if (object === 'back') x = 2 * v.frontMaxX() + 8 - x;
+    if (object === 'back') x = v.frontMaxX() + v.backMinX() - x;
     return modelToAnchor(x, y, g, app.settings);
   }
 
@@ -196,10 +205,12 @@
     </div>
     <button class="btn" id="cutBtn" class:on={ui.cut} title="Slice the model in half to see inside" onclick={() => (ui.cut = !ui.cut)}>Cut view</button>
   </div>
-  <div class="note" id="note" style:display={ui.cut || strays ? 'block' : 'none'}>
+  <div class="note" id="note" style:display={ui.cut || strays || warnings.length ? 'block' : 'none'}>
+    {#each warnings as w, i (w)}{#if i}<br>{/if}<span class="warn">{w}</span>{/each}
+    {#if warnings.length && ui.cut}<br>{/if}
     {#if ui.cut}<b>Cut view.</b> Gold is solid material. Empty space shows what is hollow.{/if}
     {#if strays}
-      {#if ui.cut}<br>{/if}
+      {#if ui.cut || warnings.length}<br>{/if}
       <span class="warn">{strays.n} separate pieces. {strays.pixels} stray pixel{strays.pixels > 1 ? 's' : ''} (outlined in red in the image) don't share an edge with the rest, so they would print as loose parts.{strays.corners ? " Pixels that touch only at a corner don't count as joined." : ''} Paint pixels to connect them, or remove them.</span><br><button class="btn small" id="removeStrays" onclick={removeStrays}>Remove strays</button>
     {/if}
   </div>

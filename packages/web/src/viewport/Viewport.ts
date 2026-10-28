@@ -45,6 +45,8 @@ export class Viewport {
   /** While a handle is dragged the model stays exactly where it is. */
   private hold = false;
   private rotation: Vec3 = [0, 0, 0];
+  /** The core model's uncut box in the model frame (core `Model.bounds`); null for the preview, which has no cuts. */
+  private uncut: THREE.Box3 | null = null;
   private ray = new THREE.Raycaster();
   private mats = new Map<string, THREE.MeshStandardMaterial>();
   private cutPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -99,6 +101,7 @@ export class Viewport {
       m.userData.object = p.object;
       return m;
     });
+    this.uncut = model.parts.length ? new THREE.Box3(new THREE.Vector3(...model.bounds.min), new THREE.Vector3(...model.bounds.max)) : null;
     this.show(meshes, opts.row);
     this.shown = model.parts.length ? 'model' : 'none';
   }
@@ -106,11 +109,13 @@ export class Viewport {
   /** The fast preview (previewMesh.ts), shown until the core model replaces it. */
   setPreview(p: Preview | null) {
     if (!p) return this.clear();
+    this.uncut = null;
     this.show(previewMeshes(p, (hex) => this.material(hex)), p.px.y);
     this.shown = 'preview';
   }
 
   clear() {
+    this.uncut = null;
     this.show([]);
     this.shown = 'none';
   }
@@ -183,9 +188,16 @@ export class Viewport {
     return { x: p.x, y: p.y };
   }
 
-  /** The front body's largest X in the model frame: core mirrors the back half about it. */
+  /**
+   * The front body's largest X and the back body's smallest, in the model frame. The back is the front mirrored
+   * (cuts included), so a back point x lies over the front point frontMaxX + backMinX - x.
+   */
   frontMaxX(): number {
     return this.localBox((m) => m.userData.object !== 'back').max.x;
+  }
+
+  backMinX(): number {
+    return this.localBox((m) => m.userData.object === 'back').min.x;
   }
 
   /** Model bounds in world space, handles left out (for the e2e checks). */
@@ -323,9 +335,13 @@ export class Viewport {
     this.ray.setFromCamera(ndc, this.camera);
   }
 
-  /** World bounds of the model meshes. */
+  /**
+   * World bounds of the model: core's uncut box turned by the pivot (cuts never move the model, as in core), or the
+   * preview meshes' own box.
+   */
   private box(): THREE.Box3 {
     this.holder.updateMatrixWorld(true);
+    if (this.uncut) return this.uncut.clone().applyMatrix4(this.pivot.matrixWorld);
     const box = new THREE.Box3();
     for (const m of this.meshes) box.expandByObject(m);
     return box;

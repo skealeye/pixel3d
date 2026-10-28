@@ -69,8 +69,7 @@
 <ViewportPane />
 
 <aside class="right">
-  <!-- Make (Flat model / Clicker) arrives with the clicker, Task 17 -->
-  <section><h2>Make</h2></section>
+  <!-- Make (Flat model / Clicker) goes first, with the clicker in Task 17 -->
   <SizePanel />
   <BasePanel />
   <InsidePanel />

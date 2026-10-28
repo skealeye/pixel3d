@@ -21,6 +21,11 @@ export interface Model {
   parts: Part[];
   /** Overall bounding box, mm. */
   size: { x: number; y: number; z: number };
+  /**
+   * The uncut solids' box where the parts are placed (rotated, min Z on the bed), mm. The hole, pockets and cavity
+   * never change it, so a viewer that places the model by it never sees the model move when a cut does.
+   */
+  bounds: { min: [number, number, number]; max: [number, number, number] };
   /** Disconnected pieces of the printed result (the most in any one body), after the hole and other cuts. */
   pieces: number;
   /** Filled by later stages (booleans, checks). */
@@ -58,7 +63,7 @@ function pixelSize(s: Settings, box: { w: number; h: number }) {
 export async function buildModel(g: Grid, s: Settings): Promise<Model> {
   const wasm = await initManifold();
   const box = opaqueBox(g);
-  if (!box) return { parts: [], size: { x: 0, y: 0, z: 0 }, pieces: 0, warnings: [], pauseZ: [] };
+  if (!box) return { parts: [], size: { x: 0, y: 0, z: 0 }, bounds: { min: [0, 0, 0], max: [0, 0, 0] }, pieces: 0, warnings: [], pauseZ: [] };
   const px = pixelSize(s, box);
   const frame: Frame = { px, x0: box.x0, y0: box.y0 };
 
@@ -159,6 +164,7 @@ export async function buildModel(g: Grid, s: Settings): Promise<Model> {
     return {
       parts,
       size: { x: rb.max[0]! - rb.min[0]!, y: rb.max[1]! - rb.min[1]!, z: rb.max[2]! - rb.min[2]! },
+      bounds: { min: [rb.min[0]!, rb.min[1]!, 0], max: [rb.max[0]!, rb.max[1]!, rb.max[2]! - rb.min[2]!] },
       // untouched layers follow the art exactly, so its 4-connected pieces count them
       pieces: pieceCount ?? pieces(g).length,
       warnings: [...warnings],

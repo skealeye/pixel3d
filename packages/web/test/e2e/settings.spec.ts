@@ -53,7 +53,8 @@ async function viewCentre(page: Page) {
 test.describe('model settings', () => {
   test('the settings column has the mockup sections in order', async ({ page }) => {
     await page.goto('/?test');
-    await expect(page.locator('aside.right section > h2')).toHaveText([/^Make/, /^Size/, /^Base/, /^Inside/, /^Sides/, /^Keychain/, /^Magnets/, /^Orientation/]);
+    // Make (Flat model / Clicker) joins at the top with the clicker, Task 17
+    await expect(page.locator('aside.right section > h2')).toHaveText([/^Size/, /^Base/, /^Inside/, /^Sides/, /^Keychain/, /^Magnets/, /^Orientation/]);
   });
 
   test('every size control is a slider plus a number box', async ({ page }) => {
@@ -131,6 +132,21 @@ test.describe('model settings', () => {
     await expect(page.locator('#wallRow')).toBeVisible();
     await expect(page.locator('#bottomHint')).toHaveText('Hollow inside with a closed floor, to save filament and weight. Use Cut view to see inside.');
     expect((await settings(page)).inside.mode).toBe('shell');
+  });
+
+  test("core's warnings show in the note: too thin to hollow out", async ({ page }) => {
+    await loadPotion(page);
+    await seg(page, 'bottom', 'shell').click();
+    // a 2 mm base under 1 mm pixels with 1.5 mm walls leaves no room for a cavity
+    await page.locator('#wall').fill('1.5');
+    await page.locator('#wall').press('Enter');
+    await expect(page.locator('#note .warn')).toHaveText('Too thin to hollow out. Make the base thicker or the wall thinner.');
+    await expect(page.locator('#note')).toContainText('Cut view.');
+    await page.locator('#wall').fill('0.8');
+    await page.locator('#wall').press('Enter');
+    await page.locator('#baseH').fill('5');
+    await page.locator('#baseH').press('Enter');
+    await expect(page.locator('#note .warn')).toHaveCount(0);
   });
 
   test('Halves disables Shell and Hollow; Double sided allows Shell only', async ({ page }) => {
@@ -265,6 +281,13 @@ test.describe('model settings', () => {
     await page.locator('#baseH').fill('2');
     await page.locator('#baseH').press('Enter');
     await expect(page.locator('#magHint')).toHaveText('A 10 × 3 mm magnet needs about 3.6 mm here. Make the base thicker or pick a smaller magnet.');
+    // the panel shows the thin-base warning, so the note doesn't repeat it
+    await model(page);
+    await page.waitForTimeout(1000); // past the 250 ms debounce and the build
+    await expect(page.locator('#note .warn')).toHaveCount(0);
+    // sealed, but the base is thinner than the magnet: the pocket sits on the bed, open
+    await seg(page, 'magPos', 'centre').click();
+    await expect(page.locator('#magRead')).toHaveText('Material left: none below (the pocket is open), 0.0 mm above it.');
     await seg(page, 'sides', 'halves').click();
     await expect(page.locator('#magPosRow')).toBeHidden();
   });

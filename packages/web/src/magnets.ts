@@ -25,8 +25,9 @@ export function magnetPocket(s: Settings, lowest: number) {
   } else if (mode === 'halves') {
     above = bt / 2 + lowest - h;
   } else if (sealed) {
+    // a base thinner than the magnet puts the pocket on the bed, open, as core cuts it
     const z0 = Math.max(0, (bt - h) / 2);
-    below = z0;
+    below = z0 > 0 ? z0 : null;
     above = bt + lowest - (z0 + h);
   } else {
     above = bt + lowest - h;
