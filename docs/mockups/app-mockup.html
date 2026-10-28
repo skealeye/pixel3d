@@ -196,7 +196,9 @@
 <script type="importmap">
 { "imports": {
   "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+  "three-mesh-bvh": "https://unpkg.com/three-mesh-bvh@0.8.3/build/index.module.js",
+  "three-bvh-csg": "https://unpkg.com/three-bvh-csg@0.0.17/build/index.module.js"
 } }
 </script>
 </head>
@@ -347,7 +349,7 @@
     <div id="holeRows">
       <div class="seg" data-key="holeStyle">
         <button data-v="round">Round hole</button>
-        <button data-v="pixel">Pixel hole</button>
+        <button data-v="square">Square hole</button>
       </div>
       <div class="sl"><label>Size</label><input type="range" id="holeDR" min="2" max="10" step="0.5"><input class="num" id="holeD"><span class="unit">mm</span></div>
     </div>
@@ -403,7 +405,7 @@
   <span id="fcount"></span>
   <span class="spacer"></span>
   <span>Mockup, nothing is saved</span>
-  <span>v0.1.0</span>
+  <span>v0.1.1</span>
 </footer>
 
 <dialog id="batch">
@@ -422,6 +424,8 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { Brush, Evaluator, SUBTRACTION } from 'three-bvh-csg';
 
 // ---------- sample sprite (original placeholder art) ----------
 const SPRITE = [
@@ -807,12 +811,10 @@ function mat(hex) {
   }
   return mats.get(hex);
 }
-const pocketMat = new THREE.MeshStandardMaterial({ color: '#0e0f12', roughness: .9, side: THREE.BackSide });
 function styleCut(m) { m.clippingPlanes = S.cut ? [cutPlane] : null; m.side = S.cut ? THREE.DoubleSide : THREE.FrontSide; m.needsUpdate = true; }
 function setCut(on) {
   S.cut = on; $('cutBtn').classList.toggle('on', on);
   mats.forEach(styleCut);
-  pocketMat.clippingPlanes = on ? [cutPlane] : null; pocketMat.needsUpdate = true;
   build();
 }
 $('cutBtn').onclick = () => setCut(!S.cut);
@@ -835,15 +837,29 @@ function pixelLoopCells(e) {
   }
   return cells;
 }
+// cutters are true shapes (mm, unmirrored) removed from the pixels with a boolean cut, not snapped to the pixel grid
+function holeCutter() {
+  if (S.key !== 'hole') return null;
+  return { round: S.holeStyle === 'round', cx: S.hole.u * SC.sx, cy: S.hole.v * SC.sy, r: S.holeD / 2, z0: -50, z1: 50 };
+}
+function overlaps(c, x, y) {
+  const dx = Math.max(Math.abs(c.cx - (x + .5) * SC.sx) - SC.sx / 2, 0), dy = Math.max(Math.abs(c.cy - (y + .5) * SC.sy) - SC.sy / 2, 0);
+  return c.round ? Math.hypot(dx, dy) < c.r - 1e-3 : Math.max(dx, dy) < c.r - 1e-3;
+}
+function covers(c, x, y) {
+  const fx = Math.max(Math.abs(x * SC.sx - c.cx), Math.abs((x + 1) * SC.sx - c.cx)), fy = Math.max(Math.abs(y * SC.sy - c.cy), Math.abs((y + 1) * SC.sy - c.cy));
+  return c.round ? Math.hypot(fx, fy) <= c.r : fx <= c.r && fy <= c.r;
+}
+// cells the hole touches; used to keep a wall around it when hollowing
 function holeTest() {
-  if (S.key !== 'hole') return () => false;
-  const { u, v } = S.hole;
-  if (S.holeStyle === 'pixel') {
-    const m = Math.max(1, Math.round(S.holeD / ((SC.sx + SC.sy) / 2))), x0 = Math.round(u - m / 2), y0 = Math.round(v - m / 2);
-    const f = (x, y) => x >= x0 && x < x0 + m && y >= y0 && y < y0 + m;
-    f.box = { x0, y0, m }; return f;
-  }
-  return (x, y) => Math.hypot((x + .5 - u) * SC.sx, (y + .5 - v) * SC.sy) < S.holeD / 2;
+  const c = holeCutter();
+  return c ? (x, y) => overlaps(c, x, y) : () => false;
+}
+const csg = new Evaluator(); csg.attributes = ['position', 'normal']; csg.useGroups = false;
+function cutterBrush(c, mirror) {
+  const h = c.z1 - c.z0, geo = c.round ? new THREE.CylinderGeometry(c.r, c.r, h, 48).rotateX(Math.PI / 2) : new THREE.BoxGeometry(2 * c.r, 2 * c.r, h);
+  geo.translate(mirror ? N * SC.sx - c.cx : c.cx, c.cy, (c.z0 + c.z1) / 2);
+  const b = new Brush(geo); b.updateMatrixWorld(); return b;
 }
 // solid interval [a, b] minus a list of empty intervals
 function subtract(a, b, holes) {
@@ -865,19 +881,23 @@ function erode(k, isCut) {
 function body({ mirror = false, baseT, top = true, under = false, topVary = true, underVary = true, idx, cavity = null, magZ }) {
   const g = new THREE.Group(); g.userData = { mirror, idx, baseT };
   const mx = (x) => mirror ? N - 1 - x : x, mu = (u) => mirror ? N - u : u;
-  const isCut = holeTest();
   const [md, mh] = magDims();
-  const segs = new Map();
+  const segs = new Map(), cutSegs = new Map();
+  // the hole runs right through; magnet pockets are cylinders at their own depth
+  const cutters = [holeCutter(), ...S.magnets.map(m => ({ round: true, cx: m.u * SC.sx, cy: m.v * SC.sy, r: md / 2, z0: magZ, z1: magZ + mh }))].filter(Boolean);
   const add = (hex, x, y, a, b, holes) => {
     const k = mono() ? S.monoColor : hex;
-    for (const [p, q] of subtract(a, b, holes)) { if (!segs.has(k)) segs.set(k, []); segs.get(k).push([mx(x), y, p, q - p]); }
+    for (const [p, q] of subtract(a, b, holes)) {
+      const cuts = cutters.filter(c => c.z0 < q && c.z1 > p && overlaps(c, x, y));
+      const into = cuts.length ? cutSegs : segs;
+      if (!into.has(k)) into.set(k, []); into.get(k).push([mx(x), y, p, q - p, cuts]);
+    }
   };
   const H = (p, vary) => vary ? p.h : S.defH;
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    if (!opaque(x, y) || isCut(x, y)) continue;
+    if (!opaque(x, y) || (cutters[0] && S.key === 'hole' && covers(cutters[0], x, y))) continue;
     const holes = [];
     if (cavity && cavity.cells.has(x + ',' + y)) holes.push(cavity.z);
-    for (const m of S.magnets) if (Math.hypot((x + .5 - m.u) * SC.sx, (y + .5 - m.v) * SC.sy) < md / 2 + .3) holes.push([magZ, magZ + mh]);
     const p = S.palette[colourAt(x, y)];
     if (baseT > 0) add(S.baseColor, x, y, 0, baseT, holes);
     if (top) add(p.hex, x, y, baseT, baseT + H(p, topVary), holes);
@@ -904,24 +924,28 @@ function body({ mirror = false, baseT, top = true, under = false, topVary = true
     list.forEach(([x, y, z0, h], i) => m.setMatrixAt(i, M.compose(new THREE.Vector3((x + .5) * SC.sx, (y + .5) * SC.sy, z0 + h / 2), q, new THREE.Vector3(SC.sx, SC.sy, h))));
     g.add(m);
   }
+  // pixels a cutter touches get a real boolean cut, one pixel box at a time
+  const brushes = new Map(cutters.map(c => [c, cutterBrush(c, mirror)]));
+  for (const [hex, list] of cutSegs) {
+    const parts = [];
+    for (const [x, y, z0, h, cuts] of list) {
+      let a = new Brush(new THREE.BoxGeometry(SC.sx, SC.sy, h).translate((x + .5) * SC.sx, (y + .5) * SC.sy, z0 + h / 2)); a.updateMatrixWorld();
+      for (const c of cuts) { a = csg.evaluate(a, brushes.get(c), SUBTRACTION); a.updateMatrixWorld(); }
+      if (a.geometry.attributes.position.count) parts.push(a.geometry);
+    }
+    if (parts.length) g.add(new THREE.Mesh(mergeGeometries(parts), mat(hex)));
+  }
+  brushes.forEach(b => b.geometry.dispose());
   // drag handles (not part of the model, not counted in its size)
   const zTop = g.children.length ? new THREE.Box3().setFromObject(g).max.z : baseT;
   if (S.key === 'hole') {
     let hnd;
-    if (S.holeStyle === 'pixel') {
-      const { x0, y0, m } = isCut.box;
-      hnd = new THREE.Mesh(new THREE.BoxGeometry(m * SC.sx, m * SC.sy, 0.6), ghostGold);
-      hnd.position.set(mu(x0 + m / 2) * SC.sx, (y0 + m / 2) * SC.sy, zTop + .3);
-    } else {
-      hnd = new THREE.Mesh(new THREE.CylinderGeometry(S.holeD / 2, S.holeD / 2, 0.6, 32), ghostGold);
-      hnd.rotation.x = Math.PI / 2; hnd.position.set(mu(S.hole.u) * SC.sx, S.hole.v * SC.sy, zTop + .3);
-    }
+    if (S.holeStyle === 'square') hnd = new THREE.Mesh(new THREE.BoxGeometry(S.holeD, S.holeD, 0.6), ghostGold);
+    else { hnd = new THREE.Mesh(new THREE.CylinderGeometry(S.holeD / 2, S.holeD / 2, 0.6, 32), ghostGold); hnd.rotation.x = Math.PI / 2; }
+    hnd.position.set(mu(S.hole.u) * SC.sx, S.hole.v * SC.sy, zTop + .3);
     hnd.renderOrder = 10; hnd.userData = { handle: { kind: 'hole' }, ghost: true }; g.add(hnd);
   }
   S.magnets.forEach((m, i) => {
-    const pocket = new THREE.Mesh(new THREE.CylinderGeometry(md / 2, md / 2, mh, 32), pocketMat);
-    pocket.rotation.x = Math.PI / 2; pocket.position.set(mu(m.u) * SC.sx, m.v * SC.sy, magZ + mh / 2);
-    pocket.userData.ghost = true; g.add(pocket);
     const hnd = new THREE.Mesh(new THREE.CylinderGeometry(md / 2, md / 2, 0.4, 32), ghostMag);
     hnd.rotation.x = Math.PI / 2; hnd.position.set(mu(m.u) * SC.sx, m.v * SC.sy, zTop + .2);
     hnd.renderOrder = 11; hnd.userData = { handle: { kind: 'magnet', i }, ghost: true }; g.add(hnd);
@@ -1104,6 +1128,7 @@ $('savePreset').onclick = () => { $('batch').close(); toast('Saved potion.json')
 
 function refresh() { renderPalette(); drawSource(); build(); }
 fixBottom(); syncUndo(); syncMode(); refresh(); fitView();
+window.mock = { S, build }; // for scripted checks
 </script>
 </body>
 </html>

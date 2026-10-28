@@ -116,7 +116,7 @@ A setting with three values, labelled in the UI as **One side / Double sided / T
   - For export: one 3MF with two plates or objects, or two STL files (`name_front`, `name_back`).
 
 ### 4.7 Keychain (parity, reworked)
-- **Hole:** **Round** or **Pixel** (a square of whole pixels snapped to the grid), 2–10 mm. A flat gold marker on the model's top surface is dragged to move it. It cuts through every layer: base, pixels, and both faces or halves. Moving the hole never moves or lifts the model: handles are not counted in the model's size or position.
+- **Hole:** **Round** (a cylinder) or **Square** (a square prism), 2–10 mm across, cut with a true boolean subtraction. It is not snapped to the pixel grid, so it can cut part-way through pixels. A flat gold marker on the model's top surface is dragged to move it. It cuts through every layer: base, pixels, and both faces or halves. Moving the hole never moves or lifts the model: handles are not counted in the model's size or position.
 - **Loop:** a ring joined to the model's outside edge. Its place is a **Position slider from 0 to 359°** (0° is straight up, clockwise). It is not dragged. The engine walks outwards from the shape's centre at that angle and attaches the loop to the outward-facing pixel edge where it leaves the shape. Inner and outer diameter settings.
   - Colour: the base colour when there is a base. Otherwise there is a loop colour setting with favourites.
   - Two styles: **Rounded loop**, a smooth ring, and **Pixel loop**, a square ring made of whole pixels that matches the art. The hole always stays centred: when the pixel counts can't be centred evenly, the hole is shrunk or the ring grown by one pixel.
@@ -125,7 +125,7 @@ A setting with three values, labelled in the UI as **One side / Double sided / T
 - The keychain works in all two-sided modes. In `halves`, the loop or hole is split across both halves, with each half getting half the thickness, so the glued loop is full thickness.
 
 ### 4.8 Magnets, viewer, export, misc (parity)
-- **Magnet pockets** are real cut-outs (boolean subtraction) in the model, with presets plus a custom size.
+- **Magnet pockets** are real cut-outs (boolean subtraction) in the model, with presets plus a custom size. Each pocket is a true cylinder matching the magnet, not a stack of whole pixels.
   - **Pocket in bottom:** open on the bed face, so the magnet is pressed in after printing.
   - **Sealed in centre:** an enclosed pocket inside the base. The 3MF includes a pause at the layer that closes the pocket, so the magnet can be dropped in during the print.
   - Double sided always uses the sealed pocket. Halves always use pockets open on the glue face.
