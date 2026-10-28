@@ -104,3 +104,68 @@ describe('decodeImage size cap (8192 px a side, 40 MP)', () => {
     expect(img.width).toBe(64);
   });
 });
+
+/** A GIF whose 16×16 screen hides a W×H first frame at (x, y): only the frame descriptor says how big it is. */
+function gifFrameBomb(w: number, h: number, x = 0, y = 0): Uint8Array {
+  return new Uint8Array([
+    0x47, 0x49, 0x46, 0x38, 0x39, 0x61, ...le16(16), ...le16(16), 0x80, 0, 0, // screen 16×16, 2-color table
+    0, 0, 0, 255, 255, 255,
+    0x2c, ...le16(x), ...le16(y), ...le16(w), ...le16(h), 0, // image descriptor
+    2, 2, 0x4c, 0x01, 0, 0x3b,
+  ]);
+}
+
+const CRC = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+const crc32 = (b: Uint8Array) => { let c = 0xffffffff; for (const x of b) c = CRC[(c ^ x) & 255]! ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+function chunk(type: string, data: number[] | Uint8Array): number[] {
+  const td = new Uint8Array([...[...type].map((ch) => ch.charCodeAt(0)), ...data]);
+  return [...be32(data.length), ...td, ...be32(crc32(td))];
+}
+/**
+ * An APNG: a W×H RGBA default image (IDAT, also frame 0) plus `n` more frames whose fdAT data is `frameData`.
+ * The pixel data is all transparent-black zeros except one opaque pixel, so it compresses to almost nothing.
+ */
+async function apng(w: number, h: number, n: number, frameData?: Uint8Array): Promise<Uint8Array> {
+  const { zlibSync } = await import('fflate');
+  const raw = new Uint8Array(h * (1 + w * 4));
+  raw.set([200, 30, 30, 255], 1); // pixel (0, 0) opaque red
+  const z = zlibSync(raw, { level: 9 });
+  const fctl = (seq: number) => chunk('fcTL', [...be32(seq), ...be32(w), ...be32(h), ...be32(0), ...be32(0), 0, 100, 0, 100, 0, 0]);
+  const out = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    ...chunk('IHDR', [...be32(w), ...be32(h), 8, 6, 0, 0, 0]),
+    ...chunk('acTL', [...be32(n + 1), ...be32(0)]),
+    ...fctl(0), ...chunk('IDAT', z)];
+  let seq = 1;
+  for (let i = 0; i < n; i++) { out.push(...fctl(seq++)); out.push(...chunk('fdAT', [...be32(seq++), ...(frameData ?? z)])); }
+  out.push(...chunk('IEND', []));
+  return new Uint8Array(out);
+}
+
+describe('decodeImage: frames hidden behind the header', () => {
+  it('refuses a GIF whose first frame is over the cap though its screen is 16 × 16, fast', async () => {
+    const t = performance.now();
+    await expect(decodeImage(gifFrameBomb(20000, 20000))).rejects.toThrow('The image is too large (20000 × 20000 px)');
+    await expect(decodeImage(gifFrameBomb(65535, 65535))).rejects.toThrow('The image is too large (65535 × 65535 px)');
+    expect(performance.now() - t).toBeLessThan(200);
+  });
+
+  it('refuses a GIF whose first frame reaches outside its screen', async () => {
+    await expect(decodeImage(gifFrameBomb(32, 32))).rejects.toThrow(/outside/);
+    await expect(decodeImage(gifFrameBomb(8, 8, 12, 0))).rejects.toThrow(/outside/);
+  });
+
+  it('decodes only the first APNG frame: later frames are never inflated', async () => {
+    // later frames hold data that is not even zlib: inflating them would throw
+    const img = await decodeImage(await apng(16, 16, 3, new Uint8Array([1, 2, 3, 4, 5])));
+    expect([img.width, img.height]).toEqual([16, 16]);
+    expect(Array.from(img.data.slice(0, 4))).toEqual([200, 30, 30, 255]);
+  });
+
+  it('an APNG with 40 frames of 1000 × 1000 costs one frame, fast', async () => {
+    const bytes = await apng(1000, 1000, 40);
+    const t = performance.now();
+    const img = await decodeImage(bytes);
+    expect(img.width).toBe(1000);
+    expect(performance.now() - t).toBeLessThan(500);
+  });
+});

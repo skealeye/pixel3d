@@ -83,6 +83,7 @@ function restore(s: Snapshot) {
   app.settings = structuredClone(s.settings);
   app.edits = s.edits;
   ui.picking = ui.cropping = false;
+  anchorBase = null;
   // the restored grid is what these settings make: the next change compares against it (background included)
   last = s.source && s.grid
     ? { src: s.source, edits: s.edits, picking: false, key: gridKey(s.settings), grid: s.grid, bg: bgKey(s.source, s.settings), art: s.grid }
@@ -132,6 +133,7 @@ export function recompute(notify = true): string | null {
   // hole and magnets stay on the same spot of the art, in the same undo step
   const bg = bgKey(src, settings);
   if (!ui.picking && !r.meta.showBg && last?.art && last.src.img === src.img && last.bg !== bg) keepAnchors(last.art, r.grid);
+  else if (!r.meta.showBg) anchorBase = null;
   app.grid = r.grid;
   app.meta = r.meta;
   // edits that no longer apply are dropped, with a notice (spec §4.10)
@@ -152,21 +154,37 @@ let last: { src: Source; edits: Edit[]; picking: boolean; key: string; grid: Gri
 const bgKey = (src: Source, s: Settings) => JSON.stringify([s.background, src.pick]);
 
 /**
- * Re-anchor the hole and magnets after the opaque box moved from `old`'s to `neu`'s (a background change), so each stays
- * on the same spot of the art. Anchors are fractions of the box, so without this they would slide with it.
+ * Where the hole and magnets were on the art before a run of background changes: the grid and the anchors then, and
+ * the anchors the last re-anchoring wrote. A Tolerance drag re-anchors every frame; working from this base each time,
+ * never from the previous frame, keeps the hole from drifting (snapping off the art would compound). Cleared by any
+ * other grid change, undo/redo and loads; ignored once anything else has moved the anchors.
  */
-function keepAnchors(old: Grid, neu: Grid) {
-  if (old.w !== neu.w || old.h !== neu.h) return;
-  const a = opaqueBox(old), b = opaqueBox(neu);
-  if (!a || !b || (a.x0 === b.x0 && a.y0 === b.y0 && a.w === b.w && a.h === b.h)) return;
+let anchorBase: { art: Grid; hole: Anchor; magnets: Anchor[]; wrote: string } | null = null;
+const anchorsKey = (s: Settings) => JSON.stringify([s.keychain.hole.at, s.magnets.at]);
+
+/**
+ * Re-anchor the hole and magnets after a background change moved the opaque box from `prev`'s to `neu`'s, so each
+ * stays on the same spot of the art. Anchors are fractions of the box, so without this they would slide with it.
+ */
+function keepAnchors(prev: Grid, neu: Grid) {
+  const s = app.settings;
+  if (!anchorBase || anchorBase.wrote !== anchorsKey(s) || anchorBase.art.w !== prev.w || anchorBase.art.h !== prev.h) {
+    anchorBase = { art: prev, hole: $state.snapshot(s.keychain.hole.at) as Anchor, magnets: $state.snapshot(s.magnets.at) as Anchor[], wrote: '' };
+  }
+  const base = anchorBase;
+  if (base.art.w !== neu.w || base.art.h !== neu.h) { anchorBase = null; return; }
+  const a = opaqueBox(base.art), b = opaqueBox(neu);
+  if (!a || !b) return;
+  const same = a.x0 === b.x0 && a.y0 === b.y0 && a.w === b.w && a.h === b.h;
   const clamp = (v: number) => Math.min(1, Math.max(0, v));
   const moved = (at: Anchor): Anchor => {
-    const p = placeRelative(at, old); // u right, v up, in cells
+    if (same) return structuredClone(at);
+    const p = placeRelative(at, base.art); // u right, v up, in cells
     return { fx: clamp((p.u - b.x0) / b.w), fy: clamp((b.y0 + b.h - p.v) / b.h) };
   };
-  const s = app.settings;
-  s.keychain.hole.at = moved(s.keychain.hole.at);
-  s.magnets.at = s.magnets.at.map(moved);
+  s.keychain.hole.at = moved(base.hole);
+  s.magnets.at = base.magnets.map(moved);
+  base.wrote = anchorsKey(s);
 }
 
 /**
@@ -198,6 +216,7 @@ export function addEdits(edits: Edit[], push = true): number {
   const applied = edits.filter((e) => !r.dropped.includes(e));
   if (!applied.length) return 0;
   if (push) pushUndo();
+  anchorBase = null;
   app.grid = r.grid;
   app.edits = [...app.edits, ...applied];
   if (!app.meta?.showBg) fitSize(r.grid);

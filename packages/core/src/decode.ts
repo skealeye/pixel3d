@@ -79,7 +79,35 @@ function checkSize(w: number, h: number): void {
   if (w > MAX_SIDE || h > MAX_SIDE || w * h > MAX_MEGAPIXELS * 1e6) throw new ImageTooLargeError(w, h);
 }
 
-function decodePng(bytes: Uint8Array): Img {
+/** Chunks that make a PNG animated (APNG): frame control, frame data and the animation header. */
+const APNG_CHUNKS = new Set(['acTL', 'fcTL', 'fdAT']);
+
+/**
+ * The PNG without its APNG chunks, so only the default image (IDAT) is decoded. upng inflates every frame while
+ * parsing and converts every frame to RGBA, so 40 frames of 4000² from 11.7 KB took 2.77 GB. The default image is what
+ * viewers without APNG support show, and it is frame 0 when the first fcTL comes before IDAT. A plain PNG is returned as is.
+ */
+function firstFrameOnly(b: Uint8Array): Uint8Array {
+  const keep: [number, number][] = [];
+  let animated = false;
+  for (let i = 8; i + 8 <= b.length;) {
+    const len = u32be(b, i), type = String.fromCharCode(b[i + 4]!, b[i + 5]!, b[i + 6]!, b[i + 7]!);
+    const end = Math.min(b.length, i + 12 + len);
+    if (APNG_CHUNKS.has(type)) animated = true;
+    else keep.push([i, end]);
+    i = end;
+    if (type === 'IEND') break;
+  }
+  if (!animated) return b;
+  const out = new Uint8Array(8 + keep.reduce((n, [a, z]) => n + z - a, 0));
+  out.set(b.subarray(0, 8));
+  let o = 8;
+  for (const [a, z] of keep) { out.set(b.subarray(a, z), o); o += z - a; }
+  return out;
+}
+
+function decodePng(input: Uint8Array): Img {
+  const bytes = firstFrameOnly(input);
   const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   const png = UPNG.decode(buf);
   const frame = UPNG.toRGBA8(png)[0]!;
@@ -94,6 +122,13 @@ function decodeJpeg(bytes: Uint8Array): Img {
 
 function decodeGif(bytes: Uint8Array): Img {
   const reader = new GifReader(bytes as unknown as Buffer);
+  // the frame descriptor has its own size, and omggif allocates by it: check it, and keep it inside the screen,
+  // so nothing bigger than the (already checked) screen is ever allocated
+  const f = reader.frameInfo(0);
+  checkSize(f.width, f.height);
+  if (f.x + f.width > reader.width || f.y + f.height > reader.height) {
+    throw new Error(`The first frame (${f.width} × ${f.height} px at ${f.x}, ${f.y}) reaches outside the ${reader.width} × ${reader.height} px image`);
+  }
   const data = new Uint8ClampedArray(reader.width * reader.height * 4);
   reader.decodeAndBlitFrameRGBA(0, data as unknown as Uint8Array);
   return { width: reader.width, height: reader.height, data };

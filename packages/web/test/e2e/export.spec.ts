@@ -244,6 +244,37 @@ test.describe('export', () => {
     expect(same(await bytesOf(await exportFile(page)), ref.files[0]!.bytes)).toBe(true);
   });
 
+  test('dragging Tolerance back and forth leaves the hole where it started (no drift)', async ({ page }) => {
+    await page.goto('/?test');
+    await page.locator('#fileIn').setInputFiles({ name: 'aa.png', mimeType: 'image/png', buffer: fixture('antialiased.png') });
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+    // the hole on the art's left edge, half-way down: a spot on the antialiased rim that higher tolerances remove
+    await page.locator('#openBatch').click();
+    const doc = { version: 1, settings: { keychain: { type: 'hole', hole: { at: { fx: 0, fy: 0.5 } } } } };
+    await page.locator('#presetIn').setInputFiles({ name: 'edge.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(doc)) });
+    await expect(page.locator('.toast')).toHaveText('Loaded edge.json');
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+    const start = await snap(page);
+    const at0 = (start.settings as unknown as CoreSettings).keychain.hole.at as { fx: number; fy: number };
+    expect(at0).toEqual({ fx: 0, fy: 0.5 });
+    const img = await decodeImage(new Uint8Array(fixture('antialiased.png')));
+    const spot = (s: Snap) => {
+      const settings = s.settings as unknown as CoreSettings;
+      const r = computeGrid({ name: 'aa.png', img, ...describe(img), pick: null, crop: null }, settings, []);
+      if ('error' in r) throw new Error(r.error);
+      return placeRelative(settings.keychain.hole.at, r.grid);
+    };
+    const a = spot(start);
+    const tol = page.locator('#bgTolR');
+    for (const v of ['15', '20', '30', '40', '50', '40', '30', '20', '15', '10']) await tol.fill(v);
+    await expect.poll(async () => ((await snap(page)).settings as unknown as CoreSettings).background.tolPct).toBe(10);
+    const end = await snap(page);
+    expect(end.settings.pixelMm).toEqual(start.settings.pixelMm);
+    const b = spot(end);
+    expect(b.u).toBeCloseTo(a.u, 6);
+    expect(b.v).toBeCloseTo(a.v, 6);
+  });
+
   test('Add color with nothing painted leaves the filament count alone', async ({ page }) => {
     await loadPotion(page);
     await expect(page.locator('#fcount')).toHaveText('8 filaments');
