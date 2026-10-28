@@ -1,5 +1,6 @@
 import { VERSION } from '@pixel3d/core';
 import { convertCmd } from './convertCmd';
+import { serveCmd } from './serve';
 
 export const USAGE = `px3d ${VERSION}: convert pixel art to 3D-print files
 
@@ -8,7 +9,9 @@ Usage:
       Convert images (.png .jpg .jpeg .gif .webp) to models. Writes the models and report.json into <dir>.
       --set sets a settings value by dotted path, e.g. --set base.height=3 (JSON values allowed).
       Exit code: 0 all converted, 1 some image failed, 2 usage or preset error.
-  px3d serve     HTTP API (coming in a later version)
+  px3d serve [--port 7300] [--host 127.0.0.1] [--debug]
+      HTTP API for scripts: POST /convert, POST /batch, GET /jobs/:id, GET /openapi.json.
+      Binds to localhost by default. --debug includes error stack excerpts in responses.
   px3d mcp       MCP server for Claude (coming in a later version)
   px3d --version
   px3d --help
@@ -17,8 +20,9 @@ Usage:
 /** Subcommands: each takes the arguments after its name and resolves to an exit code. */
 const commands: Record<string, (argv: string[]) => Promise<number>> = {
   convert: convertCmd,
+  serve: serveCmd,
 };
-const planned = new Set(['serve', 'mcp']);
+const planned = new Set(['mcp']);
 
 export async function main(argv: string[]): Promise<number> {
   const [cmd, ...rest] = argv;

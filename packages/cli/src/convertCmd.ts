@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util';
 import { convert, parsePreset, PresetError } from '@pixel3d/core';
 import type { Preset, Report } from '@pixel3d/core';
 import { setPath } from './args';
+import { emptyPresetDoc, parsePresetJson, PresetJsonError } from './presetLoad';
 
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp']);
 
@@ -46,7 +47,7 @@ async function resolveInputs(args: string[]): Promise<string[]> {
 /** Read the preset (if any), apply `--set` and `--format`, and validate. Throws `UsageError` with the printed message. */
 async function loadPreset(file: string | undefined, sets: string[], format: string | undefined): Promise<Preset> {
   const label = file ? `Preset ${basename(file)}` : 'Preset';
-  let raw: unknown = { version: 1, settings: {}, colourRules: [] };
+  let raw: unknown = emptyPresetDoc();
   if (file) {
     let text: string;
     try {
@@ -55,9 +56,10 @@ async function loadPreset(file: string | undefined, sets: string[], format: stri
       throw new UsageError(`Preset ${basename(file)} could not be read: ${(e as Error).message}`);
     }
     try {
-      raw = JSON.parse(text);
+      raw = parsePresetJson(text);
     } catch (e) {
-      throw new UsageError(`${label} is not valid JSON: ${(e as Error).message}`);
+      if (e instanceof PresetJsonError) throw new UsageError(`${label} ${e.message}`);
+      throw e;
     }
   }
   const doc = raw as Record<string, unknown> | null;

@@ -1,6 +1,6 @@
 {
   "name": "pixel3d",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "private": true,
   "type": "module",
   "scripts": {
@@ -21,8 +21,10 @@
     "vitest": "^2.1.0"
   },
   "dependencies": {
+    "@hono/node-server": "^2.1.5",
     "@jsquash/webp": "^1.4.0",
     "fflate": "^0.8.3",
+    "hono": "^4.13.14",
     "jpeg-js": "^0.4.4",
     "manifold-3d": "^3.5.4",
     "omggif": "^1.0.10",

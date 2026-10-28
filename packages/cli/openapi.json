@@ -1,0 +1,171 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "pixel3d HTTP API",
+    "version": "0.2.14",
+    "description": "Local API behind `px3d serve`. Binds to 127.0.0.1:7300 by default. Uploads are capped at 50 MB per request."
+  },
+  "servers": [{ "url": "http://127.0.0.1:7300" }],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Liveness check",
+        "responses": {
+          "200": { "description": "Server is up", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Health" } } } }
+        }
+      }
+    },
+    "/convert": {
+      "post": {
+        "summary": "Convert one image",
+        "description": "Returns the model file, or a zip (both files plus report.json) when the preset produces two files (halves).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["image"],
+                "properties": {
+                  "image": { "type": "string", "format": "binary", "description": "PNG, JPEG, GIF or WebP." },
+                  "preset": { "description": "Preset JSON as a string, or a file containing it. Defaults are used when omitted.", "oneOf": [{ "type": "string" }, { "type": "string", "format": "binary" }] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The converted model",
+            "headers": {
+              "Content-Disposition": { "schema": { "type": "string" }, "description": "attachment; filename=\"<name>\"" },
+              "X-Pixel3d-Report": { "schema": { "type": "string", "contentEncoding": "base64" }, "description": "Base64 of the JSON Report." }
+            },
+            "content": {
+              "model/3mf": { "schema": { "type": "string", "format": "binary" } },
+              "model/stl": { "schema": { "type": "string", "format": "binary" } },
+              "application/zip": { "schema": { "type": "string", "format": "binary" } }
+            }
+          },
+          "400": { "description": "Missing image, invalid JSON preset (path is null) or invalid preset (path names the field)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PresetError" } } } },
+          "413": { "description": "Upload larger than 50 MB", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "422": { "description": "The image could not be converted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConvertFailed" } } } }
+        }
+      }
+    },
+    "/batch": {
+      "post": {
+        "summary": "Convert several images in the background",
+        "description": "Returns at once; poll /jobs/{id}. Images are processed one after another. Jobs are kept for 1 hour.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["images"],
+                "properties": {
+                  "images": { "type": "array", "items": { "type": "string", "format": "binary" }, "description": "Repeat the field once per image." },
+                  "preset": { "description": "Preset JSON as a string, or a file containing it.", "oneOf": [{ "type": "string" }, { "type": "string", "format": "binary" }] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": { "description": "Job accepted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/JobCreated" } } } },
+          "400": { "description": "No images, or a bad preset", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PresetError" } } } },
+          "413": { "description": "Upload larger than 50 MB", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/jobs/{id}": {
+      "get": {
+        "summary": "Batch job status",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Job status", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Job" } } } },
+          "404": { "description": "Unknown or expired job", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/jobs/{id}/download": {
+      "get": {
+        "summary": "Download a finished job",
+        "description": "A zip of every output plus report.json.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Zip archive", "content": { "application/zip": { "schema": { "type": "string", "format": "binary" } } } },
+          "404": { "description": "Unknown or expired job", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "409": { "description": "Job is still running", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "summary": "This document",
+        "responses": { "200": { "description": "OpenAPI 3.1 document", "content": { "application/json": { "schema": { "type": "object" } } } } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "required": ["ok", "version"],
+        "properties": { "ok": { "type": "boolean", "const": true }, "version": { "type": "string" } }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": { "error": { "type": "string" } }
+      },
+      "PresetError": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string" },
+          "path": { "type": ["string", "null"], "description": "Dotted path of the offending preset field; null when the preset is not valid JSON or the error is not about a preset." }
+        }
+      },
+      "Report": {
+        "type": "object",
+        "required": ["name", "palette", "applied", "dropped", "size", "pieces", "warnings", "files", "grid"],
+        "properties": {
+          "name": { "type": "string" },
+          "palette": { "type": "array", "items": { "type": "object", "required": ["hex", "height"], "properties": { "hex": { "type": "string" }, "height": { "type": "number" } } } },
+          "applied": { "type": "array", "items": { "type": "string" } },
+          "dropped": { "type": "array", "items": { "type": "string" } },
+          "size": { "type": "object", "required": ["x", "y", "z"], "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" } }, "description": "Bounding box, mm." },
+          "pieces": { "type": "integer" },
+          "warnings": { "type": "array", "items": { "type": "string" } },
+          "files": { "type": "array", "items": { "type": "string" } },
+          "grid": { "type": "object", "required": ["w", "h"], "properties": { "w": { "type": "integer" }, "h": { "type": "integer" } } },
+          "error": { "type": "string", "description": "A plain sentence when nothing could be made." },
+          "detail": { "type": "string", "description": "Stack excerpt. Only present when the server runs with --debug." }
+        }
+      },
+      "ConvertFailed": {
+        "type": "object",
+        "required": ["error", "report"],
+        "properties": { "error": { "type": "string" }, "report": { "$ref": "#/components/schemas/Report" } }
+      },
+      "JobCreated": {
+        "type": "object",
+        "required": ["jobId"],
+        "properties": { "jobId": { "type": "string" } }
+      },
+      "Job": {
+        "type": "object",
+        "required": ["status", "total", "completed", "report"],
+        "properties": {
+          "status": { "type": "string", "enum": ["running", "done"] },
+          "total": { "type": "integer" },
+          "completed": { "type": "integer" },
+          "report": { "type": "array", "items": { "$ref": "#/components/schemas/Report" } },
+          "downloadUrl": { "type": "string", "description": "Present once status is done." }
+        }
+      }
+    }
+  }
+}

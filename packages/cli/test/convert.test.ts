@@ -181,7 +181,8 @@ describe('px3d --version and --help', () => {
     const r = run(['--help']);
     expect(r.status).toBe(0);
     expect(r.stdout).toMatch(/px3d convert/);
-    expect(r.stdout).toMatch(/px3d serve[^\n]*later version/);
+    expect(r.stdout).toMatch(/px3d serve \[--port/);
+    expect(r.stdout).not.toMatch(/px3d serve[^\n]*later version/);
     expect(r.stdout).toMatch(/px3d mcp[^\n]*later version/);
   });
 
