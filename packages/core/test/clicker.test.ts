@@ -367,7 +367,7 @@ describe('buildClicker', () => {
     const at = (loopAt: 'bottom' | 'center') => buildClicker(potion, settings((s) => { s.keychain.type = 'loop'; s.clicker.loopAt = loopAt; }));
     const bottom = await at('bottom'), center = await at('center');
     const L = clickerLevels(settings(() => {}));
-    const t = Math.min(DEFAULTS.clicker.loopThickness, L.rimTop);
+    const t = Math.min(DEFAULTS.keychain.loop.thickness, L.rimTop);
     // the loop is the only body plastic above the plain body's top edge (+Y), so its z range shows there
     const plain = await buildClicker(potion, settings(() => {}));
     const top = plain.parts.find((p) => p.object === 'body')!;
@@ -396,11 +396,11 @@ describe('buildClicker', () => {
       return z;
     };
     for (const t of [1, 3.5]) {
-      const m = await buildClicker(potion, settings((s) => { s.keychain.type = 'loop'; s.keychain.loop.style = 'pixel'; s.clicker.loopThickness = t; }));
+      const m = await buildClicker(potion, settings((s) => { s.keychain.type = 'loop'; s.keychain.loop.style = 'pixel'; s.keychain.loop.thickness = t; }));
       expect(zTop(m)).toBeCloseTo(Math.min(t, L.rimTop), 3);
       for (const p of m.parts) await assertManifold(p);
     }
-    const tall = await buildClicker(potion, settings((s) => { s.keychain.type = 'loop'; s.keychain.loop.style = 'pixel'; s.clicker.loopThickness = 10; }));
+    const tall = await buildClicker(potion, settings((s) => { s.keychain.type = 'loop'; s.keychain.loop.style = 'pixel'; s.keychain.loop.thickness = 10; }));
     expect(zTop(tall)).toBeLessThanOrEqual(L.rimTop + 1e-6);
   });
 

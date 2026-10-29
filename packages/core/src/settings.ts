@@ -61,6 +61,8 @@ export const settingsSchema = z.object({
       outer: z.number().positive(),
       angle: mm(0, 359),
       color: hexSchema,
+      /** The loop's thickness (halves: split between them; a clicker: never more than the body is tall). */
+      thickness: mm(1, 10),
     }).strict(),
   }).strict(),
   magnets: z.object({
@@ -92,8 +94,8 @@ export const settingsSchema = z.object({
     backing: z.enum(['base', 'art']),
     /** Where a keychain loop joins the body's side: at the bed, or halfway up the body. */
     loopAt: z.enum(['bottom', 'center']),
-    /** The keychain loop's thickness; never more than the body is tall. */
-    loopThickness: mm(1, 10),
+    /** The body's color; null prints it in the base color. */
+    bodyColor: hexSchema.nullable(),
   }).strict(),
 }).strict();
 
@@ -114,13 +116,13 @@ export const DEFAULTS: Settings = {
   keychain: {
     type: 'none',
     hole: { style: 'round', size: 4, at: 'top-center' },
-    loop: { style: 'round', inner: 4, outer: 8, angle: 0, color: '#2a2d33' },
+    loop: { style: 'round', inner: 4, outer: 8, angle: 0, color: '#2a2d33', thickness: 2 },
   },
   magnets: { size: '8x3', position: 'bottom', at: [] },
   rotation: [0, 0, 0],
   export: { format: '3mf', slicer: 'bambu', mono: false, monoColor: '#e8e4d8' },
   make: 'model',
-  clicker: { shape: 'outline', border: 3, capHeight: 2, fitGap: 0.5, switches: 1, backing: 'base', loopAt: 'bottom', loopThickness: 2 },
+  clicker: { shape: 'outline', border: 3, capHeight: 2, fitGap: 0.5, switches: 1, backing: 'base', loopAt: 'bottom', bodyColor: null },
 };
 
 /** The `HeightMode` that `applyHeightMode` expects, from the settings. */

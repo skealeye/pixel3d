@@ -227,12 +227,12 @@ describe('keychain loop', () => {
     l.delete();
   });
 
-  it('a rounded loop with no base is its own part in the loop color, as thick as the lowest color', async () => {
+  it('a rounded loop with no base is its own part in the loop color, as thick as Thickness', async () => {
     const g = { ...potion, palette: potion.palette.map((p, i) => ({ ...p, height: i === 0 ? 0.8 : 2 })) };
     const m = await buildModel(g, settings((s) => {
       s.base.enabled = false;
       s.keychain.type = 'loop';
-      s.keychain.loop = { style: 'round', inner: 4, outer: 8, angle: 0, color: '#ff8800' };
+      s.keychain.loop = { style: 'round', inner: 4, outer: 8, angle: 0, color: '#ff8800', thickness: 0.8 };
     }));
     const loop = m.parts.find((p) => p.name === 'loop')!;
     expect(loop.hex).toBe('#ff8800');
@@ -242,6 +242,50 @@ describe('keychain loop', () => {
     expect(b.max[2]).toBeCloseTo(0.8, 4);
     expect(m.pieces).toBe(1);
     await checkAll(m);
+  });
+
+  // the base part's z range where only the loop is: beyond the art's right edge (loop at 90°)
+  const loopZ = (m: Model, object = 'main') => {
+    const art = bounds(m.parts.filter((p) => p.object === object && p.name !== 'base'));
+    const v = m.parts.find((p) => p.object === object && p.name === 'base')!.mesh.vertProperties;
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < v.length; i += 3) if (v[i]! > art.max[0]! + 0.5) { lo = Math.min(lo, v[i + 2]!); hi = Math.max(hi, v[i + 2]!); }
+    return [lo, hi];
+  };
+  /** Volume shared by two parts: none, when parts never overlap. */
+  const shared = async (a: Part, b: Part) => {
+    const { Manifold, Mesh } = await initManifold();
+    const ma = new Manifold(new Mesh({ numProp: 3, vertProperties: a.mesh.vertProperties, triVerts: a.mesh.triVerts }));
+    const mb = new Manifold(new Mesh({ numProp: 3, vertProperties: b.mesh.vertProperties, triVerts: b.mesh.triVerts }));
+    const i = ma.intersect(mb);
+    try { return i.volume(); } finally { for (const o of [ma, mb, i]) o.delete(); }
+  };
+
+  for (const mode of ['single', 'solid'] as const) {
+    it(`a loop thicker than the base (${mode}): Thickness tall${mode === 'solid' ? ', centered on the base' : ', on the bed'}, never inside the art`, async () => {
+      const m = await buildModel(potion, settings((s) => {
+        s.sides.mode = mode; s.keychain.type = 'loop'; s.keychain.loop = { ...s.keychain.loop, style: 'pixel', angle: 90, thickness: 4 };
+      }));
+      await checkAll(m);
+      const [lo, hi] = loopZ(m) as [number, number];
+      const base = m.parts.find((p) => p.name === 'base')!;
+      // the base slab's own z range, on the left half, away from the loop (the model is lifted onto the bed after building)
+      const art = bounds(m.parts.filter((p) => p.name !== 'base'));
+      let b0 = Infinity, b1 = -Infinity;
+      const v = base.mesh.vertProperties;
+      for (let i = 0; i < v.length; i += 3) if (v[i]! < (art.min[0]! + art.max[0]!) / 2) { b0 = Math.min(b0, v[i + 2]!); b1 = Math.max(b1, v[i + 2]!); }
+      expect(b1 - b0).toBeCloseTo(DEFAULTS.base.height, 4);
+      expect(hi - lo).toBeCloseTo(4, 4);
+      if (mode === 'solid') expect((lo + hi) / 2).toBeCloseTo((b0 + b1) / 2, 4);
+      else expect(lo).toBeCloseTo(b0, 4);
+      for (const p of m.parts) if (p !== base) expect(await shared(base, p), p.name).toBeCloseTo(0, 4);
+      expect(m.pieces).toBe(1);
+    });
+  }
+
+  it('a loop thinner than the base stays inside its height', async () => {
+    const m = await buildModel(potion, settings((s) => { s.keychain.type = 'loop'; s.keychain.loop = { ...s.keychain.loop, style: 'pixel', angle: 90, thickness: 1 }; }));
+    expect(loopZ(m)).toEqual([0, 1].map((n) => expect.closeTo(n, 4)));
   });
 
   it('halves: each half gets a loop of half the thickness, the back mirrored', async () => {

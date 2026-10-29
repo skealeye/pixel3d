@@ -169,24 +169,36 @@ const outlineMm = (outline: CrossSection, f: Frame): CrossSection =>
   scratch((k) => k(outline.translate([-f.x0, -f.y0])).scale([f.px.x, f.px.y]));
 
 /**
- * The loop for one body: as thick as its base, else the lowest color (halved for halves), `out` mm further out than the
- * pixel edge. The caller owns it.
+ * The loop for one body, `out` mm further out than the pixel edge, at the loop's thickness: on the bed for one side,
+ * centered on the base when double sided, half of it on each of two halves (so glued they make the whole). The caller
+ * owns it.
  */
-const bodyLoop = (wasm: Wasm, g: Grid, s: Settings, f: Frame, side: Side, hasBase: boolean, out: number): Manifold =>
-  loopSolid(wasm, edgeAtAngle(g, s.keychain.loop.angle), s, hasBase ? side.baseT : minTop(g) * (side.kind === 'half' ? 0.5 : 1), f, out);
+function bodyLoop(wasm: Wasm, g: Grid, s: Settings, f: Frame, side: Side, out: number): Manifold {
+  const t = s.keychain.loop.thickness * (side.kind === 'half' ? 0.5 : 1);
+  const loop = loopSolid(wasm, edgeAtAngle(g, s.keychain.loop.angle), s, t, f, out);
+  if (side.kind !== 'solid') return loop;
+  try { return loop.translate([0, 0, (side.baseT - t) / 2]); } finally { loop.delete(); }
+}
 
 /**
  * Join the keychain loop to one body's solids (unmirrored): into the base, or, with no base, as its own
  * 'loop' part in the loop color that meets the outline (`outline`: the art and any outline ring, pixel units) flush.
+ * A loop thicker than the base is kept out of the art above and below it, so no two parts overlap.
  * `out` moves it past the base's margin (shapes.ts `flatShapes`).
  */
 export function addLoop(wasm: Wasm, g: Grid, s: Settings, f: Frame, outline: CrossSection, solids: Solid[], side: Side, keep: Keep, out = 0): Solid[] {
   if (!hasLoop(s)) return solids;
   const base = solids.find((x) => x.name === 'base');
-  const loop = keep(bodyLoop(wasm, g, s, f, side, !!base, out));
-  if (base) return solids.map((x) => (x === base ? { ...x, m: keep(x.m.add(loop)) } : x));
-  const prism = keep(keep(keep(outlineMm(outline, f)).extrude(2 * REACH)).translate([0, 0, -REACH]));
-  return [...solids, { name: 'loop', hex: s.keychain.loop.color, m: keep(loop.subtract(prism)) }];
+  const loop = keep(bodyLoop(wasm, g, s, f, side, out));
+  const art = keep(outlineMm(outline, f));
+  const prism = (z0: number, z1: number) => keep(keep(art.extrude(z1 - z0)).translate([0, 0, z0]));
+  if (base) {
+    // the art's room above the base and, double sided, below it; inside the base the loop just merges
+    const clear = keep(loop.subtract(prism(side.baseT, REACH)));
+    const off = side.kind === 'solid' ? keep(clear.subtract(prism(-REACH, 0))) : clear;
+    return solids.map((x) => (x === base ? { ...x, m: keep(x.m.add(off)) } : x));
+  }
+  return [...solids, { name: 'loop', hex: s.keychain.loop.color, m: keep(loop.subtract(prism(-REACH, REACH))) }];
 }
 
 /** The 2D shapes one body is built on, pixel units (shapes.ts `flatShapes`). */
@@ -245,7 +257,7 @@ function bodyPieces(wasm: Wasm, g: Grid, s: Settings, f: Frame, o: Outlines, sol
     // the art and ring through the thinnest stack, and the base (which may reach further) only as tall as it is
     let proxy = k(k(k(outlineMm(o.tall, f)).extrude(hi - lo)).translate([0, 0, lo]));
     if (o.base && side.baseT > 0) proxy = k(proxy.add(k(k(outlineMm(o.base, f)).extrude(side.baseT))));
-    if (hasLoop(s)) proxy = k(proxy.add(k(bodyLoop(wasm, g, s, f, side, solids.some((x) => x.name === 'base'), o.out))));
+    if (hasLoop(s)) proxy = k(proxy.add(k(bodyLoop(wasm, g, s, f, side, o.out))));
     let body = place(proxy); // for the front this is `proxy` itself, which `k` already frees
     for (const c of cutters) {
       const b = c.boundingBox();

@@ -20,10 +20,11 @@ type Box = { min: Vec3; max: Vec3 };
 interface Clicker { view: 'assembled' | 'apart'; at: number; rest: number; cap: Box; body: Box; ghosts: number }
 interface Settings {
   make: 'model' | 'clicker';
-  clicker: { shape: string; border: number; capHeight: number; fitGap: number; switches: number; loopAt: string; loopThickness: number };
+  clicker: { shape: string; border: number; capHeight: number; fitGap: number; switches: number; loopAt: string; bodyColor: string | null };
+  keychain: { loop: { thickness: number } };
   rotation: [number, number, number];
 }
-interface Snap { settings: Settings; undo: number }
+interface Snap { settings: Settings; undo: number; grid: { palette: { hex: string }[] } | null }
 interface View {
   shown: 'none' | 'preview' | 'model'; cut: boolean; clipped: number; materials: number; clicker: Clicker | null;
   size: { x: number; y: number; z: number } | null; handles: { kind: string }[]; camera: Vec3;
@@ -98,12 +99,31 @@ test.describe('keycap clicker', () => {
     const u1 = (await snap(page)).undo;
     await page.locator('#loopThick').fill('4');
     await page.locator('#loopThick').press('Enter');
-    await expect.poll(async () => (await settings(page)).clicker.loopThickness).toBe(4);
+    await expect.poll(async () => (await settings(page)).keychain.loop.thickness).toBe(4);
     expect((await snap(page)).undo).toBe(u1 + 1);
     await seg(page, 'make', 'model').click();
     await expect(seg(page, 'key', 'hole')).toBeEnabled();
     await expect(page.locator('.seg[data-key=loopAt]')).toHaveCount(0);
-    await expect(page.locator('#loopThick')).toHaveCount(0);
+    // a flat model has Thickness too
+    await expect(page.locator('#loopThick')).toHaveValue('4.0');
+  });
+
+  test('Body color: Own color picked from the art saves an art-color clicker a filament', async ({ page }) => {
+    await loadClicker(page);
+    await seg(page, 'clkBacking', 'art').click();
+    await expect(page.locator('#fcount')).toHaveText('8 filaments');
+    await expect(seg(page, 'clkBody', 'base')).toHaveClass(/\bon\b/);
+    await expect(page.locator('#clkBodyRows')).toHaveCount(0);
+    const u0 = (await snap(page)).undo;
+    await seg(page, 'clkBody', 'own').click();
+    await page.locator('#clkBodyArt .sw').first().click();
+    expect((await snap(page)).undo).toBe(u0 + 2);
+    const first = (await snap(page)).grid!.palette[0]!.hex;
+    expect((await settings(page)).clicker.bodyColor).toBe(first);
+    await expect(page.locator('#fcount')).toHaveText('7 filaments');
+    await seg(page, 'clkBody', 'base').click();
+    expect((await settings(page)).clicker.bodyColor).toBeNull();
+    await expect(page.locator('#fcount')).toHaveText('8 filaments');
   });
 
   test('clicker settings: mockup controls, spec ranges, one undo step each; Make is undoable', async ({ page }) => {
@@ -131,7 +151,7 @@ test.describe('keycap clicker', () => {
     await page.locator('#clkBorder').fill('20');
     await page.locator('#clkBorder').press('Enter');
     const s = await snap(page);
-    expect(s.settings.clicker).toEqual({ shape: 'circle', border: 10, capHeight: 2, fitGap: 0.8, switches: 2, backing: 'base', loopAt: 'bottom', loopThickness: 2 });
+    expect(s.settings.clicker).toEqual({ shape: 'circle', border: 10, capHeight: 2, fitGap: 0.8, switches: 2, backing: 'base', loopAt: 'bottom', bodyColor: null });
     expect(s.undo).toBe(u0 + 5);
     await expect(page.locator('#clkHint')).toContainText('Needs 2 MX-style switches. Press each switch into the body from above until it sits on the step, then push the cap on.');
     await expect(page.locator('#clkHint')).toContainText('even with Base off');
@@ -253,11 +273,18 @@ test.describe('keycap clicker', () => {
     expect((await settings(page)).make).toBe('clicker');
   });
 
-  test('the fit-test export is offered and downloads one STL per coupon', async ({ page }) => {
-    await page.goto('/?test');
+  test('the fit test downloads in the Export format: a Bambu 3MF by default, else one STL per coupon', async ({ page }) => {
+    await loadPotion(page);
     await seg(page, 'make', 'clicker').click();
     const btn = page.locator('#fitTest');
     await expect(btn).toHaveText('Download fit test');
+    const [mf] = await Promise.all([page.waitForEvent('download'), btn.click()]);
+    expect(mf.suggestedFilename()).toBe('fit_test.3mf');
+    const zip = unzipSync(new Uint8Array(readFileSync(await mf.path())));
+    expect(new TextDecoder().decode(zip['3D/3dmodel.model']!).match(/<item /g)).toHaveLength(4);
+    expect(JSON.parse(new TextDecoder().decode(zip['Metadata/project_settings.config']!)).nozzle_diameter).toEqual(['0.4']);
+    await page.locator('#exportBtn').click();
+    await seg(page, 'format', 'stl').click();
     const [dl] = await Promise.all([page.waitForEvent('download'), btn.click()]);
     expect(dl.suggestedFilename()).toBe('pixel3d_fit_test.zip');
     const files = unzipSync(new Uint8Array(readFileSync(await dl.path())));

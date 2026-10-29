@@ -293,7 +293,7 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
     // the keychain loop sticks out from the body's side, at the bed or halfway up, at its own thickness; added before
     // the cuts so it never fills the well
     const solid = keep(foot.extrude(L.rimTop));
-    const loopT = Math.min(c.loopThickness, L.rimTop);
+    const loopT = Math.min(s.keychain.loop.thickness, L.rimTop);
     const keyLoop = s.keychain.type === 'loop' && s.keychain.loop.outer > s.keychain.loop.inner
       ? keep(keep(loopSolid(wasm, footEdge(foot, s.keychain.loop.angle), s, loopT, MM_FRAME)).translate([0, 0, c.loopAt === 'center' ? (L.rimTop - loopT) / 2 : 0]))
       : null;
@@ -314,7 +314,7 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
     if (counts.cap > 1) warnings.push(`The cap is in ${counts.cap} pieces. Move the islands closer together or join them.`);
     if (counts.body > 1) warnings.push(`The body is in ${counts.body} pieces. Move the islands closer together or join them, or pick Circle or Square for the body shape.`);
     const model = toModel(
-      [{ object: 'cap', solids: capSolids }, { object: 'body', solids: [{ name: 'base', hex: s.base.color, m: body }] }],
+      [{ object: 'cap', solids: capSolids }, { object: 'body', solids: [{ name: 'base', hex: c.bodyColor ?? s.base.color, m: body }] }],
       Math.max(counts.cap, counts.body),
       warnings,
       { capShift: [-dx, 0], restZ: L.capUnder, pressedZ: L.capUnder - MX.travel, rimZ: L.rimTop },

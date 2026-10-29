@@ -228,6 +228,19 @@ describe('to3MF: Bambu', () => {
     expect(new Set(r.cfgObjects[0]!.parts.map((p) => p.extruder)).size).toBe(8);
   });
 
+  it('a clicker with art-color backing and its body in one of the 8 art colors: 8 filaments; the body takes that color', async () => {
+    const hexes = ['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6'];
+    const eight: Grid = { w: 8, h: 3, cells: Int16Array.from({ length: 24 }, (_, k) => k % 8), palette: hexes.map((hex) => ({ hex, height: 1 })) };
+    const base = settings((x) => { x.make = 'clicker'; x.clicker.backing = 'art'; });
+    expect(filamentColors(eight, base)).toHaveLength(9);
+    const s = settings((x) => { x.make = 'clicker'; x.clicker.backing = 'art'; x.clicker.bodyColor = hexes[3]!; });
+    expect(filamentColors(eight, s)).toHaveLength(8);
+    const m = await buildModel(eight, s);
+    expect(m.parts.find((p) => p.object === 'body')!.hex).toBe(hexes[3]);
+    const r = readBambu(await to3MF(m, { slicer: 'bambu', mono: false, name: 'potion' }));
+    expect(r.project.filament_colour).toEqual(filamentColors(eight, s).map((h) => h.toUpperCase()));
+  });
+
   it('a palette color with no pixels (just added) makes no part and no filament', async () => {
     const added: Grid = { ...potion, palette: [...potion.palette, { hex: '#e0715c', height: 1 }] };
     const s = settings(() => {});

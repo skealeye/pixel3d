@@ -1,9 +1,10 @@
 /// <reference lib="webworker" />
-import { buildModel, exportModel, fitTest, toSTL, type Grid, type Settings } from '@pixel3d/core';
+import { buildModel, exportModel, fitTest, type Grid, type Settings } from '@pixel3d/core';
 
 /**
  * `model`: the grid built fresh with the real settings (rotation included) and written as core `convert` writes it.
- * `fitTest`: the clicker fit-test coupons, one STL each.
+ * `fitTest`: the clicker fit-test coupons in one color, written in the Export format: a 3MF (one object per coupon, the
+ * slicer's 0.4 mm nozzle profile for Bambu) or one STL each.
  */
 export type ExportJob = { kind: 'model'; grid: Grid; settings: Settings; name: string } | { kind: 'fitTest'; settings: Settings };
 /** `fail` makes this job throw (the e2e test hook's `failNextExport`). */
@@ -14,7 +15,7 @@ export type ExportReply = { id: number; files: OutFile[] } | { id: number; error
 const post = (msg: ExportReply, transfer: Transferable[] = []) => (self as unknown as DedicatedWorkerGlobalScope).postMessage(msg, transfer);
 
 async function run(job: ExportJob): Promise<OutFile[]> {
-  if (job.kind === 'fitTest') return toSTL(await fitTest(job.settings), { mono: true, name: 'fit_test' });
+  if (job.kind === 'fitTest') return exportModel(await fitTest(job.settings), { ...job.settings, export: { ...job.settings.export, mono: true } }, 'fit_test');
   return exportModel(await buildModel(job.grid, job.settings), job.settings, job.name);
 }
 

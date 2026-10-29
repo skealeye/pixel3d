@@ -3,6 +3,8 @@
   import { downloadFiles, runExport } from '../export/exporter';
   import { app, live, setting, toast, ui } from '../state.svelte';
   import { press } from '../viewport/press';
+  import { colorInput } from './color';
+  import Favorites from './Favorites.svelte';
   import Slider from './Slider.svelte';
 
   /** Make: Flat model / Clicker, and the keycap clicker's settings (spec §4.6b). Core builds both parts (clicker.ts). */
@@ -16,6 +18,9 @@
 
   const border = live(() => c.border, (v) => (c.border = v));
   const capHeight = live(() => c.capHeight, (v) => (c.capHeight = v));
+  /** The body's own color, or null for the base color. */
+  const bodyColor = colorInput((hex) => (c.bodyColor = hex));
+  const setBody = (hex: string | null) => c.bodyColor !== hex && setting(() => (c.bodyColor = hex));
   const fitGap = live(() => c.fitGap, (v) => (c.fitGap = Math.round(v * 100) / 100));
 
   /** The cap's thinnest backing: the pocket plus its roof, kept even with Base off (core `capThickness`). */
@@ -40,7 +45,7 @@
 
   let busy = $state(false);
 
-  /** The fit-test coupons (core `fitTest`) as one STL per coupon in a zip, built in the export worker. */
+  /** The fit-test coupons (core `fitTest`) in the Export format (a 3MF, or a zip of STLs), built in the export worker. */
   async function downloadFitTest() {
     if (busy) return;
     busy = true;
@@ -92,6 +97,27 @@
       <p class="hint" id="clkBackingHint">{c.backing === 'art'
         ? "Each art color runs the full depth of the cap, so the cap has no base color. Spots that aren't art take the nearest art color."
         : 'The cap sits on a backing in the base color.'}</p>
+      <!-- not in the mockup (user request 2026-10-28): the body in its own color, e.g. one of the art colors, so an
+           art-color cap doesn't add a filament -->
+      <div class="row"><span class="lbl">Body color</span></div>
+      <div class="seg" data-key="clkBody">
+        <button data-v="base" class:on={c.bodyColor === null} onclick={() => setBody(null)}>Base color</button>
+        <button data-v="own" class:on={c.bodyColor !== null} onclick={() => setBody(c.bodyColor ?? s.base.color)}>Own color</button>
+      </div>
+      {#if c.bodyColor !== null}
+        <div id="clkBodyRows">
+          <div class="row"><label for="clkBodyColor">Color</label><input type="color" id="clkBodyColor" value={c.bodyColor} {...bodyColor}></div>
+          {#if app.grid?.palette.length}
+            <div class="favs" id="clkBodyArt" style="flex-wrap:wrap">
+              <span class="lbl">Art colors</span>
+              {#each app.grid.palette as p (p.hex)}
+                <button class="sw" style:background={p.hex} title={p.hex} aria-label={`Use ${p.hex}`} onclick={() => setBody(p.hex)}></button>
+              {/each}
+            </div>
+          {/if}
+          <Favorites id="clkBodyFavs" value={c.bodyColor} pick={(hex) => setBody(hex)} />
+        </div>
+      {/if}
       <div class="row"><span class="lbl">Switches</span></div>
       <div class="seg" data-key="clkSwitches">
         {#each [1, 2, 3] as const as n (n)}
