@@ -12,6 +12,13 @@ import type { Files, Scene } from './xml';
 /** Claim a released Bambu Studio version so the file is read as a Bambu project, not geometry only. */
 const APP = 'BambuStudio-01.09.00.00';
 const VERSION = '01.09.00.00';
+/**
+ * A Bambu system printer preset. Without one Bambu Studio treats the file's printer as an unnamed custom preset:
+ * it warns about "customized presets" (listing "-") and can pick a 0.2 mm nozzle. The X1 Carbon 0.4 is the user's
+ * printer; any system name clears the warning, and the user can switch printer after opening.
+ */
+const PRINTER = 'Bambu Lab X1 Carbon';
+const NOZZLE = '0.4';
 
 const hex = (n: number, w: number) => n.toString(16).padStart(w, '0');
 const uuid = (n: number, tail: string) => `${hex(n, 8)}-${tail}`;
@@ -94,11 +101,14 @@ ${assemble.join('\n')}
     name: 'project_settings',
     from: 'project',
     version: VERSION,
+    printer_model: PRINTER,
+    printer_settings_id: `${PRINTER} ${NOZZLE} nozzle`,
+    printer_variant: NOZZLE, // re-picking a printer model keeps the 0.4 mm nozzle preset
     filament_colour: scene.colors, // external format key, spelling fixed by Bambu Studio
     filament_type: each('PLA'),
     filament_settings_id: each('Generic PLA'),
     filament_diameter: each('1.75'),
-    nozzle_diameter: ['0.4'],
+    nozzle_diameter: [NOZZLE],
     layer_height: '0.2',
   }, null, 4) + '\n';
   if (scene.pauseZ.length) {

@@ -200,6 +200,10 @@ describe('to3MF: Bambu', () => {
     expect(colors[0]).toBe(DEFAULTS.base.color.toUpperCase());
     expect(r.project.filament_type).toEqual(colors.map(() => 'PLA'));
     expect(r.project.filament_settings_id).toHaveLength(colors.length);
+    // a system printer preset, so Bambu Studio neither warns about a customized preset nor picks a 0.2 mm nozzle
+    expect(r.project.printer_settings_id).toBe('Bambu Lab X1 Carbon 0.4 nozzle');
+    expect(r.project.nozzle_diameter).toEqual(['0.4']);
+    expect(r.project.printer_variant).toBe('0.4');
     // plate and assemble blocks name the object
     expect(metaOf(kid(kid(r.settings, 'plate'), 'model_instance')).object_id).toBe(a!.id);
     expect(kid(kid(r.settings, 'assemble'), 'assemble_item').attrs.object_id).toBe(a!.id);
