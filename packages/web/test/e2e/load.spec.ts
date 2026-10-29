@@ -61,6 +61,16 @@ async function withFile(page: Page, name: string, fn: string) {
 }
 
 test.describe('loading', () => {
+  test('Ko-fi button opens the Ko-fi page in a new tab', async ({ page }) => {
+    await open(page);
+    const k = page.locator('header #kofi');
+    await expect(k).toHaveText('Support me on Ko-fi');
+    await expect(k.locator('img')).toHaveJSProperty('complete', true);
+    expect(await k.locator('img').evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
+    await expect(k).toHaveAttribute('href', 'https://ko-fi.com/seankealey');
+    await expect(k).toHaveAttribute('target', '_blank');
+  });
+
   test('file input', async ({ page }) => {
     await open(page);
     await loadFile(page, 'potion.png');

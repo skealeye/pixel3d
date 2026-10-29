@@ -20,6 +20,8 @@
   <input type="file" id="fileIn" accept="image/png,image/gif,image/webp,image/jpeg" hidden bind:this={fileIn}
     onchange={(e) => { const t = e.currentTarget; void loadFile(t.files?.[0]); t.value = ''; }}>
   <ExportPopover />
+  <a class="btn kofi" id="kofi" href="https://ko-fi.com/seankealey" target="_blank" rel="noopener noreferrer"
+    title="Support pixel3d on Ko-fi"><img src="kofi.png" alt="" width="20" height="16">Support me on Ko-fi</a>
 </header>
 
 <BatchDialog />

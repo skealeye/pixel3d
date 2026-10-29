@@ -52,6 +52,9 @@ header {
 .btn.small { padding: 3px 8px; font-size: 12px; }
 .btn.icon { padding: 6px 9px; }
 .btn:disabled { opacity: .4; cursor: default; }
+a.btn { color: inherit; text-decoration: none; }
+.btn.kofi { display: inline-flex; align-items: center; gap: 6px; }
+.btn.kofi:hover { border-color: var(--gold); color: var(--gold); }
 
 aside { overflow-y: auto; background: var(--panel); }
 aside.left { grid-area: left; border-right: 1px solid var(--line); }
