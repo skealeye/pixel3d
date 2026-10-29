@@ -2,6 +2,8 @@
 
 # pixel3d
 
+[![Support on Ko-fi](https://img.shields.io/badge/Support-Ko--fi-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/seankealey)
+
 **Use it in your browser: https://skealeye.github.io/pixel3d/**
 
 ![A 16x16 potion sprite as a 3D-print model in pixel3d, with heights set by brightness](docs/images/example.png)
@@ -55,6 +57,11 @@ Claude Desktop (`px3d` may not be on PATH, so call the built bundle with node). 
   }
 }
 ```
+
+## Support
+
+pixel3d is free. If it makes your day a little better, you can
+[buy me a coffee on Ko-fi](https://ko-fi.com/seankealey). ♥
 
 ## License
 
