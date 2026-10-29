@@ -39,7 +39,8 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 const same = (file: string, bytes: Uint8Array) => Buffer.from(readFileSync(file)).equals(Buffer.from(bytes));
 
-describe('the Batch dialog snippets run', () => {
+// the snippets run in child processes (spawnSync); Vitest fails a sync test that outlasts its timeout, so allow for slow starts
+describe('the Batch dialog snippets run', { timeout: 300_000 }, () => {
   it('names the preset so the commands need no quoting in any shell', () => {
     expect(presetBase('my potion (2)')).toBe('my_potion_2');
     expect(presetBase('ghost')).toBe('ghost');

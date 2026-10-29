@@ -28,7 +28,8 @@ const reportOf = (out: string) => JSON.parse(readFileSync(join(out, 'report.json
 beforeAll(() => { tmp = mkdtempSync(join(tmpdir(), 'px3d-cli-')); });
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
-describe('px3d convert', () => {
+// each test runs the CLI in child processes (spawnSync); Vitest fails a sync test that outlasts its timeout, so allow for slow starts
+describe('px3d convert', { timeout: 300_000 }, () => {
   it('converts a folder: two models plus report.json, the corrupt file errors, exit 1', () => {
     const inDir = fresh('in');
     copyFileSync(fixture('potion.png'), join(inDir, 'potion.png'));
@@ -199,7 +200,7 @@ describe('px3d convert', () => {
   });
 });
 
-describe('px3d --version and --help', () => {
+describe('px3d --version and --help', { timeout: 300_000 }, () => {
   it('--version prints the root package version', () => {
     const r = run(['--version']);
     expect(r.status).toBe(0);

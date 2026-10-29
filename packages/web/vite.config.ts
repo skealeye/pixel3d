@@ -46,9 +46,11 @@ export default defineConfig({
     target: 'es2022',
     // three.js alone is ~700 kB minified
     chunkSizeWarningLimit: 1024,
-    rollupOptions: {
-      // zod ships /* @__PURE__ */ comments in places Rollup can't use; the notice is noise
+    rolldownOptions: {
+      // zod ships /* @__PURE__ */ comments in places the bundler can't use; the notice is noise
       onwarn(w, warn) { if (w.code !== 'INVALID_ANNOTATION') warn(w); },
+      // the PWA plugin's precache step is slow on the network share; the timing report is noise
+      checks: { bundlerTimings: false },
     },
   },
 });
