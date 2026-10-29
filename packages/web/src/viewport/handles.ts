@@ -25,11 +25,18 @@ export function anchorToModel(a: Anchor, g: Grid, s: Settings): { x: number; y: 
   return { x: (p.u - f.box.x0) * f.px.x, y: (p.v - f.box.y0) * f.px.y };
 }
 
-/** A point in the model frame as an anchor, clamped to the opaque box. */
-export function modelToAnchor(x: number, y: number, g: Grid, s: Settings): Anchor | null {
+/**
+ * A point in the model frame as an anchor, clamped to the opaque box. `snap` (Shift held) moves it to the nearest
+ * half pixel: every pixel center and corner, which always includes the art's exact center.
+ */
+export function modelToAnchor(x: number, y: number, g: Grid, s: Settings, snap = false): Anchor | null {
   const f = artFrame(g, s);
   if (!f) return null;
-  const clamp = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 1e4) / 1e4;
+  if (snap) {
+    x = Math.round((x / f.px.x) * 2) / 2 * f.px.x;
+    y = Math.round((y / f.px.y) * 2) / 2 * f.px.y;
+  }
+  const clamp = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 1e6) / 1e6;
   return { fx: clamp(x / f.w), fy: clamp(1 - y / f.h) };
 }
 

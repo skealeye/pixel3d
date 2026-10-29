@@ -193,12 +193,12 @@
   });
   $effect(() => { vp?.setCursor(ui.placing ? 'crosshair' : ''); });
 
-  /** Model-frame point → anchor; a point on the back half is mirrored onto the front first. */
-  function anchorAt(x: number, y: number, object: string) {
+  /** Model-frame point → anchor; a point on the back half is mirrored onto the front first. Shift snaps it to the half-pixel grid. */
+  function anchorAt(x: number, y: number, object: string, snap: boolean) {
     const g = app.grid, v = vp;
     if (!g || !v) return null;
     if (object === 'back') x = v.frontMaxX() + v.backMinX() - x;
-    return modelToAnchor(x, y, g, app.settings);
+    return modelToAnchor(x, y, g, app.settings, snap);
   }
 
   /** The handle being dragged: one undo step, taken when it first moves. */
@@ -211,7 +211,7 @@
     if (ui.placing) {
       v.setOrbit(false);
       const hit = v.pick(e.clientX, e.clientY);
-      const a = hit && anchorAt(hit.x, hit.y, hit.object);
+      const a = hit && anchorAt(hit.x, hit.y, hit.object, e.shiftKey);
       if (a) {
         ui.placing = false;
         setting(() => app.settings.magnets.at.push(a));
@@ -234,7 +234,7 @@
       return;
     }
     const p = v.onTop(e.clientX, e.clientY);
-    const a = p && anchorAt(p.x, p.y, 'main');
+    const a = p && anchorAt(p.x, p.y, 'main', e.shiftKey);
     if (!a) return;
     const s = app.settings;
     if (!drag.moved) { drag.moved = true; pushUndo(); }
@@ -291,7 +291,7 @@
       <span class="warn">{strays.n} separate pieces. {strays.pixels} stray pixel{strays.pixels > 1 ? 's' : ''} (outlined in red in the image) don't share an edge with the rest, so they would print as loose parts.{strays.corners ? " Pixels that touch only at a corner don't count as joined." : ''} Paint pixels to connect them, or remove them.</span><br><button class="btn small" id="removeStrays" onclick={removeStrays}>Remove strays</button>
     {/if}
   </div>
-  <div class="mode" id="mode" style:display={ui.placing ? 'block' : 'none'}>Click the model to place a magnet. Press Esc to cancel.</div>
+  <div class="mode" id="mode" style:display={ui.placing ? 'block' : 'none'}>Click the model to place a magnet. Hold Shift to snap to the pixel grid. Press Esc to cancel.</div>
   {#if size && dims}
     <div class="dims" id="dims"><b>{dims.size}</b>&nbsp; <span class:warn={dims.warn}>{dims.note}</span></div>
   {/if}

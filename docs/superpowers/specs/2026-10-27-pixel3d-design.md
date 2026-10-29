@@ -154,7 +154,7 @@ A fidget clicker in the style of the Vostok Labs Clicker Generator (user's refer
 - Presets include all clicker settings, so batch runs can produce clickers.
 
 ### 4.7 Keychain (parity, reworked)
-- **Hole:** **Round** (a cylinder) or **Square** (a square prism), 2–10 mm across, cut with a true boolean subtraction. It is not snapped to the pixel grid, so it can cut part-way through pixels. A flat gold marker on the model's top surface is dragged to move it. It cuts through every layer: base, pixels, and both faces or halves. Moving the hole never moves or lifts the model: handles are not counted in the model's size or position.
+- **Hole:** **Round** (a cylinder) or **Square** (a square prism), 2–10 mm across, cut with a true boolean subtraction. By default it is not snapped to the pixel grid, so it can cut part-way through pixels. A flat gold marker on the model's top surface is dragged to move it. Holding **Shift** while dragging snaps it to the half-pixel grid (every pixel center and corner, which always includes the art's exact center). It cuts through every layer: base, pixels, and both faces or halves. Moving the hole never moves or lifts the model: handles are not counted in the model's size or position.
 - **Loop:** a ring joined to the model's outside edge. Its place is a **Position slider from 0 to 359°** (0° is straight up, clockwise). It is not dragged. The engine walks outwards from the shape's center at that angle and attaches the loop to the outward-facing pixel edge where it leaves the shape. Inner and outer diameter settings.
   - Color: the base color when there is a base. Otherwise there is a loop color setting with favorites.
   - Two styles: **Rounded loop**, a smooth ring, and **Pixel loop**, a square frame with a square hole that matches the blocky art. Both styles use the exact Hole and Outside sizes in mm and scale smoothly; they are not built from whole art pixels, so the hole is always centered whatever the sizes.
@@ -176,7 +176,7 @@ A fidget clicker in the style of the Vostok Labs Clicker Generator (user's refer
   - **Sealed in center:** an enclosed pocket inside the base. The 3MF includes a pause at the layer that closes the pocket, so the magnet can be dropped in during the print.
   - Double sided always uses the sealed pocket. Halves always use pockets open on the glue face.
   - A readout shows the material left above and below the pocket.
-  - "Place a magnet" enters placement mode: click the model to drop one, or press Esc to cancel. Placed magnets can be dragged and removed one by one, and there is a Clear all.
+  - "Place a magnet" enters placement mode: click the model to drop one, or press Esc to cancel. Placed magnets can be dragged and removed one by one, and there is a Clear all. Holding **Shift** while placing or dragging snaps a magnet to the half-pixel grid, like the hole.
   - A warning appears when the base is too thin for the chosen magnet.
 - **Viewer:** orbit, zoom, pan, reset, and a grid in mm or inches. **Grid options:** show or hide, color, and opacity (0–100%).
 - **Single color (new):** an export choice of All colors or One color, with a color picker.

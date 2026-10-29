@@ -46,7 +46,7 @@
     {#if m.at.length}
       {#if pocket.thin}<span class="warn">A {pocket.d} × {pocket.h} mm magnet needs about {pocket.need} mm here. Make the base thicker or pick a smaller magnet.</span>
       {:else if pocket.sealed}Sealed inside. The print pauses at this layer so you can drop the magnet in.
-      {:else}Open on the bottom, so you can press the magnet in after printing. Drag to move.{/if}
+      {:else}Open on the bottom, so you can press the magnet in after printing. Drag to move; hold Shift to snap to the pixel grid.{/if}
     {:else if sides === 'halves'}Pockets open on the glue face, so the magnet ends up sealed inside.{/if}
   </p>
   <!-- not in the mockup: the material readout (spec §4.8) -->

@@ -28,7 +28,7 @@
       : app.settings.clicker.loopAt === 'center' ? 'The loop sticks out halfway up the body, in the base color. It needs supports under it when printed.'
       : 'The loop sticks out from the body at the bed, in the base color.')
     : key.type === 'hole'
-    ? 'Drag the gold marker on the model to move the hole. It cuts through every layer.'
+    ? 'Drag the gold marker on the model to move the hole; hold Shift to snap it to the pixel grid. It cuts through every layer.'
     : app.settings.base.enabled ? 'The loop uses the base color.' : 'Move the slider to slide the loop around the edge.');
 </script>
 

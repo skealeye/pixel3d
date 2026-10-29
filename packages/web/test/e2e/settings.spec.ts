@@ -181,7 +181,7 @@ test.describe('model settings', () => {
   test('hole: the Square option exists; dragging the marker moves the hole but not the model', async ({ page }) => {
     await loadPotion(page);
     await seg(page, 'key', 'hole').click();
-    await expect(page.locator('#keyHint')).toHaveText('Drag the gold marker on the model to move the hole. It cuts through every layer.');
+    await expect(page.locator('#keyHint')).toHaveText('Drag the gold marker on the model to move the hole; hold Shift to snap it to the pixel grid. It cuts through every layer.');
     await seg(page, 'holeStyle', 'square').click();
     expect((await settings(page)).keychain.hole.style).toBe('square');
     await model(page);
@@ -232,6 +232,27 @@ test.describe('model settings', () => {
     seen.forEach((dx, i) => expect(Math.abs(dx - (i + 1) * 3), `step ${i + 1}: ${seen.join(', ')}`).toBeLessThan(1.5));
   });
 
+  test('holding Shift snaps the dragged hole marker to the half-pixel grid', async ({ page }) => {
+    await loadPotion(page);
+    await seg(page, 'key', 'hole').click();
+    await model(page);
+    const h = (await view(page)).handles.find((x) => x.kind === 'hole')!;
+    const start = { x: h.x, y: h.y + 60 };
+    await page.mouse.move(h.x, h.y);
+    await page.mouse.down();
+    await page.keyboard.down('Shift');
+    await page.mouse.move(start.x, start.y, { steps: 4 });
+    const xs = new Set<number>();
+    for (let i = 1; i <= 6; i++) {
+      await page.mouse.move(start.x + i * 3, start.y);
+      xs.add(Math.round((await view(page)).handles.find((x) => x.kind === 'hole')!.x));
+    }
+    await page.keyboard.up('Shift');
+    await page.mouse.up();
+    // half a 2.5 mm cell is many screen pixels, so six 3 px steps visit at most two snapped spots
+    expect(xs.size, [...xs].join(', ')).toBeLessThanOrEqual(2);
+  });
+
   test('loop: Position slider at 60°; the loop color row appears only with no base', async ({ page }) => {
     await loadPotion(page);
     await seg(page, 'key', 'loop').click();
@@ -260,7 +281,7 @@ test.describe('model settings', () => {
     await expect(page.locator('#magCount')).toHaveText('0 placed');
     await page.locator('#placeMag').click();
     await expect(page.locator('#mode')).toBeVisible();
-    await expect(page.locator('#mode')).toHaveText('Click the model to place a magnet. Press Esc to cancel.');
+    await expect(page.locator('#mode')).toHaveText('Click the model to place a magnet. Hold Shift to snap to the pixel grid. Press Esc to cancel.');
     const c = await viewCenter(page);
     await page.mouse.click(c.x, c.y);
     await expect(page.locator('#mode')).toBeHidden();
