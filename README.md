@@ -1,6 +1,16 @@
+<p align="center"><img src="docs/images/logo.png" alt="pixel3d logo" width="128"></p>
+
 # pixel3d
 
+**Use it in your browser: https://skealeye.github.io/pixel3d/**
+
+![pixel3d turning a potion sprite into a mechanical keyboard clicker](docs/images/clicker.png)
+
 Turns pixel art into 3D-print models (3MF or STL, plus OBJ and FBX for other 3D tools): one raised block per pixel, optional base, keychain loop or hole, and magnet pockets. Colors become separate parts so a multi-color printer can print them.
+
+## Mechanical clickers
+
+Switch Make to **Clicker** and your art becomes a working fidget clicker: a key cap that clicks on a mechanical keyboard switch (MX-compatible). It prints as two parts, the cap with your pixel art on top and a body that holds the switch. Pick the body shape (outline, circle or square), border, cap height and fit gap, use 1 to 3 switches, and preview it apart as printed or assembled, with a Press button to push the cap down. You supply the switch (an MX-style one); the sockets are carved for you.
 
 ## Run the app on this PC
 
