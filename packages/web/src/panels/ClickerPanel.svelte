@@ -69,7 +69,7 @@
     <button data-v="clicker" class:on={on} onclick={() => make('clicker')}>Clicker</button>
   </div>
   <p class="hint" id="makeHint">{on
-    ? 'Your art becomes a key cap that clicks on a mechanical keyboard switch (Cherry MX style). Prints as two parts: the cap and a body that holds the switch.'
+    ? 'Your art becomes a key cap that clicks on a mechanical keyboard switch (MX-compatible). Prints as two parts: the cap and a body that holds the switch.'
     : 'A flat pixel model: keychain, magnet, fridge magnet or display piece.'}</p>
 </section>
 

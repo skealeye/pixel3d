@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { filamentColors, safeName, type Settings, type Slicer } from '@pixel3d/core';
+  import { BAMBU_PRINTERS, filamentColors, safeName, type BambuPrinter, type Settings, type Slicer } from '@pixel3d/core';
   import { app, setting, stopPicking, toast, ui } from '../state.svelte';
   import { baseName } from '../presets.svelte';
   import { downloadFiles, failNextExport, runExport } from '../export/exporter';
@@ -91,6 +91,14 @@
           {#each SLICERS as [v, label] (v)}<option value={v}>{label}</option>{/each}
         </select>
       </div>
+      {#if ex.slicer === 'bambu'}
+        <!-- the printer preset the project names, so Bambu Studio opens it without a "customized preset" warning -->
+        <div class="row" id="printerRow"><label for="printer">Printer</label>
+          <select id="printer" value={ex.printer} onchange={(e) => { const v = e.currentTarget.value as BambuPrinter; set(() => (app.settings.export.printer = v)); }}>
+            {#each BAMBU_PRINTERS as v (v)}<option value={v}>{v.replace(/^Bambu Lab /, '')}</option>{/each}
+          </select>
+        </div>
+      {/if}
     {/if}
     <div class="row"><label style="flex:0" for="name">Name</label><input id="name" bind:value={ui.exportName}></div>
     <div class="summary" id="summary">{summary}</div>

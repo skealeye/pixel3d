@@ -1,6 +1,6 @@
 import { strToU8, zipSync } from 'fflate';
 import type { Model, Part } from '../mesh';
-import { DEFAULTS } from '../settings';
+import { DEFAULTS, type BambuPrinter } from '../settings';
 import { objectsOf, unionParts } from './stl';
 import { filamentSlots } from '../filaments';
 import type { Mesh } from './stl';
@@ -21,6 +21,8 @@ export interface ThreeMFOptions {
   pauseZ?: number[];
   /** Object name; halves etc. add `_front` / `_back`. Defaults to 'model'. */
   name?: string;
+  /** Bambu Studio only: the printer the project names; defaults to the settings default (X1 Carbon). */
+  printer?: BambuPrinter;
 }
 
 /** Bambu's 256 x 256 mm plate: the model is centered on it. */
@@ -133,7 +135,7 @@ export async function to3MF(model: Model, opts: ThreeMFOptions): Promise<Uint8Ar
   const files: Files = {
     '[Content_Types].xml': CONTENT_TYPES,
     '_rels/.rels': relsXml(['/3D/3dmodel.model']),
-    ...(opts.slicer === 'bambu' || opts.slicer === 'orca' ? bambuFiles(scene) : opts.slicer === 'prusa' ? prusaFiles(scene) : genericFiles(scene)),
+    ...(opts.slicer === 'bambu' ? bambuFiles(scene, opts.printer) : opts.slicer === 'orca' ? bambuFiles(scene) : opts.slicer === 'prusa' ? prusaFiles(scene) : genericFiles(scene)),
   };
   return zipSync(Object.fromEntries(Object.entries(files).map(([k, v]) => [k, strToU8(v)])), { level: 6, mtime: MTIME });
 }

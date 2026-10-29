@@ -17,6 +17,19 @@ const mm = (min: number, max: number) => z.number().min(min).max(max);
 const height = mm(0.2, 20);
 const quarter = z.number().int().min(0).max(3);
 
+/**
+ * Bambu Lab printers whose system preset "<model> 0.4 nozzle" ships with Bambu Studio
+ * (bambulab/BambuStudio resources/profiles/BBL/machine, checked 2026-10-29). A Bambu 3MF names one so the
+ * slicer opens it without a "customized preset" warning.
+ */
+export const BAMBU_PRINTERS = [
+  'Bambu Lab X1 Carbon', 'Bambu Lab X1', 'Bambu Lab X1E', 'Bambu Lab X2D',
+  'Bambu Lab P1S', 'Bambu Lab P1P', 'Bambu Lab P2S',
+  'Bambu Lab A1', 'Bambu Lab A1 mini', 'Bambu Lab A2L',
+  'Bambu Lab H2D', 'Bambu Lab H2D Pro', 'Bambu Lab H2S', 'Bambu Lab H2C',
+] as const;
+export type BambuPrinter = (typeof BAMBU_PRINTERS)[number];
+
 export const settingsSchema = z.object({
   size: z.object({
     width: z.number().positive(),
@@ -81,6 +94,8 @@ export const settingsSchema = z.object({
     /** Export as one color (all height steps kept). */
     mono: z.boolean(),
     monoColor: hexSchema,
+    /** The printer a Bambu Studio 3MF names (OrcaSlicer files keep the default). */
+    printer: z.enum(BAMBU_PRINTERS),
   }).strict(),
   make: z.enum(['model', 'clicker']),
   clicker: z.object({
@@ -120,7 +135,7 @@ export const DEFAULTS: Settings = {
   },
   magnets: { size: '8x3', position: 'bottom', at: [] },
   rotation: [0, 0, 0],
-  export: { format: '3mf', slicer: 'bambu', mono: false, monoColor: '#e8e4d8' },
+  export: { format: '3mf', slicer: 'bambu', mono: false, monoColor: '#e8e4d8', printer: 'Bambu Lab X1 Carbon' },
   make: 'model',
   clicker: { shape: 'outline', border: 3, capHeight: 2, fitGap: 0.5, switches: 1, backing: 'base', loopAt: 'bottom', bodyColor: null },
 };

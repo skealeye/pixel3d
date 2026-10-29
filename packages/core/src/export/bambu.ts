@@ -1,5 +1,6 @@
 import { esc, IDENTITY, MATRIX, meshXml, NS_BAMBU, NS_CORE, NS_PROD, pauseAt, relsXml, translate } from './xml';
 import type { Files, Scene } from './xml';
+import { DEFAULTS, type BambuPrinter } from '../settings';
 
 /**
  * Bambu Studio (and Orca Slicer, which reads the same files) project metadata, laid out as Bambu Studio 1.x
@@ -13,11 +14,10 @@ import type { Files, Scene } from './xml';
 const APP = 'BambuStudio-01.09.00.00';
 const VERSION = '01.09.00.00';
 /**
- * A Bambu system printer preset. Without one Bambu Studio treats the file's printer as an unnamed custom preset:
- * it warns about "customized presets" (listing "-") and can pick a 0.2 mm nozzle. The X1 Carbon 0.4 is the user's
- * printer; any system name clears the warning, and the user can switch printer after opening.
+ * The project names a Bambu system printer preset, `<printer> 0.4 nozzle` (setting export.printer, default the
+ * X1 Carbon). Without one Bambu Studio treats the file's printer as an unnamed custom preset: it warns about
+ * "customized presets" (listing "-") and can pick a 0.2 mm nozzle. Any system name clears the warning.
  */
-const PRINTER = 'Bambu Lab X1 Carbon';
 const NOZZLE = '0.4';
 
 const hex = (n: number, w: number) => n.toString(16).padStart(w, '0');
@@ -28,7 +28,7 @@ const header = (extra = '') => `<?xml version="1.0" encoding="UTF-8"?>
 <model unit="millimeter" xml:lang="en-US" xmlns="${NS_CORE}" xmlns:BambuStudio="${NS_BAMBU}" xmlns:p="${NS_PROD}" requiredextensions="p">
 ${extra} <metadata name="BambuStudio:3mfVersion">1</metadata>`;
 
-export function bambuFiles(scene: Scene): Files {
+export function bambuFiles(scene: Scene, printer: BambuPrinter = DEFAULTS.export.printer): Files {
   const files: Files = {};
   const assemblies: string[] = [], items: string[] = [], paths: string[] = [];
   const cfgObjects: string[] = [], instances: string[] = [], assemble: string[] = [];
@@ -101,8 +101,8 @@ ${assemble.join('\n')}
     name: 'project_settings',
     from: 'project',
     version: VERSION,
-    printer_model: PRINTER,
-    printer_settings_id: `${PRINTER} ${NOZZLE} nozzle`,
+    printer_model: printer,
+    printer_settings_id: `${printer} ${NOZZLE} nozzle`,
     printer_variant: NOZZLE, // re-picking a printer model keeps the 0.4 mm nozzle preset
     filament_colour: scene.colors, // external format key, spelling fixed by Bambu Studio
     filament_type: each('PLA'),

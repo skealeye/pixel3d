@@ -1,14 +1,16 @@
 {
   "name": "pixel3d",
-  "version": "0.2.50",
+  "version": "0.2.51",
   "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "seankealey",
   "type": "module",
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/cli --noEmit && svelte-check --workspace packages/web --tsconfig ./tsconfig.json --fail-on-warnings",
     "fixtures": "tsx packages/core/test/fixtures/make-fixtures.ts",
     "sample-3mf": "tsx packages/core/scripts/sample-3mf.ts",
-    "build:cli": "esbuild packages/cli/src/main.ts --bundle --platform=node --format=esm --tsconfig=tsconfig.base.json --external:manifold-3d --external:@jsquash/webp --banner:js=\"#!/usr/bin/env node\" --outfile=packages/cli/dist/px3d.mjs",
+    "build:cli": "esbuild packages/cli/src/main.ts --bundle --platform=node --format=esm --tsconfig=tsconfig.base.json --external:manifold-3d --external:@jsquash/webp --banner:js=\"#!/usr/bin/env node\" --outfile=packages/cli/dist/px3d.mjs --metafile=packages/cli/dist/meta.json && tsx scripts/third-party-licenses.ts cli packages/cli/dist/meta.json packages/cli/dist/THIRD_PARTY_LICENSES.txt",
     "dev:cli": "tsx --tsconfig packages/cli/tsconfig.json packages/cli/src/main.ts",
     "dev:web": "vite --config packages/web/vite.config.ts",
     "build:web": "vite build --config packages/web/vite.config.ts",

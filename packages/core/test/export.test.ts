@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { strFromU8, unzipSync } from 'fflate';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { buildModel, decodeImage, DEFAULTS, detectScale, downsampleNearest, filamentColors, to3MF, toGrid, toSTL } from '../src/index';
+import { BAMBU_PRINTERS, buildModel, decodeImage, DEFAULTS, detectScale, parsePreset, presetSettings, settingsSchema, downsampleNearest, filamentColors, to3MF, toGrid, toSTL } from '../src/index';
 import type { Grid, Model, Part, Settings } from '../src/index';
 import { initManifold } from '../src/manifold';
 import { assertManifold } from './util/assertManifold';
@@ -303,6 +303,27 @@ describe('to3MF: Bambu', () => {
   it("pauseZ defaults to the model's", async () => {
     const r = readBambu(await to3MF({ ...main, pauseZ: [1.4] }, { slicer: 'bambu', mono: false, name: 'potion' }));
     expect(kids(kid(parseXml(r.z.text('Metadata/custom_gcode_per_layer.xml')), 'plate'), 'layer')).toHaveLength(1);
+  });
+
+  it('export.printer names the chosen Bambu system preset; the default stays the X1 Carbon', async () => {
+    expect(DEFAULTS.export.printer).toBe('Bambu Lab X1 Carbon');
+    const p1s = readBambu(await to3MF(main, { slicer: 'bambu', mono: false, name: 'potion', printer: 'Bambu Lab P1S' }));
+    expect(p1s.project.printer_model).toBe('Bambu Lab P1S');
+    expect(p1s.project.printer_settings_id).toBe('Bambu Lab P1S 0.4 nozzle');
+    expect(p1s.project.printer_variant).toBe('0.4');
+    const def = readBambu(await to3MF(main, { slicer: 'bambu', mono: false, name: 'potion' }));
+    expect(def.project.printer_model).toBe('Bambu Lab X1 Carbon');
+    expect(def.project.printer_settings_id).toBe('Bambu Lab X1 Carbon 0.4 nozzle');
+    // Orca keeps the default whatever the setting says
+    const orca = readBambu(await to3MF(main, { slicer: 'orca', mono: false, name: 'potion', printer: 'Bambu Lab P1S' }));
+    expect(orca.project.printer_model).toBe('Bambu Lab X1 Carbon');
+  });
+
+  it('export.printer: an old preset without it gets the default; an unknown printer is rejected', () => {
+    expect(presetSettings(parsePreset({ version: 1, settings: { export: { format: '3mf', slicer: 'bambu' } }, colorRules: [] })).export.printer).toBe('Bambu Lab X1 Carbon');
+    expect(presetSettings(parsePreset({ version: 1, settings: { export: { printer: 'Bambu Lab A1 mini' } }, colorRules: [] })).export.printer).toBe('Bambu Lab A1 mini');
+    expect(() => parsePreset({ version: 1, settings: { export: { printer: 'Bambu Lab Z9' } }, colorRules: [] })).toThrow(/settings\.export\.printer/);
+    expect(settingsSchema.shape.export.shape.printer.options).toEqual([...BAMBU_PRINTERS]);
   });
 
   it('Orca gets the Bambu file', async () => {

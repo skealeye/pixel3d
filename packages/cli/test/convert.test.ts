@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { strFromU8, unzipSync } from 'fflate';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { convert, parsePreset, VERSION } from '@pixel3d/core';
 import type { Report } from '@pixel3d/core';
@@ -74,6 +75,15 @@ describe('px3d convert', { timeout: 300_000 }, () => {
     expect(files).toEqual(expect.arrayContaining(['potion_front.stl', 'potion_back.stl']));
     for (const f of direct.files) expect(readFileSync(join(out, f.name)).equals(f.bytes), f.name).toBe(true);
     expect(reportOf(out)[0]!.size.z).toBeCloseTo(direct.report.size.z, 6);
+  }, 120_000);
+
+  it('--set export.printer picks the Bambu printer preset the 3MF names', () => {
+    const out = fresh('printer');
+    const r = run(['convert', fixture('potion.png'), '--set', 'export.printer=Bambu Lab P1S', '--out', out]);
+    expect(r.status).toBe(0);
+    const project = JSON.parse(strFromU8(unzipSync(readFileSync(join(out, 'potion.3mf')))['Metadata/project_settings.config']!)) as Record<string, unknown>;
+    expect(project.printer_settings_id).toBe('Bambu Lab P1S 0.4 nozzle');
+    expect(project.printer_model).toBe('Bambu Lab P1S');
   }, 120_000);
 
   it('--format obj writes the OBJ and its MTL; --format fbx one binary FBX', () => {

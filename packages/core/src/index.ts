@@ -20,8 +20,8 @@ export { pieces, cornerTouches } from './pieces';
 
 export const VERSION: string = pkg.version;
 
-export { DEFAULTS, settingsSchema, heightModeOf } from './settings';
-export type { Settings, Anchor } from './settings';
+export { DEFAULTS, settingsSchema, heightModeOf, BAMBU_PRINTERS } from './settings';
+export type { Settings, Anchor, BambuPrinter } from './settings';
 export { parsePreset, presetSettings, colorRuleEdits, placeRelative, presetFromState, PresetError } from './preset';
 export type { Preset, ColorRule } from './preset';
 export { buildModel, opaqueBox, pixelSize } from './mesh';

@@ -18,7 +18,7 @@ const test = base.extend({
   },
 });
 
-type Settings = Record<string, unknown> & { pixelMm?: unknown; export: { format: string; slicer: string; mono: boolean; monoColor: string } };
+type Settings = Record<string, unknown> & { pixelMm?: unknown; export: { format: string; slicer: string; mono: boolean; monoColor: string; printer: string } };
 interface Snap { settings: Settings; undo: number; edits: unknown[]; grid: { palette: { hex: string; height: number }[] } | null }
 interface View { shown: 'none' | 'preview' | 'model'; materials: number }
 type Hook = { snapshot(): Snap; viewport(): View };
@@ -81,6 +81,27 @@ test.describe('export', () => {
     expect(same(await bytesOf(dl), ref.files[0]!.bytes)).toBe(true);
     expect(same(await bytesOf(dl), flat.files[0]!.bytes)).toBe(false);
     await expect(page.locator('.toast')).toHaveText('Exported potion.3mf, filaments 1 to 8 assigned for Bambu Studio.');
+  });
+
+  test('the Printer select shows only for 3MF + Bambu Studio and sets the printer the 3MF names', async ({ page }) => {
+    await loadPotion(page);
+    await page.locator('#exportBtn').click();
+    await expect(page.locator('#printer')).toHaveValue('Bambu Lab X1 Carbon');
+    await page.locator('#printer').selectOption('Bambu Lab P1S');
+    await expect.poll(async () => (await snap(page)).settings.export.printer).toBe('Bambu Lab P1S');
+    await page.locator('#slicer').selectOption('orca');
+    await expect(page.locator('#printerRow')).toBeHidden();
+    await page.locator('#slicer').selectOption('prusa');
+    await expect(page.locator('#printerRow')).toBeHidden();
+    await page.locator('#slicer').selectOption('bambu');
+    await expect(page.locator('#printer')).toHaveValue('Bambu Lab P1S');
+    await seg(page, 'format', 'stl').click();
+    await expect(page.locator('#printerRow')).toBeHidden();
+    await seg(page, 'format', '3mf').click();
+    await expect(page.locator('#printerRow')).toBeVisible();
+    const project = JSON.parse(strFromU8(unzipSync(await bytesOf(await exportFile(page)))['Metadata/project_settings.config']!)) as Record<string, unknown>;
+    expect(project.printer_settings_id).toBe('Bambu Lab P1S 0.4 nozzle');
+    expect(project.printer_model).toBe('Bambu Lab P1S');
   });
 
   test('two STL files download as a zip, each equal to convert()', async ({ page }) => {

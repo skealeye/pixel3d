@@ -63,7 +63,7 @@ test.describe('keycap clicker', () => {
     await expect(page.locator('#clkSec')).toHaveCount(0);
     await seg(page, 'make', 'clicker').click();
     expect((await settings(page)).make).toBe('clicker');
-    await expect(page.locator('#makeHint')).toHaveText('Your art becomes a key cap that clicks on a mechanical keyboard switch (Cherry MX style). Prints as two parts: the cap and a body that holds the switch.');
+    await expect(page.locator('#makeHint')).toHaveText('Your art becomes a key cap that clicks on a mechanical keyboard switch (MX-compatible). Prints as two parts: the cap and a body that holds the switch.');
     // the Clicker settings show directly below Make
     await expect(page.locator('aside.right section > h2')).toHaveText([/^Make/, /^Clicker/, /^Size/, /^Base/, /^Outline/, /^Keychain/]);
   });

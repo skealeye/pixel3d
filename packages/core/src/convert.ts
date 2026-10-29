@@ -144,7 +144,7 @@ export async function exportModel(model: Model, s: Settings, name: string): Prom
     case 'stl': return toSTL(model, { mono: ex.mono, name });
     case 'obj': return toOBJ(model, { mono: ex.mono, monoHex: ex.monoColor, name });
     case 'fbx': return [{ name: `${name}.fbx`, bytes: toFBX(model, { mono: ex.mono, monoHex: ex.monoColor, name }) }];
-    case '3mf': return [{ name: `${name}.3mf`, bytes: await to3MF(model, { slicer: ex.slicer, mono: ex.mono, monoHex: ex.monoColor, pauseZ: model.pauseZ, name }) }];
+    case '3mf': return [{ name: `${name}.3mf`, bytes: await to3MF(model, { slicer: ex.slicer, mono: ex.mono, monoHex: ex.monoColor, printer: ex.printer, pauseZ: model.pauseZ, name }) }];
   }
 }
 

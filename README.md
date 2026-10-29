@@ -45,3 +45,13 @@ Claude Desktop (`px3d` may not be on PATH, so call the built bundle with node). 
   }
 }
 ```
+
+## License
+
+pixel3d is © 2026 seankealey and licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+
+- Free for any noncommercial use: personal projects, hobby printing, study, schools, charities.
+- Selling the app or its code, or using them in a commercial product, isn't allowed.
+- The models you make with pixel3d are yours.
+
+The open-source libraries pixel3d includes keep their own licenses; see [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt) (also linked as Credits in the app footer).

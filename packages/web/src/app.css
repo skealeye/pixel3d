@@ -148,6 +148,8 @@ footer {
 }
 footer .ok { color: #8fc68a; }
 footer .bad { color: var(--danger); }
+footer a { color: inherit; text-decoration: none; }
+footer a:hover { color: var(--gold); text-decoration: underline; }
 .toast {
   position: fixed; bottom: 46px; left: 50%; transform: translate(-50%, 12px); opacity: 0;
   background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-s); padding: 8px 14px;

@@ -15,5 +15,8 @@
     <span id="fcount">{filaments === 1 ? '1 filament' : `${filaments} filaments`}</span>
   {/if}
   <span class="spacer"></span>
+  <a id="madeBy" href="https://ko-fi.com/seankealey" target="_blank" rel="noopener noreferrer" title="© 2026 seankealey">Made by seankealey</a>
+  <!-- the open-source libraries in the bundle and their licenses, generated at build (scripts/third-party-licenses.ts) -->
+  <a id="credits" href="THIRD_PARTY_LICENSES.txt" target="_blank" rel="noopener noreferrer" title="Open-source libraries pixel3d uses, and their licenses">Credits</a>
   <span>v{VERSION}</span>
 </footer>

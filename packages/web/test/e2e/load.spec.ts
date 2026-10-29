@@ -498,6 +498,26 @@ test.describe('layout', () => {
     await expect(page.locator('footer')).toContainText(`v${pkg.version}`);
   });
 
+  test('the footer credits the author and links the third-party notices, which are served', async ({ page }) => {
+    await open(page);
+    const made = page.locator('footer #madeBy');
+    await expect(made).toHaveText('Made by seankealey');
+    await expect(made).toHaveAttribute('href', 'https://ko-fi.com/seankealey');
+    await expect(made).toHaveAttribute('target', '_blank');
+    await expect(made).toHaveAttribute('rel', 'noopener noreferrer');
+    await expect(made).toHaveAttribute('title', '© 2026 seankealey');
+    const credits = page.locator('footer #credits');
+    await expect(credits).toHaveText('Credits');
+    await expect(credits).toHaveAttribute('target', '_blank');
+    const res = await page.request.get(new URL((await credits.getAttribute('href'))!, page.url()).href);
+    expect(res.ok()).toBe(true);
+    expect(res.headers()['content-type']).toMatch(/^text\/plain/);
+    const text = await res.text();
+    expect(text).toContain('manifold-3d');
+    expect(text).toContain('Apache License');
+    expect(text).toContain('Copyright 2026 seankealey');
+  });
+
   test('960 px and below stacks the panels', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 800 });
     await open(page);
