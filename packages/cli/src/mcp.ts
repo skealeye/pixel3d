@@ -27,7 +27,7 @@ const presetShape = {
   preset: z.record(z.string(), z.unknown()).optional().describe('Inline preset object: {version: 1, settings: {...}, colorRules: [...]}. settings and colorRules may be left out (defaults). Give this or presetPath, not both.'),
   presetPath: z.string().optional().describe('Path to a preset JSON file. Give this or preset, not both.'),
   out: z.string().describe('Output folder for the models and report.json. Created if missing.'),
-  format: z.enum(['stl', '3mf']).optional().describe('Overrides the preset export format.'),
+  format: z.enum(['stl', '3mf', 'obj', 'fbx']).optional().describe('Overrides the preset export format: stl, 3mf, obj (with its .mtl) or fbx.'),
 };
 
 const statOf = (p: string) => {
@@ -56,7 +56,7 @@ export function createMcpServer(): McpServer {
   server.registerTool(
     'convert_image',
     {
-      description: 'Convert one pixel-art image (.png .jpg .jpeg .gif .webp) to a 3D-print model (3MF or STL) written into the out folder. Returns the conversion report.',
+      description: 'Convert one pixel-art image (.png .jpg .jpeg .gif .webp) to a 3D-print model (3MF, STL, OBJ or FBX) written into the out folder. Returns the conversion report.',
       inputSchema: { path: z.string().describe('Path to the image.'), ...presetShape },
     },
     async (a) => guarded(async () => {

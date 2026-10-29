@@ -6,7 +6,7 @@ import { zipSync } from 'fflate';
 import { Hono } from 'hono';
 import type { Context, MiddlewareHandler } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { convert, parsePreset, PresetError, VERSION } from '@pixel3d/core';
+import { convert, mimeOf, parsePreset, PresetError, VERSION } from '@pixel3d/core';
 import type { Preset, Report } from '@pixel3d/core';
 import openapi from '../openapi.json';
 import { failed, outputKey } from './convertCmd';
@@ -193,7 +193,7 @@ export function createApp(opts: AppOptions = {}): Hono {
     if (files.length === 1) {
       const f = files[0]!;
       return c.body(asBody(f.bytes), 200, {
-        'Content-Type': f.name.endsWith('.stl') ? 'model/stl' : 'model/3mf',
+        'Content-Type': mimeOf(f.name),
         'Content-Disposition': attachment(f.name),
         ...reportHeaders(report),
       });

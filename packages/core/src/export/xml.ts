@@ -20,7 +20,7 @@ export const REL_3DMODEL = 'http://schemas.microsoft.com/3dmanufacturing/2013/01
 
 export const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 /** A coordinate, mm, to the micron. */
-const num = (v: number) => String(Math.round(v * 1e6) / 1e6 + 0);
+export const num = (v: number) => String(Math.round(v * 1e6) / 1e6 + 0);
 /** A 3MF row-major 3x4 transform that only translates. */
 export const translate = ([x, y, z]: readonly number[]) => `1 0 0 0 1 0 0 0 1 ${num(x!)} ${num(y!)} ${num(z!)}`;
 export const IDENTITY = translate([0, 0, 0]);

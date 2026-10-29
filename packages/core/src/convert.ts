@@ -12,6 +12,8 @@ import { type Settings, DEFAULTS, heightModeOf } from './settings';
 import { type Model, buildModel } from './mesh';
 import { toSTL } from './export/stl';
 import { to3MF } from './export/threemf';
+import { toOBJ } from './export/obj';
+import { toFBX } from './export/fbx';
 
 export interface Report {
   /** The sanitized name the files are named after. */
@@ -128,15 +130,22 @@ async function toReducedGrid(bytes: Uint8Array, s: Settings): Promise<{ grid: Gr
   return { grid: reducePalette(toGrid(art, EXACT_COLORS), s.colors.max), warnings };
 }
 
+const MIME: Record<string, string> = { stl: 'model/stl', '3mf': 'model/3mf', obj: 'model/obj', mtl: 'model/mtl', fbx: 'application/octet-stream' };
+/** The media type of an exported file, by its extension. */
+export const mimeOf = (fileName: string) => MIME[fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase()] ?? 'application/octet-stream';
+
 /**
  * The export step of `convert`: the model as files for `s.export`, named after `name` (used as given; pass it through
  * `safeName` first). The web app's Export calls this on its own grid, so its bytes equal a batch run's. Deterministic.
  */
 export async function exportModel(model: Model, s: Settings, name: string): Promise<{ name: string; bytes: Uint8Array }[]> {
   const ex = s.export;
-  return ex.format === 'stl'
-    ? toSTL(model, { mono: ex.mono, name })
-    : [{ name: `${name}.3mf`, bytes: await to3MF(model, { slicer: ex.slicer, mono: ex.mono, monoHex: ex.monoColor, pauseZ: model.pauseZ, name }) }];
+  switch (ex.format) {
+    case 'stl': return toSTL(model, { mono: ex.mono, name });
+    case 'obj': return toOBJ(model, { mono: ex.mono, monoHex: ex.monoColor, name });
+    case 'fbx': return [{ name: `${name}.fbx`, bytes: toFBX(model, { mono: ex.mono, monoHex: ex.monoColor, name }) }];
+    case '3mf': return [{ name: `${name}.3mf`, bytes: await to3MF(model, { slicer: ex.slicer, mono: ex.mono, monoHex: ex.monoColor, pauseZ: model.pauseZ, name }) }];
+  }
 }
 
 /**

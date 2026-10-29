@@ -45,7 +45,7 @@
 
   let busy = $state(false);
 
-  /** The fit-test coupons (core `fitTest`) in the Export format (a 3MF, or a zip of STLs), built in the export worker. */
+  /** The fit-test coupons (core `fitTest`) in the Export format (a 3MF or FBX, or a zip of STLs or of the OBJ and MTL), built in the export worker. */
   async function downloadFitTest() {
     if (busy) return;
     busy = true;

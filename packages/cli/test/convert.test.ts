@@ -75,6 +75,16 @@ describe('px3d convert', () => {
     expect(reportOf(out)[0]!.size.z).toBeCloseTo(direct.report.size.z, 6);
   }, 120_000);
 
+  it('--format obj writes the OBJ and its MTL; --format fbx one binary FBX', () => {
+    const out = fresh('mesh');
+    expect(run(['convert', fixture('potion.png'), '--format', 'obj', '--out', out]).status).toBe(0);
+    expect(reportOf(out)[0]!.files).toEqual(['potion.obj', 'potion.mtl']);
+    expect(readFileSync(join(out, 'potion.obj'), 'utf8')).toMatch(/^# pixel3d OBJ, mm, Z up\nmtllib potion\.mtl\n/);
+    const out2 = fresh('fbx');
+    expect(run(['convert', fixture('potion.png'), '--format', 'fbx', '--out', out2]).status).toBe(0);
+    expect(readFileSync(join(out2, 'potion.fbx')).subarray(0, 18).toString()).toBe('Kaydara FBX Binary');
+  }, 120_000);
+
   it('accepts globs (including Windows backslash patterns) and files together, sorted', () => {
     const inDir = fresh('in');
     copyFileSync(fixture('potion.png'), join(inDir, 'b.png'));
@@ -174,7 +184,9 @@ describe('px3d convert', () => {
 
     it('bad format, missing out, no inputs, missing file, unknown command', () => {
       const out = join(fresh('o'), 'out');
-      expect(run(['convert', fixture('potion.png'), '--format', 'obj', '--out', out]).status).toBe(2);
+      const bad = run(['convert', fixture('potion.png'), '--format', 'gltf', '--out', out]);
+      expect(bad.status).toBe(2);
+      expect(bad.stderr).toMatch(/stl, 3mf, obj or fbx/);
       expect(run(['convert', fixture('potion.png')]).stderr).toMatch(/--out/);
       expect(run(['convert', '--out', out]).status).toBe(2);
       const missing = run(['convert', join(tmp, 'nope.png'), '--out', out]);

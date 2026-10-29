@@ -2,21 +2,25 @@ import { existsSync, statSync } from 'node:fs';
 import { glob, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { convert, emptyReport, parsePreset, PresetError, safeName } from '@pixel3d/core';
+import { convert, emptyReport, parsePreset, PresetError, safeName, settingsSchema } from '@pixel3d/core';
 import type { Preset, Report } from '@pixel3d/core';
 import { CONVERT_OPTIONS, setPath } from './args';
 import { emptyPresetDoc, parsePresetJson, PresetJsonError } from './presetLoad';
 
 /** `px3d convert --help`. */
-export const CONVERT_USAGE = `Usage: px3d convert <files|globs|dirs...> --out|-o <dir> [--preset p.json] [--format stl|3mf] [--set key=value ...]
+export const CONVERT_USAGE = `Usage: px3d convert <files|globs|dirs...> --out|-o <dir> [--preset p.json] [--format stl|3mf|obj|fbx] [--set key=value ...]
 
 Convert images (.png .jpg .jpeg .gif .webp) to models. Writes the models and report.json into <dir>.
   --out, -o <dir>     Output folder (created if missing).
   --preset <file>     A preset JSON file saved from the app (default: the app's defaults).
-  --format stl|3mf    Overrides the preset's export format.
+  --format <f>        Overrides the preset's export format: stl, 3mf, obj or fbx.
   --set key=value     Sets a settings value by dotted path, e.g. --set base.height=3 (JSON values allowed). Repeatable.
   --help, -h          Shows this help.
 Exit code: 0 all converted, 1 some image failed, 2 usage or preset error.`;
+
+/** Export formats, as the settings schema lists them. */
+export const FORMATS = settingsSchema.shape.export.shape.format.options;
+export type Format = (typeof FORMATS)[number];
 
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp']);
 
@@ -116,7 +120,7 @@ export interface ConvertRequest {
   presetPath?: string;
   preset?: unknown;
   out: string;
-  format?: 'stl' | '3mf';
+  format?: Format;
   /** `key=value` settings overrides by dotted path. */
   sets?: string[];
 }
@@ -204,10 +208,10 @@ export async function convertCmd(argv: string[]): Promise<number> {
     }
     const { preset: presetFile, out, format } = parsed.values;
     if (!out) throw new UsageError('Missing --out <dir> (or -o <dir>).');
-    if (format !== undefined && format !== 'stl' && format !== '3mf') throw new UsageError(`--format must be stl or 3mf, not "${format}".`);
+    if (format !== undefined && !FORMATS.includes(format as Format)) throw new UsageError(`--format must be stl, 3mf, obj or fbx, not "${format}".`);
     if (!parsed.positionals.length) throw new UsageError('Give at least one image, glob or folder to convert.');
 
-    const { failures } = await runConvert({ inputs: parsed.positionals, presetPath: presetFile, out, format: format as 'stl' | '3mf' | undefined, sets: parsed.values.set ?? [] });
+    const { failures } = await runConvert({ inputs: parsed.positionals, presetPath: presetFile, out, format: format as Format | undefined, sets: parsed.values.set ?? [] });
     return failures ? 1 : 0;
   } catch (e) {
     if (e instanceof UsageError) {

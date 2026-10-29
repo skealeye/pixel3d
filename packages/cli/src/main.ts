@@ -6,7 +6,7 @@ import { serveCmd } from './serve';
 export const USAGE = `px3d ${VERSION}: convert pixel art to 3D-print files
 
 Usage:
-  px3d convert <files|globs|dirs...> --out|-o <dir> [--preset p.json] [--format stl|3mf] [--set key=value ...]
+  px3d convert <files|globs|dirs...> --out|-o <dir> [--preset p.json] [--format stl|3mf|obj|fbx] [--set key=value ...]
       Convert images (.png .jpg .jpeg .gif .webp) to models. Writes the models and report.json into <dir>.
       --set sets a settings value by dotted path, e.g. --set base.height=3 (JSON values allowed).
       Exit code: 0 all converted, 1 some image failed, 2 usage or preset error.

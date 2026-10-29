@@ -100,6 +100,33 @@ test.describe('export', () => {
     for (const f of ref.files) expect(same(files[f.name]!, f.bytes)).toBe(true);
   });
 
+  test('OBJ downloads a zip of the OBJ and its MTL; FBX one binary FBX; both equal to convert()', async ({ page }) => {
+    await loadPotion(page);
+    await page.locator('#exportBtn').click();
+    await seg(page, 'format', 'obj').click();
+    await expect(page.locator('#slicerRow')).toBeHidden();
+    await expect(page.locator('#summary')).toContainText('potion.obj and potion.mtl, 8 colors, ');
+    const dl = await exportFile(page);
+    expect(dl.suggestedFilename()).toBe('potion.zip');
+    await expect(page.locator('.toast')).toHaveText('Exported potion.obj and potion.mtl.');
+    const files = unzipSync(await bytesOf(dl));
+    expect(Object.keys(files)).toEqual(['potion.obj', 'potion.mtl']);
+    expect(strFromU8(files['potion.obj']!)).toMatch(/^# pixel3d OBJ, mm, Z up\nmtllib potion\.mtl\n/);
+    expect(strFromU8(files['potion.mtl']!)).toContain('newmtl color_8');
+    const obj = await convert(new Uint8Array(fixture('potion.png')), parsePreset(JSON.parse(await savePreset(page))), 'potion');
+    for (const f of obj.files) expect(same(files[f.name]!, f.bytes)).toBe(true);
+
+    await page.locator('#exportBtn').click();
+    await seg(page, 'format', 'fbx').click();
+    await expect(page.locator('#summary')).toContainText('potion.fbx, 8 colors, ');
+    const fbx = await exportFile(page);
+    expect(fbx.suggestedFilename()).toBe('potion.fbx');
+    const bytes = await bytesOf(fbx);
+    expect(strFromU8(bytes.subarray(0, 18))).toBe('Kaydara FBX Binary');
+    const ref = await convert(new Uint8Array(fixture('potion.png')), parsePreset(JSON.parse(await savePreset(page))), 'potion');
+    expect(same(bytes, ref.files[0]!.bytes)).toBe(true);
+  });
+
   test('a clicker exports cap and body: one 3MF with two objects, or two STLs', async ({ page }) => {
     test.setTimeout(60_000); // three clicker builds: the view's, and one per export
     await loadPotion(page);

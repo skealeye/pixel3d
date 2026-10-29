@@ -1,4 +1,5 @@
 import { zipSync } from 'fflate';
+import { mimeOf } from '@pixel3d/core';
 import type { ExportJob, ExportReply, ExportRequest, OutFile } from './export.worker';
 
 /** Same as core's 3MF: a fixed time, so a zip of the same files is the same bytes. */
@@ -58,11 +59,11 @@ export function download(name: string, bytes: Uint8Array | string, type: string)
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/** One file as itself; several (halves, a clicker's cap and body, the fit test) as one zip named `zipName`. */
+/** One file as itself; several (halves, a clicker's cap and body, the fit test, an OBJ and its MTL) as one zip named `zipName`. */
 export function downloadFiles(files: OutFile[], zipName: string) {
   if (files.length === 1) {
     const f = files[0]!;
-    download(f.name, f.bytes, f.name.endsWith('.3mf') ? 'model/3mf' : 'model/stl');
+    download(f.name, f.bytes, mimeOf(f.name));
     return;
   }
   download(zipName, zipSync(Object.fromEntries(files.map((f) => [f.name, f.bytes])), { level: 6, mtime: MTIME }), 'application/zip');

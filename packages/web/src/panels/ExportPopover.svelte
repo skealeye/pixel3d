@@ -9,6 +9,7 @@
   /** The Export panel (mockup v0.1.9): All colors / One color, format, slicer, file name and a summary line (spec §4.8). */
   const ex = $derived(app.settings.export);
   const open = $derived(ui.popover === 'export');
+  const FORMATS: [Settings['export']['format'], string][] = [['3mf', '3MF'], ['stl', 'STL'], ['obj', 'OBJ'], ['fbx', 'FBX']];
   const SLICERS: [Slicer, string][] = [['bambu', 'Bambu Studio'], ['orca', 'OrcaSlicer'], ['prusa', 'PrusaSlicer'], ['generic', 'Other']];
   const slicerLabel = $derived(SLICERS.find(([v]) => v === ex.slicer)![1]);
   const monoColor = colorInput((hex) => (app.settings.export.monoColor = hex));
@@ -23,14 +24,17 @@
   });
 
   const name = $derived(safeName(ui.exportName || 'model'));
-  /** Two printed objects come out as two STL files: halves (front, back) and a clicker (cap, body). */
+  /** Two printed objects come out as two STL files: halves (front, back) and a clicker (cap, body). An OBJ brings its MTL. */
   const fileNames = $derived.by(() => {
     const two = app.settings.make === 'clicker' ? ['cap', 'body'] : app.settings.sides.mode === 'halves' ? ['front', 'back'] : null;
+    if (ex.format === 'obj') return `${name}.obj and ${name}.mtl`;
     return ex.format === 'stl' && two ? `${name}_${two[0]}.stl and ${name}_${two[1]}.stl` : `${name}.${ex.format}`;
   });
   /** Distinct filaments, as the 3MF assigns them (R25). */
   const filaments = $derived(app.grid ? filamentColors(app.grid, app.settings).length : 0);
-  const summary = $derived(`${fileNames}, ${filaments === 1 ? 'one filament' : `${filaments} filaments`}, ${ui.dims}`);
+  /** A mesh file (OBJ, FBX) carries colors, not filaments. */
+  const unit = $derived(ex.format === 'obj' || ex.format === 'fbx' ? ['one color', 'colors'] : ['one filament', 'filaments']);
+  const summary = $derived(`${fileNames}, ${filaments === 1 ? unit[0] : `${filaments} ${unit[1]}`}, ${ui.dims}`);
 
   function toggle(e: MouseEvent) {
     e.stopPropagation();
@@ -77,8 +81,9 @@
       <div class="row" id="monoRow"><label for="monoColor">Print color</label><input type="color" id="monoColor" value={ex.monoColor} {...monoColor}></div>
     {/if}
     <div class="seg" data-key="format">
-      <button data-v="3mf" class:on={ex.format === '3mf'} onclick={() => ex.format !== '3mf' && set(() => (app.settings.export.format = '3mf'))}>3MF</button>
-      <button data-v="stl" class:on={ex.format === 'stl'} onclick={() => ex.format !== 'stl' && set(() => (app.settings.export.format = 'stl'))}>STL</button>
+      {#each FORMATS as [v, label] (v)}
+        <button data-v={v} class:on={ex.format === v} onclick={() => ex.format !== v && set(() => (app.settings.export.format = v))}>{label}</button>
+      {/each}
     </div>
     {#if ex.format === '3mf'}
       <div class="row" id="slicerRow"><label for="slicer">Slicer</label>

@@ -182,7 +182,7 @@ A fidget clicker in the style of the Vostok Labs Clicker Generator (user's refer
 - **Single color (new):** an export choice of All colors or One color, with a color picker.
   - One color keeps all the height steps but exports the model as one body.
   - The preview shows it in the chosen color.
-  - It applies to both STL and 3MF.
+  - It applies to every format (STL, 3MF, OBJ, FBX).
 - **STL:** single color, binary.
 - **3MF:** multi-color, built as **one object made of parts**, one part per color plus the base, so the slicer keeps it together as a single model. Color layers are **merged flush with the base**, with no 0.02 mm gap that depends on the slicer to close it.
   - **Bambu Studio (primary, tested by the user):** write `Metadata/model_settings.config` so each part opens already assigned to filament slot 1..N, in palette order, with the filament colors set. Opening the file should need no manual filament assignment.
@@ -191,6 +191,8 @@ A fidget clicker in the style of the Vostok Labs Clicker Generator (user's refer
   - **Other slicers:** standard 3MF color data as a fallback.
   - A base or loop whose color equals an art color shares its filament slot (R25).
   - Export has a slicer target setting (default Bambu Studio). Only Bambu Studio is checked by hand; the others are done as well as possible from their published formats.
+- **OBJ (new):** `name.obj` plus `name.mtl` (downloaded together as a zip): one `o` per printed object, one `g` + `usemtl` per part, parts kept apart so their colors survive, one material per color (`Kd` in sRGB 0–1). mm, Z up, model coordinates unchanged. One color: every part on one material in the print color.
+- **FBX (new):** one binary FBX 7.4 file (not ASCII, which Blender refuses): one Mesh model per part (`name_1`, `name_front_1`, …) with its own geometry, one material per color. GlobalSettings declare Z up and UnitScaleFactor 0.1 (cm per unit), so units are mm. One color: one material.
 - **Rotate (new):** an export orientation setting.
   - Rotate in 90° steps about X, Y and Z, with shortcuts for "flat" and "on edge".
   - The model is always placed so its lowest point sits on the bed (Z=0), and the preview shows the result.
@@ -241,7 +243,7 @@ A fidget clicker in the style of the Vostok Labs Clicker Generator (user's refer
 
 All three interfaces call the same core function: `convert(image, preset) → { files, report }`.
 
-- **CLI:** `px3d convert <files|globs|dir> --preset p.json --out dir [--format stl|3mf] [--overrides ...]`.
+- **CLI:** `px3d convert <files|globs|dir> --preset p.json --out dir [--format stl|3mf|obj|fbx] [--overrides ...]`.
   - Writes one file per image, or two for `halves`.
   - Writes a `report.json` listing, per image: the palette found, the rules applied, the final heights, the output paths and any error.
   - One bad image doesn't stop the batch. The exit code is non-zero if any image failed.

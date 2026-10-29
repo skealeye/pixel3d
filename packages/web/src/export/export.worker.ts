@@ -4,7 +4,7 @@ import { buildModel, exportModel, fitTest, type Grid, type Settings } from '@pix
 /**
  * `model`: the grid built fresh with the real settings (rotation included) and written as core `convert` writes it.
  * `fitTest`: the clicker fit-test coupons in one color, written in the Export format: a 3MF (one object per coupon, the
- * slicer's 0.4 mm nozzle profile for Bambu) or one STL each.
+ * slicer's 0.4 mm nozzle profile for Bambu), one STL each, an OBJ and its MTL, or an FBX.
  */
 export type ExportJob = { kind: 'model'; grid: Grid; settings: Settings; name: string } | { kind: 'fitTest'; settings: Settings };
 /** `fail` makes this job throw (the e2e test hook's `failNextExport`). */

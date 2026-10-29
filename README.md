@@ -1,6 +1,6 @@
 # pixel3d
 
-Turns pixel art into 3D-print models (3MF or STL): one raised block per pixel, optional base, keychain loop or hole, and magnet pockets. Colors become separate parts so a multi-color printer can print them.
+Turns pixel art into 3D-print models (3MF or STL, plus OBJ and FBX for other 3D tools): one raised block per pixel, optional base, keychain loop or hole, and magnet pockets. Colors become separate parts so a multi-color printer can print them.
 
 ## Run the app on this PC
 
@@ -16,7 +16,7 @@ powershell -ExecutionPolicy Bypass -File scripts/make-shortcut.ps1
 Build the CLI once with `npm install && npm run build:cli` (output: `packages/cli/dist/px3d.mjs`).
 
 ```
-px3d convert <files|globs|dirs...> --out|-o <dir> [--preset p.json] [--format stl|3mf] [--set key=value ...]
+px3d convert <files|globs|dirs...> --out|-o <dir> [--preset p.json] [--format stl|3mf|obj|fbx] [--set key=value ...]
 px3d serve [--port 7300] [--host 127.0.0.1] [--debug]   # HTTP API for scripts
 px3d mcp                                                 # MCP server for Claude, over stdio
 px3d --version

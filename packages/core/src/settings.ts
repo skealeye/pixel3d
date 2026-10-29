@@ -76,7 +76,7 @@ export const settingsSchema = z.object({
   /** Export orientation in quarter turns about X, Y, Z. */
   rotation: z.tuple([quarter, quarter, quarter]),
   export: z.object({
-    format: z.enum(['stl', '3mf']),
+    format: z.enum(['stl', '3mf', 'obj', 'fbx']),
     slicer: z.enum(['bambu', 'orca', 'prusa', 'generic']),
     /** Export as one color (all height steps kept). */
     mono: z.boolean(),
