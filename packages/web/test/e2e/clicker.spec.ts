@@ -20,7 +20,7 @@ type Box = { min: Vec3; max: Vec3 };
 interface Clicker { view: 'assembled' | 'apart'; at: number; rest: number; cap: Box; body: Box; ghosts: number }
 interface Settings {
   make: 'model' | 'clicker';
-  clicker: { shape: string; border: number; capHeight: number; fitGap: number; switches: number; loopAt: string; bodyColor: string | null };
+  clicker: { shape: string; offsets: [number, number][]; border: number; capHeight: number; fitGap: number; switches: number; loopAt: string; bodyColor: string | null };
   keychain: { loop: { thickness: number } };
   rotation: [number, number, number];
 }
@@ -151,7 +151,7 @@ test.describe('keycap clicker', () => {
     await page.locator('#clkBorder').fill('20');
     await page.locator('#clkBorder').press('Enter');
     const s = await snap(page);
-    expect(s.settings.clicker).toEqual({ shape: 'circle', border: 10, capHeight: 2, fitGap: 0.8, switches: 2, backing: 'base', loopAt: 'bottom', bodyColor: null });
+    expect(s.settings.clicker).toEqual({ shape: 'circle', border: 10, capHeight: 2, fitGap: 0.8, switches: 2, offsets: [], backing: 'base', loopAt: 'bottom', bodyColor: null });
     expect(s.undo).toBe(u0 + 5);
     await expect(page.locator('#clkHint')).toContainText('Needs 2 MX-style switches. Press each switch into the body from above until it sits on the step, then push the cap on.');
     await expect(page.locator('#clkHint')).toContainText('even with Base off');
@@ -290,5 +290,22 @@ test.describe('keycap clicker', () => {
     const files = unzipSync(new Uint8Array(readFileSync(await dl.path())));
     expect(Object.keys(files).sort()).toEqual(['fit_test_socket_+0.00.stl', 'fit_test_socket_+0.10.stl', 'fit_test_socket_-0.10.stl', 'fit_test_stem.stl']);
     for (const f of Object.values(files)) expect(new DataView(f.buffer, f.byteOffset).getUint32(80, true)).toBeGreaterThan(12);
+  });
+
+  test('each switch has X and Y sliders that move it; Reset puts it back to automatic', async ({ page }) => {
+    await loadClicker(page);
+    await expect(page.locator('#clkX0')).toHaveValue('0.0');
+    await expect(page.locator('#clkSpotReset')).toBeDisabled();
+    await page.locator('#clkX0').fill('4');
+    await page.locator('#clkX0').press('Enter');
+    await page.locator('#clkY0').fill('-3');
+    await page.locator('#clkY0').press('Enter');
+    await expect.poll(async () => (await settings(page)).clicker.offsets).toEqual([[4, -3]]);
+    await expect(page.locator('#clkSpotReset')).toBeEnabled();
+    await seg(page, 'clkSwitches', '2').click();
+    await expect(page.locator('#clkX1')).toHaveCount(1);
+    await expect(page.locator('#clkX2')).toHaveCount(0);
+    await page.locator('#clkSpotReset').click();
+    await expect.poll(async () => (await settings(page)).clicker.offsets).toEqual([]);
   });
 });

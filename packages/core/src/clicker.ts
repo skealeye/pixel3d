@@ -89,12 +89,13 @@ export function clickerLevels(s: Settings, capT: number = capThickness(s)) {
   return { shaftBottom, seat, columnTop, stemTop, capUnder, wellFloor, rimTop };
 }
 
-/** Switch centers in the art's mm frame: one in the middle, or 2-3 at keyboard pitch along the long side. */
-function switchSpots(w: number, h: number, n: number): [number, number][] {
+/** Switch centers in the art's mm frame: one in the middle, or 2-3 at keyboard pitch along the long side, each moved by its offset. */
+export function switchSpots(w: number, h: number, n: number, offsets: readonly (readonly [number, number])[] = []): [number, number][] {
   const long = w >= h;
   return Array.from({ length: n }, (_, i) => {
     const o = (i - (n - 1) / 2) * MX.pitch;
-    return long ? [w / 2 + o, h / 2] : [w / 2, h / 2 + o];
+    const [dx, dy] = offsets[i] ?? [0, 0];
+    return long ? [w / 2 + o + dx, h / 2 + dy] : [w / 2 + dx, h / 2 + o + dy];
   });
 }
 
@@ -224,7 +225,7 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
     const ringOuter = s.outline.on ? grow(filled, s.outline.width, s.smooth, r, keep) : null;
     const capShape = bridge(wasm, ringOuter ?? (s.smooth ? grow(filled, r, true, r, keep) : filled), keep).cs;
     const ring = ringOuter ? keep(ringOuter.subtract(filled)) : null;
-    const spots = switchSpots(W, H, c.switches);
+    const spots = switchSpots(W, H, c.switches, c.offsets);
     const coverAt = (x: number, y: number) => keep(keep(CrossSection.square([MIN_ART, MIN_ART], true)).translate([x, y]));
     const uncovered = spots.filter(([x, y]) => keep(coverAt(x, y).subtract(capShape)).area() > 1e-3).length;
     /** `cs` grown by `d`: round when smoothing, else mitered (which keeps the pixel corners and always clears `d`). */
@@ -288,8 +289,8 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
     // leave a thin fin between them, so join them with a straight slot
     for (let i = 1; i < spots.length; i++) {
       const [x0, y0] = spots[i - 1]!, [x1, y1] = spots[i]!;
-      const along = Math.hypot(x1 - x0, y1 - y0), alongX = Math.abs(x1 - x0) >= Math.abs(y1 - y0);
-      const slot = (across: number, za: number, zb: number) => keep(keep(Manifold.cube(alongX ? [along, across, zb - za] : [across, along, zb - za], true))
+      const along = Math.hypot(x1 - x0, y1 - y0), deg = Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI;
+      const slot = (across: number, za: number, zb: number) => keep(keep(keep(Manifold.cube([along, across, zb - za], true)).rotate([0, 0, deg]))
         .translate([(x0 + x1) / 2, (y0 + y1) / 2, (za + zb) / 2]));
       cuts.push(slot(MX.column, L.seat, L.columnTop + 0.01), slot(MX.leadIn, L.columnTop, L.wellFloor + 0.01));
     }
@@ -314,13 +315,17 @@ export async function buildClicker(g: Grid, s: Settings): Promise<Model> {
     // faces, as the art-color backing's do, don't merge in it.)
     const counts = { cap: regionCount(capShape), body: regionCount(foot) };
     const warnings = warningsOf(W, H, c.switches, uncovered);
+    for (let i = 1; i < spots.length; i++) {
+      const d = Math.hypot(spots[i]![0] - spots[i - 1]![0], spots[i]![1] - spots[i - 1]![1]);
+      if (d < MX.pitch - 0.01) warnings.push(`Switches ${i} and ${i + 1} are ${d.toFixed(1)} mm apart. Keep them at least ${MX.pitch} mm apart so their housings don't collide.`);
+    }
     if (counts.cap > 1) warnings.push(`The cap is in ${counts.cap} pieces. Move the islands closer together or join them.`);
     if (counts.body > 1) warnings.push(`The body is in ${counts.body} pieces. Move the islands closer together or join them, or pick Circle or Square for the body shape.`);
     const model = toModel(
       [{ object: 'cap', solids: capSolids }, { object: 'body', solids: [{ name: 'base', hex: c.bodyColor ?? s.base.color, m: body }] }],
       Math.max(counts.cap, counts.body),
       warnings,
-      { capShift: [-dx, 0], restZ: L.capUnder, pressedZ: L.capUnder - MX.travel, rimZ: L.rimTop },
+      { capShift: [-dx, 0], restZ: L.capUnder, pressedZ: L.capUnder - MX.travel, rimZ: L.rimTop, spots },
     );
     return { ...model, pieceCounts: counts };
   } finally {

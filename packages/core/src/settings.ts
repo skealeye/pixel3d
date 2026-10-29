@@ -105,6 +105,8 @@ export const settingsSchema = z.object({
     /** Clearance between the cap and the well wall (per user reference, R22). */
     fitGap: mm(0.2, 1.5),
     switches: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+    /** Per switch, a nudge from its automatic spot, mm (X right, Y up). Missing entries are 0. */
+    offsets: z.array(z.tuple([mm(-20, 20), mm(-20, 20)])).max(3),
     /** The cap's backing: the base color, or each art pixel's color running the full depth of the cap. */
     backing: z.enum(['base', 'art']),
     /** Where a keychain loop joins the body's side: at the bed, or halfway up the body. */
@@ -137,7 +139,7 @@ export const DEFAULTS: Settings = {
   rotation: [0, 0, 0],
   export: { format: '3mf', slicer: 'bambu', mono: false, monoColor: '#e8e4d8', printer: 'Bambu Lab X1 Carbon' },
   make: 'model',
-  clicker: { shape: 'outline', border: 3, capHeight: 2, fitGap: 0.5, switches: 1, backing: 'base', loopAt: 'bottom', bodyColor: null },
+  clicker: { shape: 'outline', border: 3, capHeight: 2, fitGap: 0.5, switches: 1, offsets: [], backing: 'base', loopAt: 'bottom', bodyColor: null },
 };
 
 /** The `HeightMode` that `applyHeightMode` expects, from the settings. */

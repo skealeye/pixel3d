@@ -23,6 +23,14 @@
   const setBody = (hex: string | null) => c.bodyColor !== hex && setting(() => (c.bodyColor = hex));
   const fitGap = live(() => c.fitGap, (v) => (c.fitGap = Math.round(v * 100) / 100));
 
+  /** One switch's nudge from its automatic spot (axis 0 = X, 1 = Y), mm. */
+  const nudge = (i: number, axis: 0 | 1) => live(() => c.offsets[i]?.[axis] ?? 0, (v) => {
+    while (c.offsets.length <= i) c.offsets.push([0, 0]);
+    c.offsets[i]![axis] = Math.round(v * 2) / 2;
+  });
+  const nudges = [0, 1, 2].map((i) => [nudge(i, 0), nudge(i, 1)] as const);
+  const moved = $derived(c.offsets.some((o) => o[0] !== 0 || o[1] !== 0));
+
   /** The cap's thinnest backing: the pocket plus its roof, kept even with Base off (core `capThickness`). */
   const minBacking = Math.round((MX.engage + CAP_ROOF) * 100) / 100;
 
@@ -124,6 +132,13 @@
           <button data-v={n} class:on={c.switches === n} onclick={() => c.switches !== n && setting(() => (c.switches = n))}>{n}</button>
         {/each}
       </div>
+      <div class="row"><span class="lbl">Switch position</span></div>
+      {#each nudges.slice(0, c.switches) as [nx, ny], i (i)}
+        <Slider id={`clkX${i}`} label={c.switches > 1 ? `Switch ${i + 1} X` : 'X'} min={-20} max={20} step={0.5} value={c.offsets[i]?.[0] ?? 0} unit="mm" format={f1} {...nx} />
+        <Slider id={`clkY${i}`} label={c.switches > 1 ? `Switch ${i + 1} Y` : 'Y'} min={-20} max={20} step={0.5} value={c.offsets[i]?.[1] ?? 0} unit="mm" format={f1} {...ny} />
+      {/each}
+      <div class="row"><button class="btn" id="clkSpotReset" disabled={!moved} onclick={() => setting(() => (c.offsets = []))}>Reset to automatic</button></div>
+      <p class="hint" id="clkSpotHint">Moves the switch (and its pockets in the cap and body) from the automatic spot. X is right, Y is up. Press where you want the click to feel best.</p>
       <div class="row"><span class="lbl">View</span></div>
       <div class="seg" data-key="clkView">
         {#each views as [v, label] (v)}

@@ -41,7 +41,7 @@ export interface Model {
    * Clicker only: how to assemble the as-printed parts. Move every `cap` part by (capShift, restZ) to seat it on the
    * switch at rest in the body's frame, or by (capShift, pressedZ) fully pressed. `rimZ` is the body's rim height.
    */
-  clicker?: { capShift: [number, number]; restZ: number; pressedZ: number; rimZ: number };
+  clicker?: { capShift: [number, number]; restZ: number; pressedZ: number; rimZ: number; spots: [number, number][] };
 }
 
 /** Gap between the two halves, mm. */

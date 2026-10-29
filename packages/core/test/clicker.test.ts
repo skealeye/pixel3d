@@ -162,6 +162,29 @@ describe('buildClicker', () => {
     expect(await volumeIn(body, ...around(cx + MX.pitch / 2, cy, 2, 2, L.shaftBottom, L.seat))).toBeCloseTo(4 * MX.depth, 3);
   });
 
+  it('a switch offset moves its shaft, and the reported spot, from the automatic spot', async () => {
+    const s = settings((s) => { s.clicker.offsets = [[4, -3]]; s.size.width = 40; s.size.height = 40; });
+    const m = await buildClicker(square(32), s);
+    const [ax, ay] = m.clicker!.spots[0]!;
+    const base = (await buildClicker(square(32), settings(() => {}))).clicker!.spots[0]!;
+    expect([ax - base[0], ay - base[1]]).toEqual([4, -3]);
+    const body = of(m, 'body');
+    const [cx, cy] = center(boxOf(body));
+    const L = clickerLevels(s);
+    expect(await volumeIn(body, ...around(cx + 4, cy - 3, MX.shaft[0], MX.shaft[1], L.shaftBottom, L.seat))).toBeCloseTo(0, 3);
+    // the automatic spot is now solid wall where only part of the shaft no longer reaches
+    expect(await volumeIn(body, ...around(cx - 5, cy + 4, 2, 2, L.shaftBottom, L.seat))).toBeCloseTo(4 * MX.depth, 3);
+  });
+
+  it('nudged neighbors still join, and switches closer than the pitch warn', async () => {
+    const wide = settings((s) => { s.clicker.switches = 2; s.clicker.offsets = [[0, 3], [0, -3]]; s.size.keepAspect = false; s.size.width = 64; s.size.height = 32; });
+    const ok = await buildClicker(square(32), wide);
+    expect(ok.warnings.filter((w) => /apart/.test(w))).toEqual([]);
+    expect(ok.pieceCounts!.body).toBe(1);
+    const close = settings((s) => { s.clicker.switches = 2; s.clicker.offsets = [[6, 0], [-6, 0]]; s.size.keepAspect = false; s.size.width = 64; s.size.height = 32; });
+    expect((await buildClicker(square(32), close)).warnings.some((w) => /apart/.test(w))).toBe(true);
+  });
+
   it('neighboring switches share one joined column and lead-in, with no fin between them', async () => {
     const s = settings((s) => { s.clicker.switches = 3; s.size.keepAspect = false; s.size.width = 64; s.size.height = 24; });
     const m = await buildClicker(square(32), s);
