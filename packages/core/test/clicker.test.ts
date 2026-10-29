@@ -367,7 +367,7 @@ describe('buildClicker', () => {
     const at = (loopAt: 'bottom' | 'center') => buildClicker(potion, settings((s) => { s.keychain.type = 'loop'; s.clicker.loopAt = loopAt; }));
     const bottom = await at('bottom'), center = await at('center');
     const L = clickerLevels(settings(() => {}));
-    const t = Math.min(DEFAULTS.base.height, L.rimTop);
+    const t = Math.min(DEFAULTS.clicker.loopThickness, L.rimTop);
     // the loop is the only body plastic above the plain body's top edge (+Y), so its z range shows there
     const plain = await buildClicker(potion, settings(() => {}));
     const top = plain.parts.find((p) => p.object === 'body')!;
@@ -384,6 +384,24 @@ describe('buildClicker', () => {
     expect(zc.hi).toBeGreaterThan(1);
     for (const p of center.parts) await assertManifold(p);
     expect(center.pieceCounts).toEqual({ cap: 1, body: 1 });
+  });
+
+  it('the keychain loop is as thick as Thickness, never more than the body is tall', async () => {
+    const L = clickerLevels(settings(() => {}));
+    const zTop = (m: Model) => {
+      // highest point of the body outside the plain footprint's top edge: the loop
+      const b = m.parts.find((p) => p.object === 'body')!.mesh.vertProperties;
+      let yMax = -Infinity; for (let i = 1; i < b.length; i += 3) yMax = Math.max(yMax, b[i]!);
+      let z = 0; for (let i = 0; i < b.length; i += 3) if (b[i + 1]! > yMax - 0.5) z = Math.max(z, b[i + 2]!);
+      return z;
+    };
+    for (const t of [1, 3.5]) {
+      const m = await buildClicker(potion, settings((s) => { s.keychain.type = 'loop'; s.keychain.loop.style = 'pixel'; s.clicker.loopThickness = t; }));
+      expect(zTop(m)).toBeCloseTo(Math.min(t, L.rimTop), 3);
+      for (const p of m.parts) await assertManifold(p);
+    }
+    const tall = await buildClicker(potion, settings((s) => { s.keychain.type = 'loop'; s.keychain.loop.style = 'pixel'; s.clicker.loopThickness = 10; }));
+    expect(zTop(tall)).toBeLessThanOrEqual(L.rimTop + 1e-6);
   });
 
   it('the 3MF has two objects; toSTL gives name_cap and name_body', async () => {

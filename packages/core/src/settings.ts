@@ -92,6 +92,8 @@ export const settingsSchema = z.object({
     backing: z.enum(['base', 'art']),
     /** Where a keychain loop joins the body's side: at the bed, or halfway up the body. */
     loopAt: z.enum(['bottom', 'center']),
+    /** The keychain loop's thickness; never more than the body is tall. */
+    loopThickness: mm(1, 10),
   }).strict(),
 }).strict();
 
@@ -118,7 +120,7 @@ export const DEFAULTS: Settings = {
   rotation: [0, 0, 0],
   export: { format: '3mf', slicer: 'bambu', mono: false, monoColor: '#e8e4d8' },
   make: 'model',
-  clicker: { shape: 'outline', border: 3, capHeight: 2, fitGap: 0.5, switches: 1, backing: 'base', loopAt: 'bottom' },
+  clicker: { shape: 'outline', border: 3, capHeight: 2, fitGap: 0.5, switches: 1, backing: 'base', loopAt: 'bottom', loopThickness: 2 },
 };
 
 /** The `HeightMode` that `applyHeightMode` expects, from the settings. */

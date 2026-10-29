@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { clickerLevels } from '@pixel3d/core';
   import { app, live, setting } from '../state.svelte';
   import { colorInput } from './color';
   import Favorites from './Favorites.svelte';
@@ -15,6 +16,9 @@
   const inner = live(() => key.loop.inner, (v) => { key.loop.inner = v; if (key.loop.outer < v + 2) key.loop.outer = v + 2; });
   const outer = live(() => key.loop.outer, (v) => { key.loop.outer = v; if (key.loop.inner > v - 2) key.loop.inner = v - 2; });
   const color = colorInput((hex) => (key.loop.color = hex));
+  const thick = live(() => app.settings.clicker.loopThickness, (v) => (app.settings.clicker.loopThickness = v));
+  /** A clicker loop is never thicker than the body is tall (core clamps it too). */
+  const maxThick = $derived(Math.max(1, Math.min(10, Math.floor(clickerLevels(app.settings).rimTop * 10) / 10)));
 
   /** A clicker's keychain is a loop on its body: a hole would cut into the switch. */
   const clicker = $derived(app.settings.make === 'clicker');
@@ -57,6 +61,7 @@
             <button data-v={v} class:on={app.settings.clicker.loopAt === v} onclick={() => app.settings.clicker.loopAt !== v && setting(() => (app.settings.clicker.loopAt = v))}>{label}</button>
           {/each}
         </div>
+        <Slider id="loopThick" label="Thickness" min={1} max={maxThick} step={0.1} value={Math.min(app.settings.clicker.loopThickness, maxThick)} unit="mm" format={f1} {...thick} />
       {/if}
       <Slider id="loopAngle" label="Position" min={0} max={359} step={1} value={key.loop.angle} unit="°" format={(v) => String(Math.round(v))} {...angle} />
       <Slider id="loopIn" label="Hole" min={2} max={10} step={0.5} value={key.loop.inner} unit="mm" format={f1} {...inner} />

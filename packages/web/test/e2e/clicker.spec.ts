@@ -20,7 +20,7 @@ type Box = { min: Vec3; max: Vec3 };
 interface Clicker { view: 'assembled' | 'apart'; at: number; rest: number; cap: Box; body: Box; ghosts: number }
 interface Settings {
   make: 'model' | 'clicker';
-  clicker: { shape: string; border: number; capHeight: number; fitGap: number; switches: number; loopAt: string };
+  clicker: { shape: string; border: number; capHeight: number; fitGap: number; switches: number; loopAt: string; loopThickness: number };
   rotation: [number, number, number];
 }
 interface Snap { settings: Settings; undo: number }
@@ -94,9 +94,16 @@ test.describe('keycap clicker', () => {
     expect((await snap(page)).undo).toBe(u0 + 1);
     expect((await settings(page)).clicker.loopAt).toBe('center');
     await expect(page.locator('#keyHint')).toHaveText('The loop sticks out halfway up the body, in the base color. It needs supports under it when printed.');
+    // Thickness: one undo step; core's test checks the loop's thickness
+    const u1 = (await snap(page)).undo;
+    await page.locator('#loopThick').fill('4');
+    await page.locator('#loopThick').press('Enter');
+    await expect.poll(async () => (await settings(page)).clicker.loopThickness).toBe(4);
+    expect((await snap(page)).undo).toBe(u1 + 1);
     await seg(page, 'make', 'model').click();
     await expect(seg(page, 'key', 'hole')).toBeEnabled();
     await expect(page.locator('.seg[data-key=loopAt]')).toHaveCount(0);
+    await expect(page.locator('#loopThick')).toHaveCount(0);
   });
 
   test('clicker settings: mockup controls, spec ranges, one undo step each; Make is undoable', async ({ page }) => {
@@ -124,7 +131,7 @@ test.describe('keycap clicker', () => {
     await page.locator('#clkBorder').fill('20');
     await page.locator('#clkBorder').press('Enter');
     const s = await snap(page);
-    expect(s.settings.clicker).toEqual({ shape: 'circle', border: 10, capHeight: 2, fitGap: 0.8, switches: 2, backing: 'base', loopAt: 'bottom' });
+    expect(s.settings.clicker).toEqual({ shape: 'circle', border: 10, capHeight: 2, fitGap: 0.8, switches: 2, backing: 'base', loopAt: 'bottom', loopThickness: 2 });
     expect(s.undo).toBe(u0 + 5);
     await expect(page.locator('#clkHint')).toContainText('Needs 2 MX-style switches. Press each switch into the body from above until it sits on the step, then push the cap on.');
     await expect(page.locator('#clkHint')).toContainText('even with Base off');
