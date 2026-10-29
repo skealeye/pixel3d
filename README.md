@@ -4,7 +4,7 @@
 
 **Use it in your browser: https://skealeye.github.io/pixel3d/**
 
-![pixel3d turning a potion sprite into a mechanical keyboard clicker](docs/images/clicker.png)
+![A 16x16 potion sprite as a 3D-print model in pixel3d, with heights set by brightness](docs/images/example.png)
 
 Turns pixel art into 3D-print models (3MF or STL, plus OBJ and FBX for other 3D tools): one raised block per pixel, optional base, keychain loop or hole, and magnet pockets. Colors become separate parts so a multi-color printer can print them.
 
