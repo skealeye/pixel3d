@@ -21,8 +21,11 @@ type Keep = <T extends { delete(): void }>(o: T) => T;
  * Cherry datasheet values (ai03 wiki "Switch Dimensions and Physical Specifications").
  */
 export const MX = {
-  /** Press-fit shaft for the lower housing and pins, X x Y (Y, the clip axis, is the wider). */
-  shaft: [14.1, 14.56] as [number, number],
+  /**
+   * Press-fit shaft for the lower housing and pins, X x Y (Y, the clip axis, is the wider): the reference's 14.1 x 14.56
+   * less 0.1, the snuggest of the user's fit test (2026-10-29: all three fit, the -0.10 coupon best).
+   */
+  shaft: [14.0, 14.46] as [number, number],
   /** Shaft depth below the seat: 5.0 housing + 3.3 pins + 0.08. */
   depth: 8.38,
   /** Body floor under the blind shaft. */
@@ -334,7 +337,7 @@ const signed = (d: number) => `${d < 0 ? '-' : '+'}${Math.abs(d).toFixed(2)}`;
  * A small fit-test print (spec §4.6b, per user reference): a `stem` coupon (a small cap backing with the pocket,
  * stem and cross socket, printed underside down like the cap) and three shaft coupons, `socket_<step>` for each
  * `FIT_STEPS` step (`socket_-0.10`, `socket_+0.00`, `socket_+0.10`). Each shaft coupon is the body's switch seat:
- * the press-fit shaft (14.1 x 14.56 plus the step) over a floor, the 19.0 column and the 20.0 lead-in, in a 2 mm
+ * the press-fit shaft (14.0 x 14.46 plus the step) over a floor, the 19.0 column and the 20.0 lead-in, in a 2 mm
  * wall. They are laid out tightest to loosest along +X, and each carries 1, 2 or 3 notches on the top of its front
  * (-Y) wall, so the printed coupons can be told apart.
  */

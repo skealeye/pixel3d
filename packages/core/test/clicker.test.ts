@@ -86,7 +86,7 @@ beforeAll(async () => { potion = await load('potion.png'); await initManifold();
 describe('MX', () => {
   it('holds the numbers of the user reference (R22)', () => {
     expect(MX).toEqual({
-      shaft: [14.1, 14.56], depth: 8.38, floor: 1.2, column: 19.0, columnR: 3, columnH: 3.0, leadIn: 20.0, leadInR: 4,
+      shaft: [14.0, 14.46], depth: 8.38, floor: 1.2, column: 19.0, columnR: 3, columnH: 3.0, leadIn: 20.0, leadInR: 4,
       above: 11.6, stemD: 5.8, cross: [4.27, 1.22], engage: 3.35, pocket: [14.5, 14.0], pocketR: 4.1, travel: 4, pitch: 19.05,
     });
     expect(MIN_ART).toBeCloseTo(17.5, 6);
@@ -130,7 +130,7 @@ describe('buildClicker', () => {
     expect([...new Set(m.parts.map((p) => p.object))]).toEqual(['cap', 'body']);
   });
 
-  it('the body seat: a blind 14.1 x 14.56 shaft 8.38 deep over a floor, a 19.0 column 3.0 tall, a 20.0 lead-in to the well floor', async () => {
+  it('the body seat: a blind 14.0 x 14.46 shaft 8.38 deep over a floor, a 19.0 column 3.0 tall, a 20.0 lead-in to the well floor', async () => {
     const s = settings(() => {});
     const m = await buildClicker(square(32), s);
     const body = of(m, 'body');
@@ -254,9 +254,10 @@ describe('buildClicker', () => {
     const cross = await sliceAt(cap, 1, kx, ky, 5.6, 'void', true);
     near(cross.w, 4.272); near(cross.d, 4.267);
     near(cross.w - Math.sqrt(cross.w ** 2 - cross.area), 1.22);
-    // body: shaft 14.106 x 14.560, 8.383 deep; column 19.005 x 19.010, 3.0 tall; lead-in 20.000 x 19.996
+    // body: shaft 14.106 x 14.560 less the fit test's 0.1 (MX.shaft), 8.383 deep; column 19.005 x 19.010, 3.0 tall;
+    // lead-in 20.000 x 19.996
     const shaft = await sliceAt(body, L.seat - 1, bx, by, 17, 'void');
-    near(shaft.w, 14.106); near(shaft.d, 14.56);
+    near(shaft.w, 14.006); near(shaft.d, 14.46);
     near(L.seat - L.shaftBottom, 8.383);
     expect((await sliceAt(body, L.shaftBottom - 0.02, bx, by, 17, 'void')).empty).toBe(true);
     const column = await sliceAt(body, L.seat + 1.5, bx, by, 19.8, 'void');

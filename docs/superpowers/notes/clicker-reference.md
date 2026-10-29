@@ -174,3 +174,9 @@ Ours, relative to the plate top P: floor 1.2, column `15.6 + 2*fitGap` (16.2 at 
 6. **Z stack:** keep the well floor at about seat +4.0 (ours is +3.4, which is fine). Keep the stem end at about seat +7.8 with 4.0 + 0.3-0.4 to the floor. The reference agrees once the cap rides on the 11.6 stem tip.
 7. **Stem diameter 5.8 (ours 5.5) and stem length:** the stem need only be as long as the pocket depth (3.35), not 4.5. Low priority.
 8. **Body print orientation:** optional. The reference prints rim-down; ours prints underside-down. Both are fine. Note it in the hints only if we adopt the blind shaft (5).
+
+## Fit test result (2026-10-29)
+
+The user printed the fit test (Bambu, 0.4 mm nozzle) with the shaft at the reference's 14.1 x 14.56. All three
+coupons held a switch; the -0.10 coupon (one notch) was the nice snug fit. The body's shaft is now 14.0 x 14.46
+(`MX.shaft`), and the fit test's steps are taken from that size.
