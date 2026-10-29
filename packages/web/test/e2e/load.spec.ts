@@ -292,6 +292,32 @@ test.describe('undo', () => {
   });
 });
 
+test.describe('image panel', () => {
+  test('panning the image, with the left or middle button, never scrolls the side panel', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await open(page);
+    await loadFile(page, 'potion.png');
+    const src = page.locator('#src'), aside = page.locator('aside.left');
+    const b = (await src.boundingBox())!;
+    const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+    await page.mouse.move(cx, cy);
+    for (let i = 0; i < 5; i++) await page.mouse.wheel(0, -200);
+    // the panel is scrolled part way, with the image still on screen
+    await aside.evaluate((el) => { el.scrollTop = Math.min(40, el.scrollHeight - el.clientHeight); });
+    const top0 = await aside.evaluate((el) => el.scrollTop);
+    const b2 = (await src.boundingBox())!;
+    const x = b2.x + b2.width / 2, y = b2.y + Math.min(b2.height / 2, 200);
+    for (const button of ['left', 'middle'] as const) {
+      await page.mouse.move(x, y);
+      await page.mouse.down({ button });
+      for (let k = 1; k <= 10; k++) await page.mouse.move(x, y + k * 40);
+      await page.mouse.up({ button });
+      expect(await aside.evaluate((el) => el.scrollTop), button).toBe(top0);
+      expect(await page.evaluate(() => getSelection()?.toString() ?? ''), button).toBe('');
+    }
+  });
+});
+
 test.describe('undo while picking', () => {
   test('pick a color, then undo: removal is back on and the background is removed again', async ({ page }) => {
     await open(page);

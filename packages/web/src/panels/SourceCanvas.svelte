@@ -119,6 +119,8 @@
 
   function down(e: PointerEvent) {
     if (e.button !== 0 && e.button !== 1) return;
+    // a drag here pans or paints: no text selection, and no middle-button autoscroll of the side panel
+    e.preventDefault();
     const at = cellAt(e);
     if (ui.picking && e.button === 0) {
       if (!at?.inside || !app.source || !app.meta) return;
@@ -204,5 +206,5 @@
   <canvas id="src" bind:this={canvas} class:pan={!ui.picking && !ui.cropping && ui.tool === 'select'} class:crop={ui.cropping}
     class:draw={!ui.picking && !ui.cropping && ui.tool !== 'select'}
     title="Scroll to zoom, drag to pan, double-click to fit"
-    onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up} ondblclick={reset}></canvas>
+    onmousedown={(e) => e.preventDefault()} onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up} ondblclick={reset}></canvas>
 </div>
