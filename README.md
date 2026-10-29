@@ -2,6 +2,15 @@
 
 Turns pixel art into 3D-print models (3MF or STL): one raised block per pixel, optional base, keychain loop or hole, and magnet pockets. Colors become separate parts so a multi-color printer can print them.
 
+## Run the app on this PC
+
+`npm run dev:web -- --port 5180` and open http://localhost:5180/. Or make a desktop shortcut that does both with one
+double-click (no console window; the server keeps running in the background until you sign out):
+
+```
+powershell -ExecutionPolicy Bypass -File scripts/make-shortcut.ps1
+```
+
 ## Commands
 
 Build the CLI once with `npm install && npm run build:cli` (output: `packages/cli/dist/px3d.mjs`).
