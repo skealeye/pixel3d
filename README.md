@@ -10,6 +10,12 @@
 
 Turns pixel art into 3D-print models (3MF or STL, plus OBJ and FBX for other 3D tools): one raised block per pixel, optional base, keychain loop or hole, and magnet pockets. Colors become separate parts so a multi-color printer can print them.
 
+## Try it
+
+A sample sprite to load into the app: [`examples/potion.png`](examples/potion.png), a 16×16 pixel-art potion drawn at 4× (pixel3d detects the upscale). The screenshot above is this image.
+
+<p><img src="examples/potion.png" alt="Sample potion sprite" width="128" style="image-rendering: pixelated"></p>
+
 ## Mechanical clickers
 
 Switch Make to **Clicker** and your art becomes a working fidget clicker: a key cap that clicks on a mechanical keyboard switch (MX-compatible). It prints as two parts, the cap with your pixel art on top and a body that holds the switch. Pick the body shape (outline, circle or square), border, cap height and fit gap, use 1 to 3 switches, and preview it apart as printed or assembled, with a Press button to push the cap down. You supply the switch (an MX-style one); the sockets are carved for you.
