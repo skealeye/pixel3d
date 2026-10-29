@@ -1,6 +1,4 @@
-<p align="center"><img src="docs/images/logo.png" alt="pixel3d logo" width="128"></p>
-
-# pixel3d
+# <img src="docs/images/logo.png" alt="" width="48" align="absmiddle"> pixel3d
 
 [![Support on Ko-fi](https://img.shields.io/badge/Support-Ko--fi-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/seankealey)
 
