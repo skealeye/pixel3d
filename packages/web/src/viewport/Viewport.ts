@@ -63,6 +63,20 @@ export class Viewport {
   private xray: number | null = null;
   private cutPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private cut = false;
+  /**
+   * Cut view caps the cut with a stencil (a gold quad where the clipped solids' back faces outnumber their front faces)
+   * instead of showing back faces gold, which z-fights wherever two parts touch. On for solid core models only.
+   */
+  private capOn = false;
+  private capPlane: THREE.Mesh;
+  private stencilMats = (['back', 'front'] as const).map((side) => new THREE.MeshBasicMaterial({
+    side: side === 'back' ? THREE.BackSide : THREE.FrontSide,
+    colorWrite: false, depthWrite: false, depthTest: false,
+    stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc,
+    stencilFail: side === 'back' ? THREE.IncrementWrapStencilOp : THREE.DecrementWrapStencilOp,
+    stencilZFail: side === 'back' ? THREE.IncrementWrapStencilOp : THREE.DecrementWrapStencilOp,
+    stencilZPass: side === 'back' ? THREE.IncrementWrapStencilOp : THREE.DecrementWrapStencilOp,
+  }));
   private gridOpts: GridOptions = { on: true, color: '#8a7446', opacity: 0.7, step: 10 };
   private gridHelper: THREE.GridHelper | null = null;
   private ro: ResizeObserver;
@@ -78,7 +92,7 @@ export class Viewport {
   private lastFrame = 0;
 
   constructor(private canvas: HTMLCanvasElement, private container: HTMLElement) {
-    const r = (this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true }));
+    const r = (this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, stencil: true }));
     r.setPixelRatio(devicePixelRatio);
     r.localClippingEnabled = true;
     this.scene.background = new THREE.Color('#16181c');
@@ -95,6 +109,17 @@ export class Viewport {
     this.scene.add(sun, fill);
     const plate = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: '#3b3324', roughness: 0.95 }));
     plate.position.z = -0.05;
+    this.stencilMats.forEach((m) => { m.clippingPlanes = [this.cutPlane]; });
+    this.capPlane = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshBasicMaterial({
+      color: '#d9a342', side: THREE.DoubleSide,
+      stencilWrite: true, stencilRef: 0, stencilFunc: THREE.NotEqualStencilFunc,
+      stencilFail: THREE.ReplaceStencilOp, stencilZFail: THREE.ReplaceStencilOp, stencilZPass: THREE.ReplaceStencilOp,
+    }));
+    this.capPlane.rotation.x = Math.PI / 2;
+    this.capPlane.renderOrder = 2;
+    this.capPlane.visible = false;
+    this.capPlane.raycast = () => {};
+    this.scene.add(this.capPlane);
     this.pivot.add(this.handleGroup, this.ghostGroup);
     this.holder.add(this.pivot);
     this.scene.add(plate, this.holder);
@@ -126,6 +151,16 @@ export class Viewport {
       m.userData.object = p.object;
       m.userData.hex = p.hex;
       m.userData.part = p.name;
+      m.userData.capped = true;
+      // the stencil passes: they ride with the mesh (the clicker's cap moves when pressed)
+      this.stencilMats.forEach((sm) => {
+        const h = new THREE.Mesh(geo, sm);
+        h.renderOrder = 1;
+        h.visible = false;
+        h.userData.stencil = true;
+        h.raycast = () => {};
+        m.add(h);
+      });
       return m;
     });
     this.uncut = model.parts.length ? new THREE.Box3(new THREE.Vector3(...model.bounds.min), new THREE.Vector3(...model.bounds.max)) : null;
@@ -175,7 +210,7 @@ export class Viewport {
 
   setCut(on: boolean) {
     this.cut = on;
-    this.mats.forEach((m) => this.styleCut(m));
+    this.refreshCap();
     this.ghostMat.clippingPlanes = on ? [this.cutPlane] : null;
     this.ghostMat.needsUpdate = true;
     this.dirty = true;
@@ -347,6 +382,7 @@ export class Viewport {
     if (opacity === this.xray) return;
     this.xray = opacity;
     this.restyle();
+    this.refreshCap();
   }
 
   /** The X-ray opacity and how many shown meshes are see-through (for the e2e checks). */
@@ -409,9 +445,19 @@ export class Viewport {
     return m;
   }
 
+  /** Switch the stencil cap on or off for the current cut, X-ray and meshes, and restyle the materials to match. */
+  private refreshCap() {
+    this.capOn = this.cut && this.xray === null && this.meshes.length > 0 && this.meshes.every((m) => m.userData.capped);
+    for (const m of this.meshes) for (const c of m.children) c.visible = this.capOn;
+    this.capPlane.visible = this.capOn;
+    this.mats.forEach((m) => this.styleCut(m));
+    this.dirty = true;
+  }
+
   private styleCut(m: THREE.Material) {
     m.clippingPlanes = this.cut ? [this.cutPlane] : null;
-    m.side = this.cut || m.userData.xray ? THREE.DoubleSide : THREE.FrontSide;
+    // capped: only front faces show (the stencil quad is the cut face); else back faces show gold through the hook
+    m.side = (this.cut && !this.capOn) || m.userData.xray ? THREE.DoubleSide : THREE.FrontSide;
     m.needsUpdate = true;
   }
 
@@ -498,6 +544,7 @@ export class Viewport {
       this.size = { x: sz.x, y: sz.y, z: sz.z };
       const mid = sz.y / 2;
       this.cutPlane.constant = -(box.min.y + (Math.floor(mid / this.row) + 0.5) * this.row);
+      this.capPlane.position.y = -this.cutPlane.constant;
     } else this.size = null;
     this.drawHandles();
     this.dirty = true;
@@ -517,6 +564,7 @@ export class Viewport {
     }
     this.layoutClicker();
     this.place();
+    this.refreshCap();
   }
 
   /**
