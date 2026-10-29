@@ -6,7 +6,7 @@
   const label = $derived(rot.some(Boolean) ? `X ${rot[0] * 90}°, Y ${rot[1] * 90}°, Z ${rot[2] * 90}°` : 'Flat');
 
   const turn = (a: 0 | 1 | 2) => setting(() => { app.settings.rotation[a] = (app.settings.rotation[a] + 1) % 4; });
-  const to = (r: [number, number, number]) => { if (rot.some((v, i) => v !== r[i])) setting(() => (app.settings.rotation = r)); };
+  const to = (r: [number, number, number]) => { if (rot.some((v, i) => v !== r[i])) setting(() => { app.settings.rotation = r; }); };
 </script>
 
 <section>
