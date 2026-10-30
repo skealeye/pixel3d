@@ -11,7 +11,7 @@ const test = base.extend({
   },
 });
 
-interface Snap { grid: { w: number; h: number; opaque: number } | null; settings: { colors: { max: number } }; undo: number }
+interface Snap { grid: { w: number; h: number; opaque: number; palette: { hex: string }[] } | null; settings: { colors: { max: number } }; undo: number }
 const snap = (page: Page) => page.evaluate(() => (window as unknown as { __pixel3d: { snapshot(): Snap } }).__pixel3d.snapshot());
 
 type Hook = { setTool(t: string, hex: string): void };
@@ -193,6 +193,122 @@ test.describe('phone', () => {
     expect(px.painted).toEqual([255, 0, 0, 255]);
     expect(px.painted2).toEqual([255, 0, 0, 255]);
     expect(px.empty[3]).toBe(0);
+  });
+});
+
+test.describe('phone colors', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  const palette = async (page: Page) => (await snap(page)).grid!.palette.map((p) => p.hex);
+  const filled = (page: Page) => page.locator('#phSlots .slot:not(.empty)');
+  /** Choose the brush color with the test hook, switch to Paint and tap a cell. */
+  async function paintAt(page: Page, hex: string, i: number, j: number) {
+    await color(page, hex);
+    await page.locator('#phTool-paint').click();
+    await tap(page, i, j);
+  }
+  /** Drag over #phSquare / #phHue from one fraction of its box to another (fractions outside 0..1 leave the box). */
+  async function drag(page: Page, id: string, from: [number, number], to: [number, number]) {
+    const b = (await page.locator(id).boundingBox())!;
+    const pt = ([fx, fy]: [number, number]) => [b.x + b.width * fx, b.y + b.height * fy] as const;
+    await page.mouse.move(...pt(from));
+    await page.mouse.down();
+    await page.mouse.move(...pt([(from[0] + to[0]) / 2, (from[1] + to[1]) / 2]), { steps: 3 });
+    await page.mouse.move(...pt(to), { steps: 3 });
+    await page.mouse.up();
+  }
+
+  test('one slot per allowed color: filled ones show the palette, the rest are empty', async ({ page }) => {
+    await page.goto('/?test');
+    await expect(page.locator('#phSlots .slot')).toHaveCount(8);
+    await expect(filled(page)).toHaveCount(0);
+    await paintAt(page, '#ff0000', 2, 2);
+    await expect(filled(page)).toHaveCount(1);
+    await expect(page.locator('#phSlots .slot.empty')).toHaveCount(7);
+    await expect(filled(page).first()).toHaveAttribute('data-c', '#ff0000');
+  });
+
+  test('tapping a filled slot makes it the brush color and switches to Paint', async ({ page }) => {
+    await page.goto('/?test');
+    await paintAt(page, '#ff0000', 2, 2);
+    await paintAt(page, '#0000ff', 4, 2);
+    await page.locator('#phTool-erase').click();
+    await filled(page).first().tap();
+    await expect(filled(page).first()).toHaveClass(/cur/);
+    await expect(page.locator('#phTool-paint')).toHaveClass(/on/);
+    await tap(page, 6, 2);
+    expect((await pixelAt(page, 6, 2)).slice(0, 3)).toEqual([255, 0, 0]);
+  });
+
+  test('dragging the square recolors every pixel of the color as one undo step', async ({ page }) => {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    for (const i of [2, 4, 6]) await tap(page, i, 2);
+    const undo0 = (await snap(page)).undo;
+    await drag(page, '#phSquare', [0.5, 0.5], [-0.5, -0.5]);
+    expect(await palette(page)).toEqual(['#ffffff']);
+    expect(await opaque(page)).toBe(3);
+    expect((await pixelAt(page, 4, 2)).slice(0, 3)).toEqual([255, 255, 255]);
+    expect((await snap(page)).undo).toBe(undo0 + 1);
+    await page.locator('#phUndo').click();
+    expect(await palette(page)).toEqual(['#ff0000']);
+  });
+
+  test('the hue strip changes the hue and keeps saturation and brightness', async ({ page }) => {
+    await page.goto('/?test');
+    await paintAt(page, '#ff0000', 2, 2);
+    await drag(page, '#phHue', [0.05, 0.5], [1 / 3, 0.5]);
+    expect(await palette(page)).toEqual(['#00ff00']);
+    await expect(page.locator('#phPatch')).toHaveCSS('background-color', 'rgb(0, 255, 0)');
+  });
+
+  test('an empty slot makes a new color: it joins the image when a pixel is painted with it', async ({ page }) => {
+    await page.goto('/?test');
+    await paintAt(page, '#ff0000', 2, 2);
+    await page.locator('#phSlots .slot.empty').first().tap();
+    await drag(page, '#phSquare', [0.5, 0.5], [-0.5, -0.5]);
+    expect(await palette(page)).toEqual(['#ff0000']);
+    await tap(page, 4, 2);
+    expect(await palette(page)).toEqual(['#ff0000', '#ffffff']);
+    await expect(filled(page)).toHaveCount(2);
+  });
+
+  test('tapping an empty slot and not painting adds nothing', async ({ page }) => {
+    await page.goto('/?test');
+    await paintAt(page, '#ff0000', 2, 2);
+    await page.locator('#phSlots .slot.empty').first().tap();
+    await drag(page, '#phSquare', [0.5, 0.5], [0.8, 0.3]);
+    expect(await palette(page)).toEqual(['#ff0000']);
+    await expect(filled(page)).toHaveCount(1);
+  });
+
+  test('a new color past the Most colors limit is refused with a visible message', async ({ page }) => {
+    await page.goto('/?test');
+    for (const [i, hex] of ['#ff0000', '#00ff00', '#0000ff'].entries()) await paintAt(page, hex, i + 2, 2);
+    await page.locator('#phGear').click();
+    for (let k = 0; k < 8; k++) await page.locator('#phColorsMinus').click({ force: true });
+    await page.locator('#phDone').click();
+    await paintAt(page, '#ffff00', 8, 2);
+    expect(await palette(page)).toHaveLength(3);
+    const note = page.getByRole('status').filter({ hasText: 'An image holds at most 3 colors.' });
+    await expect(note).toBeVisible();
+    const b = (await note.boundingBox())!;
+    expect(b.x).toBeGreaterThanOrEqual(0);
+    expect(b.x + b.width).toBeLessThanOrEqual(390);
+    expect(b.y + b.height).toBeLessThanOrEqual(844);
+  });
+
+  test('a color with no pixels left leaves its slot', async ({ page }) => {
+    await page.goto('/?test');
+    await paintAt(page, '#ff0000', 2, 2);
+    await paintAt(page, '#0000ff', 4, 2);
+    await expect(filled(page)).toHaveCount(2);
+    await page.locator('#phTool-erase').click();
+    await tap(page, 2, 2);
+    expect(await palette(page)).toEqual(['#0000ff']);
+    await expect(filled(page)).toHaveCount(1);
+    await expect(page.locator('#phSlots .slot.empty')).toHaveCount(7);
   });
 });
 

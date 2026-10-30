@@ -86,11 +86,11 @@
 **Interfaces:**
 - Produces: `ColorSquare` with props `{ value: string; oninput: (hex: string) => void; onstart: () => void; onend: () => void }`, same gesture contract as `ColorWheel`; ids `#phSquare`, `#phHue`, `#phPatch`; slots `#phSlots .slot` (filled) and `.slot.empty`.
 
-- [ ] **Step 1: E2E tests.** Tap a filled slot: it becomes current. Dragging in `#phSquare` on a filled color recolors every pixel of it in one undo step. Tapping an empty slot then dragging the square then painting adds the color; tapping an empty slot and not painting leaves the palette unchanged. At the Most colors limit a new color is refused with a visible message. A color with no pixels leaves its slot.
-- [ ] **Step 2:** Run, confirm fail.
-- [ ] **Step 3:** `ColorSquare`: saturation on x, brightness on y, hue strip beneath, using `hsvToHex`/`hexToHsv`; wire as `PixelEditor` wires the wheel (`recolorLive` when the current color is in the image and `ui.newColor` is off). Refusal messages show in the phone (toasts are visible there; there is no dialog).
-- [ ] **Step 4:** Run, confirm pass.
-- [ ] **Step 5:** Tick, commit `v0.2.61: phone color picker`.
+- [x] **Step 1: E2E tests.** Tap a filled slot: it becomes current. Dragging in `#phSquare` on a filled color recolors every pixel of it in one undo step. Tapping an empty slot then dragging the square then painting adds the color; tapping an empty slot and not painting leaves the palette unchanged. At the Most colors limit a new color is refused with a visible message. A color with no pixels leaves its slot.
+- [x] **Step 2:** Run, confirm fail.
+- [x] **Step 3:** `ColorSquare`: saturation on x, brightness on y, hue strip beneath, using `hsvToHex`/`hexToHsv`; wire as `PixelEditor` wires the wheel (`recolorLive` when the current color is in the image and `ui.newColor` is off). Refusal messages show in the phone (toasts are visible there; there is no dialog).
+- [x] **Step 4:** Run, confirm pass.
+- [x] **Step 5:** Tick, commit `v0.2.61: phone color picker`.
 
 ### Task 5: Touch gestures on the canvas
 
