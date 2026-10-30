@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { DEFAULTS, cornerTouches, type Grid, type Settings } from '@pixel3d/core';
   import { app, pushUndo, setting, toast, ui } from '../state.svelte';
   import { pieceCount, piecesNote, removeStrays } from '../actions.svelte';
@@ -90,6 +91,7 @@
 
   $effect(() => {
     const v = new Viewport(canvas, main);
+    v.fitNarrow = untrack(() => ui.phone);
     // the base and outline shapes of Smooth edges and Outline need manifold on the page too; until it loads, those
     // settings show the model only. Once it is in, show the preview for what is up now.
     loadShapes().then(() => { shapesReady = true; }, () => {});
@@ -108,7 +110,7 @@
     const unregister = register({
       viewport: () => ({
         shown: v.shown, cut: ui.cut, grid: { ...ui.grid }, renders: v.renders, size: v.size, buildError, ...v.stats(), highlight: v.highlight(), xray: v.xrayInfo(),
-        bounds: v.bounds(), handles: v.handleScreen(), gridStep: v.gridStep, clicker: v.clicker(), camera: v.cameraAt(), parts: v.partNames(),
+        bounds: v.bounds(), ndc: v.boundsNdc(), handles: v.handleScreen(), gridStep: v.gridStep, clicker: v.clicker(), camera: v.cameraAt(), parts: v.partNames(),
       }),
       failNextBuild: () => b.failNextBuild(),
     });

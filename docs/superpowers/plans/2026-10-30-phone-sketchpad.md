@@ -127,8 +127,8 @@
 **Files:**
 - Modify: `packages/web/test/e2e/phone.spec.ts`, `README.md` (one paragraph), `package.json`, `package-lock.json`
 
-- [ ] **Step 1: E2E tests.** Resizing the viewport from 390 × 844 to 844 × 390 keeps `#phone` and the drawing; from 390 × 844 to 1400 × 900 swaps to the PC layout with the drawing kept in the viewer; back again returns to `#phone` without a second blank canvas.
-- [ ] **Step 2:** Run, confirm fail or pass; fix what fails (the startup blank canvas must only be made when there is no source).
-- [ ] **Step 3:** README paragraph on the phone sketchpad; version 0.2.61.
-- [ ] **Step 4:** `npm run typecheck`, `npm test`, `npm run test:e2e`; all green except the known flaky `load.spec.ts` "a failed build" test, which must pass alone.
-- [ ] **Step 5:** Tick, commit `v0.2.61: phone sketchpad`.
+- [x] **Step 1: E2E tests.** Resizing the viewport from 390 × 844 to 844 × 390 keeps `#phone` and the drawing; from 390 × 844 to 1400 × 900 swaps to the PC layout with the drawing kept in the viewer; back again returns to `#phone` without a second blank canvas.
+- [x] **Step 2:** Run, confirm fail or pass; fix what fails (the startup blank canvas must only be made when there is no source).
+- [x] **Step 3:** README paragraph on the phone sketchpad; version 0.2.61.
+- [x] **Step 4:** `npm run typecheck`, `npm test`, `npm run test:e2e`; all green except the known flaky `load.spec.ts` "a failed build" test, which must pass alone.
+- [x] **Step 5:** Tick, commit `v0.2.61: phone sketchpad`.

@@ -41,6 +41,9 @@ export class Viewport {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(38, 1, 1, 2000);
+  private sized = false;
+  /** fitView pulls back for a view narrower than tall (the phone); the PC pane is framed as before. */
+  fitNarrow = false;
   private controls: OrbitControls;
   private holder = new THREE.Group();
   private pivot = new THREE.Group();
@@ -298,6 +301,18 @@ export class Viewport {
     return { min: b.min.toArray(), max: b.max.toArray() };
   }
 
+  /** The model bounds' corners projected to the screen, -1..1 each way (for the e2e checks). */
+  boundsNdc(): { min: [number, number]; max: [number, number] } | null {
+    if (!this.meshes.length) return null;
+    this.camera.updateMatrixWorld(true);
+    const b = this.box(), min = [Infinity, Infinity] as [number, number], max = [-Infinity, -Infinity] as [number, number];
+    for (let k = 0; k < 8; k++) {
+      const p = new THREE.Vector3(k & 1 ? b.max.x : b.min.x, k & 2 ? b.max.y : b.min.y, k & 4 ? b.max.z : b.min.z).project(this.camera);
+      min[0] = Math.min(min[0], p.x); min[1] = Math.min(min[1], p.y); max[0] = Math.max(max[0], p.x); max[1] = Math.max(max[1], p.y);
+    }
+    return { min, max };
+  }
+
   /** Each handle's center in page coordinates (for the e2e checks). */
   handleScreen(): { kind: string; i: number; x: number; y: number }[] {
     const r = this.canvas.getBoundingClientRect();
@@ -312,7 +327,8 @@ export class Viewport {
   /** Frame whatever is on the bed: the default view suits a ~70 mm diagonal, larger models pull the camera back. */
   fitView() {
     const sz = this.size ? new THREE.Vector3(this.size.x, this.size.y, this.size.z) : new THREE.Vector3(40, 40, 3);
-    const k = Math.max(1, sz.length() / 70);
+    // a portrait view is narrower than tall: pull back so the width fits too
+    const k = Math.max(1, sz.length() / 70) / (this.fitNarrow ? Math.min(1, this.camera.aspect) : 1);
     this.camera.position.set(55 * k, -95 * k, 85 * k);
     this.controls.target.set(0, 0, Math.min(sz.z / 2, 12));
     this.controls.update();
@@ -359,6 +375,8 @@ export class Viewport {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    // it was hidden at 0 x 0 until now (the phone's 3D tab), so the first framing used no aspect
+    if (!this.sized) { this.sized = true; this.fitView(); }
     // ResizeObserver callbacks run after layout and before paint, so drawing here lands in the same frame
     this.render();
   }

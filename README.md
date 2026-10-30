@@ -18,6 +18,10 @@ A sample sprite to load into the app: [`examples/potion.png`](examples/potion.pn
 
 Click **Edit pixels** to open the Pixel Editor over the app. It paints, erases and picks colors with square brushes (1×1, 2×2, 3×3, 5×5) and has a color wheel: Pick a pixel and the wheel shows its color, and moving the wheel recolors every pixel of it; press **New color** to make a different one instead. A color joins the image with the first pixel you paint in it and leaves when its last pixel is gone. Beside the wheel are the image's own colors, 16 common colors and up to 12 favorites that stay in your browser. With no image open, Edit pixels starts a **blank canvas** (16×16 up to 128×128, resizable later) so you can draw from scratch. Shortcuts: **B** paint, **E** erase, **I** pick, **[** and **]** change the brush. In the image view beside it, a click on a pixel picks its color.
 
+## Phone sketchpad
+
+On a phone, the page opens a drawing screen instead: a blank canvas with paint, erase and pick tools, brush sizes, your colors, and pinch to zoom. The **3D** tab lets you peek at your drawing as a model, and **Save PNG** keeps the drawing as a pixel-art image. Open that PNG in pixel3d on a PC to carry on and make the print.
+
 ## Mechanical clickers
 
 Switch Make to **Clicker** and your art becomes a working fidget clicker: a key cap that clicks on a mechanical keyboard switch (MX-compatible). It prints as two parts, the cap with your pixel art on top and a body that holds the switch. Pick the body shape (outline, circle or square), border, cap height and fit gap, use 1 to 3 switches (each with X and Y sliders to move it off the automatic spot, so the click lands where people press), and preview it apart as printed or assembled, with a Press button to push the cap down. You supply the switch (an MX-style one); the sockets are carved for you.

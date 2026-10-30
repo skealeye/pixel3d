@@ -11,7 +11,7 @@ const test = base.extend({
   },
 });
 
-interface Snap { grid: { w: number; h: number; opaque: number; palette: { hex: string }[] } | null; settings: { colors: { max: number } }; undo: number; zoom: number }
+interface Snap { name: string | null; edits: number; grid: { w: number; h: number; opaque: number; palette: { hex: string }[] } | null; settings: { colors: { max: number } }; undo: number; zoom: number }
 const snap = (page: Page) => page.evaluate(() => (window as unknown as { __pixel3d: { snapshot(): Snap } }).__pixel3d.snapshot());
 
 type Hook = { setTool(t: string, hex: string): void };
@@ -551,6 +551,80 @@ test.describe('phone landscape', () => {
     }
     const c = (await page.locator('#phSrc').boundingBox())!;
     expect(c.width).toBeGreaterThan(200);
+  });
+});
+
+test.describe('phone resize', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  async function drawTwo(page: Page) {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    await tap(page, 3, 3);
+    await tap(page, 5, 3);
+  }
+
+  test('rotating to landscape keeps the sketchpad and the drawing', async ({ page }) => {
+    await drawTwo(page);
+    await page.setViewportSize({ width: 844, height: 390 });
+    await expect(page.locator('#phone')).toBeVisible();
+    await expect(page.locator('#phSrc')).toBeVisible();
+    expect(await opaque(page)).toBe(2);
+  });
+
+  test('mid-drawing rotation keeps the undo history', async ({ page }) => {
+    await drawTwo(page);
+    const undo0 = (await snap(page)).undo;
+    await page.setViewportSize({ width: 844, height: 390 });
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect((await snap(page)).undo).toBe(undo0);
+    await page.locator('#phUndo').click();
+    expect(await opaque(page)).toBe(1);
+  });
+
+  test('a big window shows the PC layout with the drawing; back to a phone returns the sketchpad without a second canvas', async ({ page }) => {
+    await drawTwo(page);
+    const before = await snap(page);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await expect(page.locator('#phone')).toHaveCount(0);
+    await expect(page.locator('.left')).toBeVisible();
+    const pc = await snap(page);
+    expect(pc.grid).toEqual(before.grid);
+    expect(pc.name).toBe(before.name);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.locator('#phone')).toBeVisible();
+    const back = await snap(page);
+    expect(back.grid).toEqual(before.grid);
+    expect(back.undo).toBe(before.undo);
+    expect(back.edits).toEqual(before.edits);
+    await page.locator('#phUndo').click();
+    expect(await opaque(page)).toBe(1);
+  });
+
+  test('the 3D tab frames the model the first time it opens', async ({ page }) => {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    // a full-size drawing: two strokes that span the whole 32 x 32 canvas
+    for (const [a, b] of [[[0, 0], [31, 0]], [[0, 0], [0, 31]]] as const) {
+      const p = await cell(page, a[0], a[1]), q = await cell(page, b[0], b[1]);
+      await page.mouse.move(p.x, p.y);
+      await page.mouse.down();
+      await page.mouse.move(q.x, q.y, { steps: 12 });
+      await page.mouse.up();
+    }
+    await page.locator('#tab3d').click();
+    type V = { shown: string; ndc: { min: number[]; max: number[] } };
+    const view = () => page.evaluate(() => (window as unknown as { __pixel3d: { viewport(): V } }).__pixel3d.viewport());
+    await expect.poll(async () => (await view()).shown).toBe('model');
+    const n = (await view()).ndc;
+    expect(n.min[0]).toBeGreaterThanOrEqual(-1);
+    expect(n.min[1]).toBeGreaterThanOrEqual(-1);
+    expect(n.max[0]).toBeLessThanOrEqual(1);
+    expect(n.max[1]).toBeLessThanOrEqual(1);
+    // fills a reasonable part of the screen's width
+    expect(n.max[0]! - n.min[0]!).toBeGreaterThan(0.3);
   });
 });
 
