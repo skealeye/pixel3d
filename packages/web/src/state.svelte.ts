@@ -1,4 +1,5 @@
 import { DEFAULTS, applyEdits, opaqueBox, pieces, placeRelative, type Anchor, type Edit, type Grid, type Settings } from '@pixel3d/core';
+import type { Brush } from './brush';
 import { computeGrid, type Meta, type Source } from './pipeline';
 
 /** One undo step: everything a load or an edit can change. Grids and sources are never mutated, so they are shared. */
@@ -60,6 +61,10 @@ export const ui = $state({
   tool: 'select' as 'select' | 'paint' | 'erase',
   /** The color Paint uses (falls back to the first color when it is gone). */
   sel: null as string | null,
+  /** The Pixel Editor window is open. */
+  editor: false,
+  /** The editor's square brush size. */
+  brush: 1 as Brush,
   toast: { text: '', n: 0 },
 });
 

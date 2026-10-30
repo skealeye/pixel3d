@@ -44,11 +44,11 @@
 - Produces: `export const BRUSHES = [1, 2, 3, 5] as const; export type Brush = (typeof BRUSHES)[number]`; `export function footprint(x: number, y: number, size: Brush): { x: number; y: number }[]` (row-major, anchor top-left of the footprint at `(x, y)`, so size 1 is `[{x,y}]`, size 2 covers x..x+1, y..y+1); `export const COMMON_COLORS: string[]` (16 lowercase `#rrggbb`: black, white, 4 greys, red, orange, yellow, green, teal, blue, purple, pink, brown, skin); `export const PALETTE_MAX = 16`.
 - Produces: `ui.editor: boolean` (false) and `ui.brush: Brush` (1).
 
-- [ ] **Step 1: Write `brush.test.ts`**: `footprint(3,4,1)` equals `[{x:3,y:4}]`; `footprint(3,4,2)` has 4 cells and spans x 3–4, y 4–5; `footprint(0,0,5)` has 25 distinct cells; `COMMON_COLORS` has 16 unique values all matching `/^#[0-9a-f]{6}$/`.
-- [ ] **Step 2:** Run `npx vitest run packages/web/test/brush.test.ts`. Expected: FAIL (module missing).
-- [ ] **Step 3:** Implement `brush.ts`; add `editor: false` and `brush: 1 as Brush` to `ui` with a one-line doc comment each.
-- [ ] **Step 4:** Run the test again. Expected: PASS.
-- [ ] **Step 5:** Commit `v0.2.59: pixel editor: brush footprints and editor state`.
+- [x] **Step 1: Write `brush.test.ts`**: `footprint(3,4,1)` equals `[{x:3,y:4}]`; `footprint(3,4,2)` has 4 cells and spans x 3–4, y 4–5; `footprint(0,0,5)` has 25 distinct cells; `COMMON_COLORS` has 16 unique values all matching `/^#[0-9a-f]{6}$/`.
+- [x] **Step 2:** Run `npx vitest run packages/web/test/brush.test.ts`. Expected: FAIL (module missing).
+- [x] **Step 3:** Implement `brush.ts`; add `editor: false` and `brush: 1 as Brush` to `ui` with a one-line doc comment each.
+- [x] **Step 4:** Run the test again. Expected: PASS.
+- [x] **Step 5:** Commit `v0.2.59: pixel editor: brush footprints and editor state`.
 
 ### Task 2: Color actions
 
