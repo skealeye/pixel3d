@@ -5,8 +5,8 @@
   import { cropTo, paintCells, pieceCount } from '../actions.svelte';
   import { footprint } from '../brush';
 
-  /** `id` tells the viewer's canvas from the Pixel Editor's. */
-  let { id = 'src' }: { id?: string } = $props();
+  /** `id` tells the viewer's canvas from the Pixel Editor's. `fit`: the box has a height of its own and the canvas must fit it too. */
+  let { id = 'src', fit = false }: { id?: string; fit?: boolean } = $props();
 
   const MAX_ZOOM = 16;
   let box: HTMLDivElement;
@@ -111,7 +111,7 @@
   });
 
   $effect(() => {
-    const ro = new ResizeObserver(() => { size = Math.max(160, box.clientWidth - 22); draw(); });
+    const ro = new ResizeObserver(() => { size = Math.max(fit ? 100 : 160, (fit ? Math.min(box.clientWidth, box.clientHeight) : box.clientWidth) - 22); draw(); });
     ro.observe(box);
     return () => ro.disconnect();
   });

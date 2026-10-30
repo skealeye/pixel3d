@@ -71,11 +71,11 @@
 - Consumes: `newCanvas`, `resizeCanvas`, `setting`, `undo`, `ui.tool`, `ui.brush`, `BRUSHES`, `maxColors`.
 - Produces ids: `#phTool-paint|erase|pick`, `#phUndo`, `#phBrush` and `#phBrushPop [data-brush]`, `#phGear` and `#phSettings` with `#phSize [data-size=16|32|48|64]`, `#phW`, `#phH`, `#phColorsMinus`, `#phColorsPlus`, `#phColors` (the value).
 
-- [ ] **Step 1: E2E tests.** Paint tool paints a tapped cell; Erase clears it; Pick sets the current color to that cell's; Undo reverts the last stroke and disables when nothing to undo; brush popup 3 × 3 paints nine cells and closes after choosing; Settings: size 16 resizes to 16 × 16 keeping a painted top-left cell; `#phColorsMinus` stops at the number of colors in use; plus reaches 16 and stops.
-- [ ] **Step 2:** Run, confirm fail.
-- [ ] **Step 3:** Build the controls on the existing actions; the popups close on Done or a tap outside.
-- [ ] **Step 4:** Run, confirm pass.
-- [ ] **Step 5:** Tick, commit `v0.2.61: phone tools and popups`.
+- [x] **Step 1: E2E tests.** Paint tool paints a tapped cell; Erase clears it; Pick sets the current color to that cell's; Undo reverts the last stroke and disables when nothing to undo; brush popup 3 × 3 paints nine cells and closes after choosing; Settings: size 16 resizes to 16 × 16 keeping a painted top-left cell; `#phColorsMinus` stops at the number of colors in use; plus reaches 16 and stops.
+- [x] **Step 2:** Run, confirm fail.
+- [x] **Step 3:** Build the controls on the existing actions; the popups close on Done or a tap outside.
+- [x] **Step 4:** Run, confirm pass.
+- [x] **Step 5:** Tick, commit `v0.2.61: phone tools and popups`.
 
 ### Task 4: Color square, hue strip and slots
 
