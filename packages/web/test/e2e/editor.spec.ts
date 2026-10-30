@@ -142,28 +142,39 @@ test.describe('pixel editor', () => {
     expect(rgb).toEqual([0x7a, 0x4f, 0xd6]);
   });
 
-  test('Add color adds it at the pixel height, selects it, and adding it again does nothing', async ({ page }) => {
+  test('a new color is in the image only while a pixel uses it', async ({ page }) => {
     await loadPotion(page);
     await openEditor(page);
     const undo0 = (await snap(page)).undo;
     await page.locator('#edHex').fill('#12ab34');
     await page.locator('#edAddBtn').click();
+    // chosen, not yet in the image
+    expect(await hexes(page)).not.toContain('#12ab34');
+    await expect(page.locator('#edImage [data-c="#12ab34"]')).toHaveCount(0);
+    expect((await snap(page)).undo).toBe(undo0);
+    // the first pixel brings it in, at the pixel height, in that stroke's one undo step
+    await clickCell(page, 1, 8);
     expect(await hexes(page)).toContain('#12ab34');
     expect((await snap(page)).grid!.palette.find((p) => p.hex === '#12ab34')!.height).toBe(1);
     await expect(chip(page, 'Image', '#12ab34')).toHaveClass(/\bcur\b/);
     expect((await snap(page)).undo).toBe(undo0 + 1);
-    await page.locator('#edAddBtn').click();
-    expect((await snap(page)).undo).toBe(undo0 + 1);
+    // erasing its only pixel takes it out again; painting it again brings it back
+    await page.locator('#editor [data-tool=erase]').click();
     await clickCell(page, 1, 8);
-    expect(await opaque(page)).toBe(POTION_CELLS + 1);
+    expect(await hexes(page)).not.toContain('#12ab34');
+    await expect(page.locator('#edImage [data-c="#12ab34"]')).toHaveCount(0);
+    await page.locator('#editor [data-tool=paint]').click();
+    await clickCell(page, 1, 8);
+    expect(await hexes(page)).toContain('#12ab34');
   });
 
-  test('a common color that is new joins the image when chosen', async ({ page }) => {
+  test('a common color that is new joins the image with its first pixel', async ({ page }) => {
     await loadPotion(page);
     await openEditor(page);
     await chip(page, 'Common', '#d62828').click();
-    expect(await hexes(page)).toContain('#d62828');
+    expect(await hexes(page)).not.toContain('#d62828');
     await clickCell(page, 1, 8);
+    expect(await hexes(page)).toContain('#d62828');
     expect(await opaque(page)).toBe(POTION_CELLS + 1);
   });
 
@@ -173,6 +184,7 @@ test.describe('pixel editor', () => {
     await openEditor(page);
     const undo = (await snap(page)).undo;
     await chip(page, 'Common', '#d62828').click();
+    await clickCell(page, 0, 0);
     await expect(page.locator('.toast')).toHaveText('An image holds at most 16 colors.');
     expect(await hexes(page)).toHaveLength(16);
     expect((await snap(page)).undo).toBe(undo);

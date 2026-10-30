@@ -331,7 +331,8 @@ test.describe('export', () => {
     await page.locator('#addColor').click();
     await page.locator('#edAddBtn').click();
     await page.locator('#edDone').click();
-    await expect.poll(async () => (await snap(page)).grid!.palette.length).toBe(8);
+    // a color nothing paints is not in the image
+    await expect.poll(async () => (await snap(page)).grid!.palette.length).toBe(7);
     await expect(page.locator('#fcount')).toHaveText('8 filaments');
     await page.locator('#exportBtn').click();
     await expect(page.locator('#summary')).toContainText('potion.3mf, 8 filaments, ');

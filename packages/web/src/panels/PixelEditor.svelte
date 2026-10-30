@@ -1,6 +1,6 @@
 <script lang="ts">
   import { app, redo, toast, ui, undo } from '../state.svelte';
-  import { addCustomColor, closeEditor, useColor } from '../actions.svelte';
+  import { closeEditor, setBrush } from '../actions.svelte';
   import { BRUSHES, COMMON_COLORS } from '../brush';
   import Favorites from './Favorites.svelte';
   import SourceCanvas from './SourceCanvas.svelte';
@@ -15,20 +15,21 @@
   });
 
   const palette = $derived(app.grid?.palette ?? []);
-  /** The brush color: the selected one, or the first while it is gone (as painting does). */
-  const cur = $derived(palette.some((p) => p.hex === ui.sel) ? ui.sel! : (palette[0]?.hex ?? ''));
+  /** The brush color: it need not be in the image until a pixel is painted with it. */
+  const cur = $derived(ui.sel && /^#[0-9a-f]{6}$/.test(ui.sel) ? ui.sel : (palette[0]?.hex ?? ''));
   const valid = $derived(/^#[0-9a-f]{6}$/i.test(hex));
   // the tool buttons: Pick is the viewer's Select tool (drag pans, a click picks the color)
   const tools = [['paint', 'paint', 'Paint', 'B'], ['erase', 'erase', 'Erase', 'E'], ['pick', 'select', 'Pick', 'I']] as const;
 
   /** Choosing a color means painting with it: Erase and Pick go back to Paint. */
   function use(c: string) {
-    if (useColor(c)) ui.tool = 'paint';
+    setBrush(c);
+    ui.tool = 'paint';
   }
 
   function add() {
     if (!valid) { toast('Enter a color like #e0715c.'); return; }
-    if (addCustomColor(hex)) ui.tool = 'paint';
+    use(hex);
   }
 </script>
 

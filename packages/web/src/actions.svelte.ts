@@ -5,11 +5,12 @@ import { addEdits, app, change, stopPicking, toast, ui } from './state.svelte';
 
 // Edits from the palette panel and the source preview. Each one is a core `Edit`, replayed on top of the image (spec §4.10).
 
-/** The color Paint uses: the selected one, or the first while it is gone. */
+const HEX = /^#[0-9a-f]{6}$/;
+
+/** The color Paint uses: the brush color, which need not be in the image yet, or the first color when none is chosen. */
 function paintHex(): string | null {
-  const p = app.grid?.palette;
-  if (!p?.length) return null;
-  return p.some((c) => c.hex === ui.sel) ? ui.sel : p[0]!.hex;
+  if (ui.sel && HEX.test(ui.sel)) return ui.sel;
+  return app.grid?.palette[0]?.hex ?? null;
 }
 
 /** One color's height. Repeats on the same color replace the last height edit rather than piling up. */
@@ -33,27 +34,10 @@ export function deleteColor(hex: string) {
   if (addEdits([{ kind: 'delete', hex }])) toast('Color deleted. Its pixels now use the nearest color.');
 }
 
-/**
- * Add a color to the image at the current pixel height and select it. A color already in the image is just selected;
- * at the color cap nothing is added. Returns whether the color is now selected.
- */
-export function addCustomColor(hex: string): boolean {
-  hex = hex.toLowerCase();
-  const g = app.grid;
-  if (!g) return false;
-  if (!g.palette.some((p) => p.hex === hex)) {
-    if (g.palette.length >= PALETTE_MAX) { toast(`An image holds at most ${PALETTE_MAX} colors.`); return false; }
-    const h = app.settings.heights.h;
-    const edits: Edit[] = [{ kind: 'add', hex }];
-    if (h !== 1) edits.push({ kind: 'height', hex, h });
-    if (!addEdits(edits)) return false;
-  }
-  ui.sel = hex;
-  return true;
+/** Choose the brush color. It joins the image with the first pixel painted in it, not before. */
+export function setBrush(hex: string) {
+  ui.sel = hex.toLowerCase();
 }
-
-/** A palette chip was chosen: its color becomes the brush, joining the image if it is new. */
-export const useColor = addCustomColor;
 
 /** Open the Pixel Editor: Paint is on and the picture starts unzoomed. */
 export function openEditor() {
@@ -63,6 +47,8 @@ export function openEditor() {
   ui.editor = true;
   ui.tool = 'paint';
   ui.zoom = 1;
+  // a brush color to start with: the last one chosen, else the image's first, else black (a blank canvas)
+  if (!ui.sel || !HEX.test(ui.sel)) ui.sel = app.grid?.palette[0]?.hex ?? '#000000';
 }
 
 /** Back to the viewer, whose tool is always Select (drag pans, a click picks a color). */
@@ -83,9 +69,13 @@ export function paintCells(cells: { x: number; y: number }[], push: boolean): nu
   if (!g) return 0;
   const hex = ui.tool === 'erase' ? null : paintHex();
   const v = hex === null ? -1 : g.palette.findIndex((p) => p.hex === hex);
+  const isNew = hex !== null && v < 0;
+  if (isNew && g.palette.length >= PALETTE_MAX) { toast(`An image holds at most ${PALETTE_MAX} colors.`); return 0; }
   const edits: Edit[] = cells
-    .filter(({ x, y }) => x >= 0 && y >= 0 && x < g.w && y < g.h && ((v < 0 && hex !== null) || g.cells[y * g.w + x] !== v))
+    .filter(({ x, y }) => x >= 0 && y >= 0 && x < g.w && y < g.h && (isNew || g.cells[y * g.w + x] !== v))
     .map(({ x, y }) => ({ kind: 'paint', x, y, hex }));
+  // a color new to the image comes in at the current pixel height, in the same undo step as its first pixels
+  if (isNew && edits.length) edits.push({ kind: 'height', hex: hex!, h: app.settings.heights.h });
   return addEdits(edits, push);
 }
 

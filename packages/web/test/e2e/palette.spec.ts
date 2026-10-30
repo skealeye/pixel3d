@@ -147,9 +147,10 @@ test.describe('colors and heights', () => {
     await page.locator('#addColor').click();
     await page.locator('#edHex').fill('#e0715c');
     await page.locator('#edAddBtn').click();
-    expect(await hexes(page)).toContain('#e0715c');
-    await expect(page.locator('#edImage [data-c="#e0715c"]')).toHaveClass(/\bcur\b/);
+    // the color is only in the image once a pixel uses it
+    expect(await hexes(page)).not.toContain('#e0715c');
     await clickCell(page, 7, 0, '#edSrc');
+    await expect(page.locator('#edImage [data-c="#e0715c"]')).toHaveClass(/\bcur\b/);
     const g = (await snap(page)).grid!;
     expect(g.palette.findIndex((p) => p.hex === '#e0715c')).toBeGreaterThan(-1);
     expect(await opaque(page)).toBe(CELLS);
