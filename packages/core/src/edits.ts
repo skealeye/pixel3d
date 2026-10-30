@@ -1,4 +1,4 @@
-import { type Grid, DEFAULT_HEIGHT, clampHeight, cloneGrid, mergeInto } from './grid';
+import { type Grid, DEFAULT_HEIGHT, clampHeight, cloneGrid, mergeInto, pruneUnused } from './grid';
 import { nearestIndex } from './palette';
 
 export type Edit =
@@ -8,7 +8,7 @@ export type Edit =
   | { kind: 'paint'; x: number; y: number; hex: string | null }
   | { kind: 'add'; hex: string };
 
-/** Apply edits in order to a copy of `g`. Edits that can no longer apply (missing color, out of bounds) are returned in `dropped`. */
+/** Apply edits in order to a copy of `g`; a color no pixel uses at the end is dropped from the palette. Edits that can no longer apply (missing color, out of bounds) are returned in `dropped`. */
 export function applyEdits(g: Grid, edits: Edit[]): { grid: Grid; dropped: Edit[] } {
   const grid = cloneGrid(g);
   const dropped: Edit[] = [];
@@ -55,5 +55,6 @@ export function applyEdits(g: Grid, edits: Edit[]): { grid: Grid; dropped: Edit[
       }
     }
   }
+  pruneUnused(grid);
   return { grid, dropped };
 }

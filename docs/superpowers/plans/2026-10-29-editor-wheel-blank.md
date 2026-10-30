@@ -39,11 +39,11 @@
 **Interfaces:**
 - Produces: `export function pruneUnused(g: Grid): void` in `grid.ts` (removes palette entries no cell uses, remapping cells; keeps at least nothing special: an all-empty grid ends with an empty palette). `applyEdits` calls it on its copy once, after the loop.
 
-- [ ] **Step 1: Tests.** In `edits.test.ts`, change "add appends at 1 mm unless it exists" so a lone `add` returns a palette without the new color; add: painting over a color's only pixel removes it and renumbers cells; `paint hex:null` on a color's only pixel removes it; `[add X, height X 3, paint(0,0,X)]` in one batch keeps X at height 3; a color with pixels is kept.
-- [ ] **Step 2:** Run `npx vitest run packages/core/test/edits.test.ts`. Expected: new tests FAIL.
-- [ ] **Step 3:** Implement `pruneUnused` (single pass, build the remap) and call it at the end of `applyEdits`.
-- [ ] **Step 4:** Run `npm test`. Expected: all pass (fix any other core test that relied on an unused color persisting, by updating it).
-- [ ] **Step 5:** Commit `v0.2.60: core: colors with no pixels leave the palette`.
+- [x] **Step 1: Tests.** In `edits.test.ts`, change "add appends at 1 mm unless it exists" so a lone `add` returns a palette without the new color; add: painting over a color's only pixel removes it and renumbers cells; `paint hex:null` on a color's only pixel removes it; `[add X, height X 3, paint(0,0,X)]` in one batch keeps X at height 3; a color with pixels is kept.
+- [x] **Step 2:** Run `npx vitest run packages/core/test/edits.test.ts`. Expected: new tests FAIL.
+- [x] **Step 3:** Implement `pruneUnused` (single pass, build the remap) and call it at the end of `applyEdits`.
+- [x] **Step 4:** Run `npm test`. Expected: all pass (fix any other core test that relied on an unused color persisting, by updating it).
+- [x] **Step 5:** Commit `v0.2.60: core: colors with no pixels leave the palette`.
 
 ### Task 2: The brush color is independent of the palette
 

@@ -50,11 +50,29 @@ describe('applyEdits', () => {
     expect(r.dropped).toEqual([oob]);
   });
 
-  it('add appends at 1 mm unless it exists', () => {
+  it('add appends at 1 mm unless it exists, and a color nothing uses does not stay', () => {
     const dup = { kind: 'add', hex: '#0000ff' } as const;
     const r = applyEdits(base(), [{ kind: 'add', hex: '#112233' }, dup]);
-    expect(r.grid.palette.length).toBe(4);
-    expect(r.grid.palette[3]).toEqual({ hex: '#112233', height: 1 });
+    expect(r.grid.palette.length).toBe(3);
+    // used within the same batch it stays, at its own height
+    const used = applyEdits(base(), [{ kind: 'add', hex: '#112233' }, { kind: 'height', hex: '#112233', h: 3 }, { kind: 'paint', x: 2, y: 1, hex: '#112233' }]);
+    expect(used.grid.palette[3]).toEqual({ hex: '#112233', height: 3 });
+    expect(used.dropped).toEqual([]);
+  });
+
+  it('a color leaves the palette with its last pixel, and the cells are renumbered', () => {
+    // #fe0000 (index 1) has pixels at 1 and 4
+    const gone = applyEdits(base(), [{ kind: 'paint', x: 1, y: 0, hex: '#ff0000' }, { kind: 'paint', x: 1, y: 1, hex: null }]);
+    expect(gone.grid.palette.map((p) => p.hex)).toEqual(['#ff0000', '#0000ff']);
+    expect(Array.from(gone.grid.cells)).toEqual([0, 0, 1, 0, -1, -1]);
+  });
+
+  it('a color with pixels is kept; an empty grid has an empty palette', () => {
+    const kept = applyEdits(base(), [{ kind: 'paint', x: 0, y: 0, hex: null }]);
+    expect(kept.grid.palette.length).toBe(3);
+    const all = base();
+    const edits = Array.from({ length: 6 }, (_, k) => ({ kind: 'paint', x: k % 3, y: Math.floor(k / 3), hex: null }) as const);
+    expect(applyEdits(all, edits).grid.palette).toEqual([]);
   });
 
   it('never mutates its input', () => {
