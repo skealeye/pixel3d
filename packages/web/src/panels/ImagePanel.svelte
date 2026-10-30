@@ -2,7 +2,7 @@
   import { change, live, recompute, stopPicking, app, toast, ui } from '../state.svelte';
   import { loadUrl } from '../load';
   import type { Edit } from '@pixel3d/core';
-  import { reloadImage, scalePaint } from '../actions.svelte';
+  import { openEditor, reloadImage, scalePaint } from '../actions.svelte';
   import { PIXELATE_BG_TOL_PCT, pixelatedSize } from '../pipeline';
   import SourceCanvas from './SourceCanvas.svelte';
   import Slider from './Slider.svelte';
@@ -23,8 +23,6 @@
     ui.wide = !ui.wide;
     ui.left = ui.wide ? Math.round(innerWidth * 0.45) : 330;
   }
-
-  const tools = [['select', 'Select'], ['paint', 'Paint'], ['erase', 'Erase']] as const;
 
   function toggleCrop() {
     if (!loaded) { toast('Open an image first.'); return; }
@@ -81,11 +79,7 @@
   </h2>
   <SourceCanvas />
   <div class="tools">
-    <div class="seg" data-key="tool">
-      {#each tools as [v, label] (v)}
-        <button data-v={v} class:on={ui.tool === v} onclick={() => (ui.tool = v)}>{label}</button>
-      {/each}
-    </div>
+    <button class="btn primary" id="editPixels" title="Paint, erase and add colors in the Pixel Editor" onclick={openEditor}>Edit pixels</button>
     <button class="btn" id="crop" class:on={ui.cropping} onclick={toggleCrop}>Crop</button>
   </div>
   <form class="row" onsubmit={(e) => { e.preventDefault(); void loadUrl(url).then((ok) => { if (ok) url = ''; }); }}>

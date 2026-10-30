@@ -1,6 +1,7 @@
 <script lang="ts">
   import { VERSION } from '@pixel3d/core';
   import { redo, app, ui, undo, stopPicking } from './state.svelte';
+  import { BRUSHES } from './brush';
   import { listen } from './load';
   import { register } from './hook';
   import { latencies } from './perf';
@@ -16,6 +17,7 @@
   import KeychainPanel from './panels/KeychainPanel.svelte';
   import MagnetsPanel from './panels/MagnetsPanel.svelte';
   import OrientationPanel from './panels/OrientationPanel.svelte';
+  import PixelEditor from './panels/PixelEditor.svelte';
   import ViewportPane from './viewport/ViewportPane.svelte';
   import Footer from './Footer.svelte';
   import Toast from './Toast.svelte';
@@ -54,7 +56,16 @@
       ui.placing = false;
       stopPicking();
       // only an Esc nothing else used clears the Select tool's selection (R26); Paint keeps its brush
-      if (!busy && ui.tool === 'select') ui.sel = null;
+      if (!busy && !ui.editor && ui.tool === 'select') ui.sel = null;
+      return;
+    }
+    if (ui.editor && !e.ctrlKey && !e.metaKey && !e.altKey && !typing(e.target)) {
+      const k = e.key.toLowerCase(), i = BRUSHES.indexOf(ui.brush);
+      if (k === 'b') ui.tool = 'paint';
+      else if (k === 'e') ui.tool = 'erase';
+      else if (k === 'i') ui.tool = 'select';
+      else if (k === '[') ui.brush = BRUSHES[Math.max(0, i - 1)]!;
+      else if (k === ']') ui.brush = BRUSHES[Math.min(BRUSHES.length - 1, i + 1)]!;
       return;
     }
     if (!(e.ctrlKey || e.metaKey) || typing(e.target)) return;
@@ -94,6 +105,7 @@
 
 <Footer />
 
+<PixelEditor />
 <Toast />
 <UpdatePrompt />
 <div class="dropzone" class:show={dragging}><div>Drop an image to load it</div></div>

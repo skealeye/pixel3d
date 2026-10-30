@@ -95,7 +95,7 @@ input[type=color] { width: 40px; height: 26px; padding: 0 2px; background: var(-
 .source { background:
     conic-gradient(#2a2e35 25%, #24282e 0 50%, #2a2e35 0 75%, #24282e 0) 0 0 / 16px 16px;
   border: 1px solid var(--line); border-radius: var(--r-s); display: grid; place-items: center; padding: 10px; }
-#src { image-rendering: pixelated; cursor: crosshair; touch-action: none; display: block; }
+#src, #edSrc { image-rendering: pixelated; cursor: crosshair; touch-action: none; display: block; }
 .tools { display: flex; gap: 6px; margin-top: 8px; }
 .tools .seg { flex: 1; margin-top: 0; }
 
@@ -168,8 +168,8 @@ footer a:hover { color: var(--gold); text-decoration: underline; }
 
 /* not in the mockup: the URL field, and the preview's pan and crop cursors */
 #url { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; }
-#src.pan { cursor: grab; }
-#src.crop, #src.draw { cursor: crosshair; }
+#src.pan, #edSrc.pan { cursor: grab; }
+#src.crop, #src.draw, #edSrc.crop, #edSrc.draw { cursor: crosshair; }
 
 /* model settings: favorites and the magnet list (from the mockup) */
 .favs { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
@@ -210,3 +210,26 @@ pre {
 }
 /* not in the mockup: the update prompt stays until used, so it takes clicks and sits clear of the usual toast */
 .toast.update { pointer-events: auto; bottom: 90px; display: flex; align-items: center; gap: 10px; }
+
+/* Pixel Editor window: the app behind it is blurred */
+dialog.editor { width: 92vw; max-width: 1200px; height: 88vh; padding: 0; overflow: hidden; }
+dialog.editor[open] { display: flex; flex-direction: column; }
+dialog.editor::backdrop { background: #0007; backdrop-filter: blur(6px); }
+.edHead { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.edHead h3 { margin: 0 8px 0 0; }
+.edBody { flex: 1; min-height: 0; display: grid; grid-template-columns: 120px minmax(0, 1fr) 260px; }
+.edTools, .edColors { padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.edTools { border-right: 1px solid var(--line); }
+.edColors { border-left: 1px solid var(--line); }
+.edTools .lbl, .edColors .lbl { color: var(--muted); font-size: 12px; margin-top: 8px; }
+.edTools .lbl:first-child, .edColors .lbl:first-child { margin-top: 0; }
+.brushes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.edCanvas { min-width: 0; min-height: 0; padding: 12px; display: grid; place-items: center; overflow: hidden; }
+.edCanvas .source { width: min(100%, calc(88vh - 110px)); box-sizing: border-box; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { width: 26px; height: 26px; border-radius: 3px; border: 1px solid #0008; padding: 0; cursor: pointer; box-shadow: inset 0 0 0 1px #ffffff1a; }
+.chip.cur { outline: 2px solid var(--gold); outline-offset: 1px; }
+.edColors .favs { flex-wrap: wrap; margin-top: 0; }
+.edColors .favs .lbl { display: none; }
+#edHex { width: 0; flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; }
+#edColor { width: 34px; height: 28px; padding: 0; border: 1px solid var(--line); background: none; }

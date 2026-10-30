@@ -1,7 +1,7 @@
 import { DEFAULTS, type Edit } from '@pixel3d/core';
 import { PALETTE_MAX } from './brush';
 import { cellsToCrop, computeGrid } from './pipeline';
-import { addEdits, app, change, toast, ui } from './state.svelte';
+import { addEdits, app, change, stopPicking, toast, ui } from './state.svelte';
 
 // Edits from the palette panel and the source preview. Each one is a core `Edit`, replayed on top of the image (spec §4.10).
 
@@ -55,9 +55,21 @@ export function addCustomColor(hex: string): boolean {
 /** A palette chip was chosen: its color becomes the brush, joining the image if it is new. */
 export const useColor = addCustomColor;
 
-/** The mockup's new color, at the current pixel height; then paint with it. */
-export function addColor() {
-  if (addCustomColor('#e0715c')) ui.tool = 'paint';
+/** Open the Pixel Editor: Paint is on and the picture starts unzoomed. */
+export function openEditor() {
+  if (!app.grid) { toast('Open an image first.'); return; }
+  stopPicking();
+  ui.cropping = false;
+  ui.editor = true;
+  ui.tool = 'paint';
+  ui.zoom = 1;
+}
+
+/** Back to the viewer, whose tool is always Select (drag pans, a click picks a color). */
+export function closeEditor() {
+  ui.editor = false;
+  ui.tool = 'select';
+  ui.zoom = 1;
 }
 
 /**

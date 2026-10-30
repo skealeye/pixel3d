@@ -110,7 +110,7 @@
 
 Layout of the window: tools and brush sizes in a left column; `#edSrc` in the middle, filling the window; right column with the three chip groups and the add-color row; Done in the header. The window is about 90vw × 85vh. Chips are click-to-use (`useColor`); in Favorites, the star saves the current `ui.sel`.
 
-- [ ] **Step 1: Write `editor.spec.ts`** (helpers copied from `palette.spec.ts`, canvas id `#edSrc`; `cell()` takes the canvas selector):
+- [x] **Step 1: Write `editor.spec.ts`** (helpers copied from `palette.spec.ts`, canvas id `#edSrc`; `cell()` takes the canvas selector):
   - `Edit pixels` opens `#editor`; Esc closes it and `ui.tool` is back to select (viewer has no Paint button: `.seg[data-key=tool]` count 0).
   - viewer click on a potion cell marks that color's `#pal li` as `sel` (the picker).
   - editor: pick `#2b2135` from `#edImage`, paint cell (1,8): opaque +1; with brush 3 a click paints 9 cells; edge click at cell (0,0) with brush 5 does not error.
@@ -119,11 +119,11 @@ Layout of the window: tools and brush sizes in a left column; `#edSrc` in the mi
   - favorite: Save in `#edFavs` stores `ui.sel`; survives reload.
   - eyedropper (`pick`) click selects the cell's color; keyboard `b`, `e`, `i`, `]` switch tool/brush; Ctrl+Z undoes a stroke with the editor open.
   - `Edit pixels` with no image shows the toast and does not open.
-- [ ] **Step 2:** Run `npx playwright test -c packages/web editor`. Expected: FAIL.
-- [ ] **Step 3:** Implement `PixelEditor.svelte` (`<dialog class="editor" id="editor">`, `showModal()` in an `$effect` on `ui.editor`, as `BatchDialog.svelte` does), `openEditor`/`closeEditor`, the App wiring, CSS, and the viewer changes listed above.
-- [ ] **Step 4:** Migrate the existing tests: in `palette.spec.ts` and `options.spec.ts`, every `tool(page, 'paint'|'erase')` stroke now runs inside the open editor (helper `openEditor(page)`; `cell()` and `clickCell()` take the canvas selector and default to `#src`; brush choice via `#edImage [data-c]` in place of `#pal .sw`); the `#addColor` tests in `palette.spec.ts` and `export.spec.ts:327` use the editor's add-color; `tool(page, 'select')` assertions drop (the viewer is always select). Preserve each test's intent and assertions on edits, opaque count and undo.
-- [ ] **Step 5:** Run `npx playwright test -c packages/web` (whole suite) and `npm test` and `npm run typecheck`. Expected: all PASS.
-- [ ] **Step 6:** Commit `v0.2.59: Pixel Editor window, viewer Paint becomes a color picker`.
+- [x] **Step 2:** Run `npx playwright test -c packages/web editor`. Expected: FAIL.
+- [x] **Step 3:** Implement `PixelEditor.svelte` (`<dialog class="editor" id="editor">`, `showModal()` in an `$effect` on `ui.editor`, as `BatchDialog.svelte` does), `openEditor`/`closeEditor`, the App wiring, CSS, and the viewer changes listed above.
+- [x] **Step 4:** Migrate the existing tests: in `palette.spec.ts` and `options.spec.ts`, every `tool(page, 'paint'|'erase')` stroke now runs inside the open editor (helper `openEditor(page)`; `cell()` and `clickCell()` take the canvas selector and default to `#src`; brush choice via `#edImage [data-c]` in place of `#pal .sw`); the `#addColor` tests in `palette.spec.ts` and `export.spec.ts:327` use the editor's add-color; `tool(page, 'select')` assertions drop (the viewer is always select). Preserve each test's intent and assertions on edits, opaque count and undo.
+- [x] **Step 5:** Run `npx playwright test -c packages/web` (whole suite) and `npm test` and `npm run typecheck`. Expected: all PASS.
+- [x] **Step 6:** Commit `v0.2.59: Pixel Editor window, viewer Paint becomes a color picker`.
 
 ### Task 6: Release
 

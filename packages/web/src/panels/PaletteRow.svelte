@@ -3,16 +3,15 @@
   import { inputStarted } from '../perf';
   import { ui } from '../state.svelte';
 
-  /** One palette color: swatch (select it, or paint with it), hex (recolor), height slider, delete. */
+  /** One palette color: swatch (select it), hex (recolor), height slider, delete. */
   let { hex, height }: { hex: string; height: number } = $props();
 
   /** One undo step per drag: the first input of a drag pushes, the rest update it. */
   let dragging = false;
 
-  /** Select: select this color (shown on the model, R26), or clear it when it is already selected. Paint, Erase: the brush. */
+  /** Select this color (shown on the model, R26), or clear it when it is already selected. */
   function pick() {
-    if (ui.tool === 'select') ui.sel = ui.sel === hex ? null : hex;
-    else ui.sel = hex;
+    ui.sel = ui.sel === hex ? null : hex;
   }
 
   function slide(v: number) {
@@ -23,7 +22,7 @@
 </script>
 
 <li class:sel={ui.sel === hex}>
-  <button class="sw" style:background={hex} title={ui.tool === 'select' ? 'Show where this color is used' : 'Paint with this color'} aria-label="{ui.tool === 'select' ? 'Select' : 'Paint with'} {hex}" onclick={pick}></button>
+  <button class="sw" style:background={hex} title="Show where this color is used" aria-label="Select {hex}" onclick={pick}></button>
   <label class="hex">{hex}<input type="color" value={hex} title="Recolor every pixel of this color"
     onchange={(e) => recolor(hex, e.currentTarget.value)}></label>
   <input type="range" min="0.2" max="20" step="0.1" value={height} aria-label="Height of {hex}"

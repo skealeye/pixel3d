@@ -43,12 +43,12 @@ async function loadPotion(page: Page) {
 
 /** Paint the top-left cell with a palette color: a stray pixel, well away from the art. */
 async function paintStray(page: Page) {
-  await page.locator('.seg[data-key=tool] button[data-v=paint]').click();
-  await row(page, '#2b2135').locator('.sw').click();
-  await page.locator('#src').scrollIntoViewIfNeeded();
-  const b = (await page.locator('#src').boundingBox())!;
+  await page.locator('#editPixels').click();
+  await page.locator('#edImage [data-c="#2b2135"]').click();
+  const b = (await page.locator('#edSrc').boundingBox())!;
   const c = b.width / 16;
   await page.mouse.click(b.x + c / 2, b.y + c / 2);
+  await page.locator('#edDone').click();
 }
 
 test.describe('clicker pieces', () => {

@@ -327,7 +327,10 @@ test.describe('export', () => {
   test('Add color with nothing painted leaves the filament count alone', async ({ page }) => {
     await loadPotion(page);
     await expect(page.locator('#fcount')).toHaveText('8 filaments');
+    // Add color opens the Pixel Editor, where the color is added
     await page.locator('#addColor').click();
+    await page.locator('#edAddBtn').click();
+    await page.locator('#edDone').click();
     await expect.poll(async () => (await snap(page)).grid!.palette.length).toBe(8);
     await expect(page.locator('#fcount')).toHaveText('8 filaments');
     await page.locator('#exportBtn').click();

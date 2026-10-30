@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { addColor, restoreColors } from '../actions.svelte';
-  import { app, live, toast } from '../state.svelte';
+  import { openEditor, restoreColors } from '../actions.svelte';
+  import { app, live } from '../state.svelte';
   import HeightModes from './HeightModes.svelte';
   import PaletteRow from './PaletteRow.svelte';
   import Slider from './Slider.svelte';
@@ -9,11 +9,6 @@
   const count = $derived(app.grid && app.meta ? `${palette.length} of ${app.meta.colors}` : '');
   // the color count merges the closest pair of colors until this many are left
   const colors = live(() => app.settings.colors.max, (v) => (app.settings.colors.max = v));
-
-  function add() {
-    if (!app.grid) { toast('Open an image first.'); return; }
-    addColor();
-  }
 </script>
 
 <section>
@@ -28,5 +23,5 @@
       <PaletteRow hex={p.hex} height={p.height} />
     {/each}
   </ul>
-  <div class="row"><button class="btn" id="addColor" onclick={add}>Add color</button><span class="hint" style="margin:0">Click a swatch to select it (or, in Paint, to paint with it). Click a hex code to recolor.</span></div>
+  <div class="row"><button class="btn" id="addColor" onclick={openEditor}>Add color</button><span class="hint" style="margin:0">Click a swatch to show where it is used. Click a hex code to recolor. Colors are added and painted in Edit pixels.</span></div>
 </section>

@@ -44,19 +44,32 @@ async function loadPotion(page: Page) {
 }
 
 const row = (page: Page, hex: string) => page.locator('#pal li', { hasText: hex });
-const tool = (page: Page, v: 'select' | 'paint' | 'erase') => page.locator(`.seg[data-key=tool] button[data-v=${v}]`);
 
-/** Page position of the middle of grid cell (i, j) in the source preview, unzoomed. Scrolls the preview into view. */
-async function cell(page: Page, i: number, j: number, dx = 0.5, dy = 0.5) {
-  await page.locator('#src').scrollIntoViewIfNeeded();
-  const b = (await page.locator('#src').boundingBox())!;
+/** Page position of the middle of grid cell (i, j) in the source preview (or the editor's picture), unzoomed. */
+async function cell(page: Page, i: number, j: number, dx = 0.5, dy = 0.5, canvas = '#src') {
+  await page.locator(canvas).scrollIntoViewIfNeeded();
+  const b = (await page.locator(canvas).boundingBox())!;
   const g = (await snap(page)).grid!;
   const c = b.width / Math.max(g.w, g.h);
   return { x: b.x + (b.width - g.w * c) / 2 + (i + dx) * c, y: b.y + (b.height - g.h * c) / 2 + (j + dy) * c };
 }
-async function clickCell(page: Page, i: number, j: number) {
-  const p = await cell(page, i, j);
+async function clickCell(page: Page, i: number, j: number, canvas = '#src') {
+  const p = await cell(page, i, j, 0.5, 0.5, canvas);
   await page.mouse.click(p.x, p.y);
+}
+
+/** The Pixel Editor, where painting happens: open it with a color from the image as the brush. */
+async function openEditor(page: Page, hex?: string) {
+  await page.locator('#editPixels').click();
+  await expect(page.locator('#editor')).toBeVisible();
+  await (hex ? page.locator(`#edImage [data-c="${hex}"]`) : page.locator('#edImage .chip').first()).click();
+}
+const closeEditor = (page: Page) => page.locator('#edDone').click();
+/** Open the editor, paint these cells with `hex`, and come back to the viewer. */
+async function paintIn(page: Page, hex: string | undefined, cells: [number, number][]) {
+  await openEditor(page, hex);
+  for (const [i, j] of cells) await clickCell(page, i, j, '#edSrc');
+  await closeEditor(page);
 }
 
 test.describe('colors and heights', () => {
@@ -130,32 +143,32 @@ test.describe('colors and heights', () => {
     await expect(page.locator('.toast')).toHaveText('Color deleted. Its pixels now use the nearest color.');
     expect(await hexes(page)).toEqual(POTION.slice(0, 6));
     expect(await opaque(page)).toBe(CELLS);
+    // Add color opens the Pixel Editor; adding there selects the new color for painting
     await page.locator('#addColor').click();
+    await page.locator('#edHex').fill('#e0715c');
+    await page.locator('#edAddBtn').click();
     expect(await hexes(page)).toContain('#e0715c');
-    await expect(row(page, '#e0715c')).toHaveClass(/\bsel\b/);
-    await expect(tool(page, 'paint')).toHaveClass(/\bon\b/);
-    await clickCell(page, 7, 0);
+    await expect(page.locator('#edImage [data-c="#e0715c"]')).toHaveClass(/\bcur\b/);
+    await clickCell(page, 7, 0, '#edSrc');
     const g = (await snap(page)).grid!;
     expect(g.palette.findIndex((p) => p.hex === '#e0715c')).toBeGreaterThan(-1);
     expect(await opaque(page)).toBe(CELLS);
-    // Select picks the color under the pointer
-    await tool(page, 'select').click();
-    await clickCell(page, 7, 9);
+    // Erase empties cells
+    await page.locator('#editor [data-tool=erase]').click();
+    await clickCell(page, 7, 0, '#edSrc');
+    await clickCell(page, 7, 9, '#edSrc');
+    expect(await opaque(page)).toBe(CELLS - 2);
+    await closeEditor(page);
+    // the viewer picks the color under the pointer
+    await clickCell(page, 7, 8);
     await expect(row(page, '#7a4fd6')).toHaveClass(/\bsel\b/);
-    // Erase empties a cell
-    await tool(page, 'erase').click();
-    await clickCell(page, 7, 9);
-    expect(await opaque(page)).toBe(CELLS - 1);
   });
 
   test('a drag-paint stroke is one undo step', async ({ page }) => {
     await loadPotion(page);
-    // Select's swatch only selects (R26): pick Paint, then the brush
-    await tool(page, 'paint').click();
-    await row(page, '#2b2135').locator('.sw').click();
-    await expect(tool(page, 'paint')).toHaveClass(/\bon\b/);
+    await openEditor(page, '#2b2135');
     const undo = (await snap(page)).undo;
-    const a = await cell(page, 1, 8), b = await cell(page, 1, 12);
+    const a = await cell(page, 1, 8, 0.5, 0.5, '#edSrc'), b = await cell(page, 1, 12, 0.5, 0.5, '#edSrc');
     await page.mouse.move(a.x, a.y);
     await page.mouse.down();
     await page.mouse.move(b.x, b.y, { steps: 3 });
@@ -171,11 +184,7 @@ test.describe('colors and heights', () => {
     const before = await snap(page);
     expect(before.settings.size.width).toBe(40);
     expect(before.settings.pixelMm!.x).toBeCloseTo(40 / 12, 6);
-    // Select's swatch only selects (R26): pick Paint, then the brush
-    await tool(page, 'paint').click();
-    await row(page, '#2b2135').locator('.sw').click();
-    await clickCell(page, 1, 8);
-    await clickCell(page, 14, 8);
+    await paintIn(page, '#2b2135', [[1, 8], [14, 8]]);
     const after = await snap(page);
     // stored unrounded (R29), shown to 0.1 mm
     expect(after.settings.size.width).toBeCloseTo(14 * (40 / 12), 9);
@@ -205,10 +214,7 @@ test.describe('colors and heights', () => {
     await loadPotion(page);
     await page.locator('.seg[data-key=heightMode] button[data-v=random]').click();
     await row(page, '#2b2135').locator('input[type=range]').fill('6');
-    // Select's swatch only selects (R26): pick Paint, then the brush
-    await tool(page, 'paint').click();
-    await row(page, '#2b2135').locator('.sw').click();
-    await clickCell(page, 1, 8);
+    await paintIn(page, '#2b2135', [[1, 8]]);
     await row(page, '#f4fbff').locator('.del').click();
     const edited = await snap(page);
     expect(edited.edits).toHaveLength(3);
@@ -229,10 +235,7 @@ test.describe('colors and heights', () => {
   test('a floating pixel: two pieces, a red outline and Remove strays, which can be undone', async ({ page }) => {
     await loadPotion(page);
     await expect(page.locator('#health')).toHaveText('● Watertight');
-    // Select's swatch only selects (R26): pick Paint, then the brush
-    await tool(page, 'paint').click();
-    await row(page, '#2b2135').locator('.sw').click();
-    await clickCell(page, 0, 0);
+    await paintIn(page, '#2b2135', [[0, 0]]);
     await expect(page.locator('#health')).toHaveText('▲ 2 separate pieces');
     await expect(page.locator('#health')).toHaveClass('bad');
     await expect(page.locator('.dims .warn')).toHaveText('2 separate pieces');
@@ -259,10 +262,7 @@ test.describe('colors and heights', () => {
 
   test('a pixel touching only at a corner is a stray and the note says why', async ({ page }) => {
     await loadPotion(page);
-    // Select's swatch only selects (R26): pick Paint, then the brush
-    await tool(page, 'paint').click();
-    await row(page, '#2b2135').locator('.sw').click();
-    await clickCell(page, 1, 7);
+    await paintIn(page, '#2b2135', [[1, 7]]);
     await expect(page.locator('#health')).toHaveText('▲ 2 separate pieces');
     await expect(page.locator('#note')).toContainText("Pixels that touch only at a corner don't count as joined.");
   });
@@ -316,11 +316,7 @@ test.describe('colors and heights', () => {
 
   test('cropping drops painted pixels outside the crop, with a notice', async ({ page }) => {
     await loadPotion(page);
-    // Select's swatch only selects (R26): pick Paint, then the brush
-    await tool(page, 'paint').click();
-    await row(page, '#2b2135').locator('.sw').click();
-    await clickCell(page, 0, 0);
-    await clickCell(page, 1, 8);
+    await paintIn(page, '#2b2135', [[0, 0], [1, 8]]);
     await page.locator('#crop').click();
     const a = await cell(page, 1, 1), b = await cell(page, 8, 10);
     await page.mouse.move(a.x, a.y);
@@ -339,9 +335,7 @@ test.describe('colors and heights', () => {
     await loadPotion(page);
     await page.locator('#pixelate').check();
     await expect(page.locator('#fileInfo')).toHaveText('potion.png 32 × 32 px, pixelated');
-    await tool(page, 'paint').click();
-    await page.locator('#pal li .sw').first().click();
-    await clickCell(page, 30, 30);
+    await paintIn(page, undefined, [[30, 30]]);
     expect((await snap(page)).edits).toHaveLength(1);
     await page.locator('#pixelate').uncheck();
     await expect(page.locator('.toast')).toHaveText('Edits that no longer apply were removed.');
@@ -368,10 +362,8 @@ test.describe('colors and heights', () => {
     await loadPotion(page);
     await page.locator('#pixelate').check();
     await expect(page.locator('#fileInfo')).toHaveText('potion.png 32 × 32 px, pixelated');
-    await tool(page, 'paint').click();
-    await page.locator('#pal li .sw').first().click();
     const hex = (await snap(page)).grid!.palette[0]!.hex;
-    await clickCell(page, 3, 5);
+    await paintIn(page, undefined, [[3, 5]]);
     expect((await snap(page)).edits).toEqual([{ kind: 'paint', x: 3, y: 5, hex }]);
     await page.locator('#pixW').fill('16');
     await page.locator('#pixW').press('Enter');
@@ -386,11 +378,9 @@ test.describe('colors and heights', () => {
   test('Select: a swatch selects its color and stays in Select; the model shows it, the rest dimmed (R26)', async ({ page }) => {
     await loadPotion(page);
     await expect.poll(async () => (await view(page)).shown).toBe('model');
-    await expect(tool(page, 'select')).toHaveClass(/\bon\b/);
     const hl = async () => (await view(page)).highlight;
     expect(await hl()).toEqual({ hex: null, lit: 0, dim: 0 });
     await row(page, '#7a4fd6').locator('.sw').click();
-    await expect(tool(page, 'select')).toHaveClass(/\bon\b/);
     await expect(row(page, '#7a4fd6')).toHaveClass(/\bsel\b/);
     // the model: the color's part lit, every other part (6 colors and the base) dimmed
     await expect.poll(hl).toEqual({ hex: '#7a4fd6', lit: 1, dim: 7 });
@@ -413,12 +403,11 @@ test.describe('colors and heights', () => {
     await page.keyboard.press('Escape');
     await expect.poll(hl).toEqual({ hex: null, lit: 0, dim: 0 });
     await expect(row(page, '#2b2135')).not.toHaveClass(/\bsel\b/);
-    // Paint mode is unchanged: a swatch picks the brush, and nothing is highlighted
-    await tool(page, 'paint').click();
-    await row(page, '#bfd9e6').locator('.sw').click();
-    await expect(tool(page, 'paint')).toHaveClass(/\bon\b/);
-    await expect(row(page, '#bfd9e6')).toHaveClass(/\bsel\b/);
+    // the editor's brush is not a highlight: with it open the model shows no dimmed parts
+    await page.locator('#editPixels').click();
+    await page.locator('#edImage [data-c="#bfd9e6"]').click();
     expect((await hl()).hex).toBeNull();
+    await page.locator('#edDone').click();
   });
 
   test('a base the same color as an art color is not highlighted with it (R26)', async ({ page }) => {
