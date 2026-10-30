@@ -67,11 +67,75 @@ test.describe('pixel editor', () => {
     await expect(ed(page)).toBeHidden();
   });
 
-  test('Edit pixels with no image does not open and says why', async ({ page }) => {
+  test('Edit pixels with no image opens a size chooser; a preset starts a blank canvas that can be drawn on', async ({ page }) => {
     await page.goto('/?test');
     await page.locator('#editPixels').click();
-    await expect(ed(page)).toBeHidden();
-    await expect(page.locator('.toast')).toHaveText('Open an image first.');
+    await expect(ed(page)).toBeVisible();
+    await expect(page.locator('#edNew')).toBeVisible();
+    await page.locator('#edNew [data-size="16"]').click();
+    await expect(page.locator('#edSrc')).toBeVisible();
+    await expect(page.locator('#fileInfo')).toHaveText('New canvas 16 × 16 px');
+    const g0 = (await snap(page)).grid!;
+    expect([g0.w, g0.h, g0.opaque, g0.palette.length]).toEqual([16, 16, 0, 0]);
+    await expect(page.locator('#fcount')).toHaveText('0 filaments');
+    await expect(page.locator('#exportBtn')).toBeDisabled();
+    // the first pixel brings in the brush color, at a pixel size that keeps the model about 40 mm across
+    await clickCell(page, 3, 3);
+    const g1 = (await snap(page)).grid!;
+    expect([g1.opaque, g1.palette.map((p) => p.hex)]).toEqual([1, ['#000000']]);
+    await expect(page.locator('.dims')).toContainText('2.5 × 2.5');
+    await expect(page.locator('#exportBtn')).toBeEnabled();
+    // erasing it again leaves an empty canvas
+    await page.locator('#editor [data-tool=erase]').click();
+    await clickCell(page, 3, 3);
+    expect((await snap(page)).grid!.opaque).toBe(0);
+    expect((await snap(page)).grid!.palette).toEqual([]);
+    await expect(page.locator('#fcount')).toHaveText('0 filaments');
+    await expect(page.locator('#exportBtn')).toBeDisabled();
+  });
+
+  test('a custom canvas size is clamped to 4 to 128', async ({ page }) => {
+    await page.goto('/?test');
+    await page.locator('#editPixels').click();
+    await page.locator('#edNewW').fill('100');
+    await page.locator('#edNewH').fill('20');
+    await page.locator('#edCreate').click();
+    await expect(page.locator('#fileInfo')).toHaveText('New canvas 100 × 20 px');
+    await page.locator('#edDone').click();
+    await page.locator('#undo').click();
+    await expect(page.locator('#fileInfo')).toContainText('Open an image');
+    await page.locator('#editPixels').click();
+    await page.locator('#edNewW').fill('3');
+    await page.locator('#edNewH').fill('200');
+    await page.locator('#edCreate').click();
+    await expect(page.locator('#fileInfo')).toHaveText('New canvas 4 × 128 px');
+  });
+
+  test('Resize canvas keeps the drawing that still fits, and undo brings the rest back', async ({ page }) => {
+    await page.goto('/?test');
+    await page.locator('#editPixels').click();
+    await page.locator('#edNew [data-size="16"]').click();
+    await clickCell(page, 2, 2);
+    await clickCell(page, 12, 12);
+    expect((await snap(page)).grid!.opaque).toBe(2);
+    await page.locator('#edRW').fill('8');
+    await page.locator('#edRH').fill('8');
+    await page.locator('#edResize').click();
+    const g = (await snap(page)).grid!;
+    expect([g.w, g.h, g.opaque]).toEqual([8, 8, 1]);
+    await page.locator('#edUndo').click();
+    const u = (await snap(page)).grid!;
+    expect([u.w, u.h, u.opaque]).toEqual([16, 16, 2]);
+  });
+
+  test('loading a photo while the chooser is up shows the photo', async ({ page }) => {
+    await page.goto('/?test');
+    await page.locator('#editPixels').click();
+    await expect(page.locator('#edNew')).toBeVisible();
+    await page.locator('#fileIn').setInputFiles({ name: 'potion.png', mimeType: 'image/png', buffer: fixture('potion.png') });
+    await expect(page.locator('#edSrc')).toBeVisible();
+    await expect(page.locator('#edNew')).toBeHidden();
+    await expect(page.locator('#edResize')).toHaveCount(0);
   });
 
   test('a click in the viewer picks the color under it', async ({ page }) => {

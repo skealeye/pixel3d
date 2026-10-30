@@ -20,6 +20,19 @@ export interface Source {
   pick: string | null;
   /** Crop in full-resolution pixels, or null for the whole image. */
   crop: Rect | null;
+  /** A canvas drawn from scratch in the Pixel Editor: never pixelated, and allowed to be empty. */
+  blank?: boolean;
+}
+
+/** The size limits of a canvas drawn from scratch, pixels per side. */
+export const CANVAS_MIN = 4, CANVAS_MAX = 128;
+
+/** A fully transparent `w` × `h` pixel-art image, one image pixel per grid cell. */
+export function blankSource(w: number, h: number): Source {
+  return {
+    name: 'New canvas', img: { width: w, height: h, data: new Uint8ClampedArray(w * h * 4) },
+    scale: { sx: 1, sy: 1, ox: 0, oy: 0 }, pixelArt: true, pick: null, crop: null, blank: true,
+  };
 }
 
 /** What the pipeline worked out alongside the grid: the header line, the background swatch and the pixel mapping. */
@@ -83,6 +96,7 @@ function background(img: Img, on: boolean, tolPct: number, pick: string | null):
 
 /** Whether this source is pixelated with these settings: `auto` follows the image, and anything over the cap always is. */
 export function isPixelated(src: Source, s: Settings): boolean {
+  if (src.blank) return false;
   // the same test as convert(): the whole image (or the crop) against the cap
   const area = src.crop ?? { w: src.img.width, h: src.img.height };
   return overCap(area.w, area.h, src.scale) || (s.pixelate.enabled === 'auto' ? !src.pixelArt : s.pixelate.enabled);
@@ -121,11 +135,11 @@ export function computeGrid(src: Source, s: Settings, edits: Edit[], showBg = fa
     bg = r;
     art = r.img;
   }
-  if (!opaque(art)) return { error: `${src.name} is empty once the background is removed. Lower the tolerance.` };
+  if (!opaque(art) && !src.blank) return { error: `${src.name} is empty once the background is removed. Lower the tolerance.` };
   const exact = toGrid(art, EXACT_COLORS);
   const base = reducePalette(exact, s.colors.max);
   const { grid, dropped } = applyEdits(applyHeightMode(base, heightModeOf(s)), edits);
-  const info = `${grid.w} × ${grid.h} px` + (pixelated ? ', pixelated' : upscaleText(scale));
+  const info = `${grid.w} × ${grid.h} px` + (pixelated ? ', pixelated' : src.blank ? '' : upscaleText(scale));
   return { grid, dropped, meta: { base, pixelated, showBg, info, bg: bg.bg, how: bg.how, region, colors: exact.palette.length } };
 }
 

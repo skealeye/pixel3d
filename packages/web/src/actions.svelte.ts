@@ -1,6 +1,6 @@
 import { DEFAULTS, type Edit } from '@pixel3d/core';
 import { PALETTE_MAX } from './brush';
-import { cellsToCrop, computeGrid } from './pipeline';
+import { CANVAS_MAX, CANVAS_MIN, blankSource, cellsToCrop, computeGrid } from './pipeline';
 import { addEdits, app, change, stopPicking, toast, ui } from './state.svelte';
 
 // Edits from the palette panel and the source preview. Each one is a core `Edit`, replayed on top of the image (spec §4.10).
@@ -40,9 +40,38 @@ export function setBrush(hex: string) {
   ui.newColor = false;
 }
 
-/** Open the Pixel Editor: Paint is on and the picture starts unzoomed. */
+const side = (n: number) => Math.min(CANVAS_MAX, Math.max(CANVAS_MIN, Math.round(Number.isFinite(n) ? n : CANVAS_MIN)));
+
+/** Start a blank canvas to draw on, `w` × `h` pixels (4–128 each). The model's pixel size is set now, about 40 mm across. Undoable. */
+export function newCanvas(w: number, h: number) {
+  w = side(w);
+  h = side(h);
+  const mm = app.settings.size.width / Math.max(w, h);
+  ui.picking = ui.cropping = false;
+  change(() => {
+    app.source = blankSource(w, h);
+    app.edits = [];
+    app.settings.pixelMm = { x: mm, y: mm };
+    app.settings.background.enabled = false;
+    app.settings.pixelate.enabled = 'auto';
+  });
+}
+
+/** Make a blank canvas `w` × `h` pixels, keeping the drawing from the top-left; what no longer fits is dropped. Undoable. */
+export function resizeCanvas(w: number, h: number) {
+  const src = app.source;
+  if (!src?.blank) return;
+  w = side(w);
+  h = side(h);
+  if (w === src.img.width && h === src.img.height) return;
+  change(() => {
+    app.source = { ...blankSource(w, h), name: src.name };
+    app.edits = app.edits.filter((e) => e.kind !== 'paint' || (e.x < w && e.y < h));
+  });
+}
+
+/** Open the Pixel Editor: Paint is on and the picture starts unzoomed. With no image it offers a blank canvas. */
 export function openEditor() {
-  if (!app.grid) { toast('Open an image first.'); return; }
   stopPicking();
   ui.cropping = false;
   ui.editor = true;

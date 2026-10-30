@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { BAMBU_PRINTERS, filamentColors, safeName, type BambuPrinter, type Settings, type Slicer } from '@pixel3d/core';
+  import { BAMBU_PRINTERS, filamentColors, opaqueBox, safeName, type BambuPrinter, type Settings, type Slicer } from '@pixel3d/core';
   import { app, setting, stopPicking, toast, ui } from '../state.svelte';
   import { baseName } from '../presets.svelte';
   import { downloadFiles, failNextExport, runExport } from '../export/exporter';
@@ -69,7 +69,7 @@
 <svelte:window onclick={() => { if (open) ui.popover = null; }} />
 
 <div class="exportWrap">
-  <button class="btn primary" id="exportBtn" class:on={open} disabled={!app.source || busy} onclick={toggle}>Export</button>
+  <button class="btn primary" id="exportBtn" class:on={open} disabled={!app.source || !app.grid || !opaqueBox(app.grid) || busy} onclick={toggle}>Export</button>
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div id="exportPop" class:open onclick={(e) => e.stopPropagation()}>
     <h2>Export</h2>

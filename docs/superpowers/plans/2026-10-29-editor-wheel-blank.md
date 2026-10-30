@@ -92,11 +92,11 @@
 - `openEditor()` no longer requires an image; with `!app.source` the editor body shows the size chooser (`#edNew`: preset buttons `[data-size="16|32|48|64"]`, custom `#edNewW` `#edNewH`, `#edNewBtn2`... use ids `#edCreate` for the create button) in place of the canvas; creating it shows the canvas. If an image gets loaded while the chooser is up, the chooser disappears (the condition is `!app.source`).
 - Resize canvas controls in the editor (shown only when `app.source?.blank`): `#edRW`, `#edRH`, `#edResize`.
 
-- [ ] **Step 1: Tests (editor.spec.ts).** Edit pixels with no image opens the editor with `#edNew` visible and no toast; choosing preset 16 shows `#edSrc`, `#fileInfo` reads `New canvas 16 × 16 px`, the grid is 16 × 16 with 0 opaque, no console errors; painting a cell with a chip color (add via wheel/common) makes 1 opaque pixel, `.dims` shows a model size, then erasing it again leaves 0 opaque, `#fcount` reads `0 filaments` and `#exportBtn` is disabled; custom 100 × 20 works, 3 or 200 are clamped to 4 / 128; Resize to 8 × 8 keeps cells inside and drops the others, Ctrl+Z brings them back; with no image, loading a photo via `#fileIn` while the editor is open replaces the chooser with the photo's canvas.
-- [ ] **Step 2:** Run `npx playwright test -c packages/web editor`. Expected: FAIL.
-- [ ] **Step 3:** Implement. Run the app once to check `computeGrid`/`recompute` accept the blank source, that `fitSize` keeps `pixelMm` on the first stroke (model about 40/16 mm per pixel), and that an empty grid shows an empty 3D view.
-- [ ] **Step 4:** Run `npm run typecheck`, `npm test`, `npm run test:e2e`. Expected: PASS.
-- [ ] **Step 5:** Commit `v0.2.60: Pixel Editor: blank canvas and Resize canvas`.
+- [x] **Step 1: Tests (editor.spec.ts).** Edit pixels with no image opens the editor with `#edNew` visible and no toast; choosing preset 16 shows `#edSrc`, `#fileInfo` reads `New canvas 16 × 16 px`, the grid is 16 × 16 with 0 opaque, no console errors; painting a cell with a chip color (add via wheel/common) makes 1 opaque pixel, `.dims` shows a model size, then erasing it again leaves 0 opaque, `#fcount` reads `0 filaments` and `#exportBtn` is disabled; custom 100 × 20 works, 3 or 200 are clamped to 4 / 128; Resize to 8 × 8 keeps cells inside and drops the others, Ctrl+Z brings them back; with no image, loading a photo via `#fileIn` while the editor is open replaces the chooser with the photo's canvas.
+- [x] **Step 2:** Run `npx playwright test -c packages/web editor`. Expected: FAIL.
+- [x] **Step 3:** Implement. Run the app once to check `computeGrid`/`recompute` accept the blank source, that `fitSize` keeps `pixelMm` on the first stroke (model about 40/16 mm per pixel), and that an empty grid shows an empty 3D view.
+- [x] **Step 4:** Run `npm run typecheck`, `npm test`, `npm run test:e2e`. Expected: PASS.
+- [x] **Step 5:** Commit `v0.2.60: Pixel Editor: blank canvas and Resize canvas`.
 
 ### Task 5: Release prep (local only)
 

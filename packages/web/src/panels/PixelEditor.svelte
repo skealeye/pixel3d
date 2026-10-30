@@ -1,6 +1,6 @@
 <script lang="ts">
   import { app, recolorLive, redo, ui, undo } from '../state.svelte';
-  import { closeEditor, setBrush } from '../actions.svelte';
+  import { closeEditor, newCanvas, resizeCanvas, setBrush } from '../actions.svelte';
   import { BRUSHES, COMMON_COLORS } from '../brush';
   import ColorWheel from './ColorWheel.svelte';
   import Favorites from './Favorites.svelte';
@@ -25,6 +25,12 @@
     setBrush(c);
     ui.tool = 'paint';
   }
+
+  // the size of a canvas to start, and of the blank canvas being drawn on
+  let nw = $state(32), nh = $state(32), rw = $state(32), rh = $state(32);
+  $effect(() => {
+    if (app.source?.blank && app.grid) { rw = app.grid.w; rh = app.grid.h; }
+  });
 
   // the wheel: a color in the image is recolored everywhere as one undo step; a new color only changes the brush
   let live: ReturnType<typeof recolorLive> | null = null;
@@ -62,8 +68,35 @@
           <button class="btn" class:on={ui.brush === b} data-brush={b} title="{b} × {b} ([ and ] change it)" onclick={() => (ui.brush = b)}>{b}×{b}</button>
         {/each}
       </div>
+      {#if app.source?.blank}
+        <div class="lbl">Canvas</div>
+        <div class="resize">
+          <input id="edRW" type="number" min="4" max="128" bind:value={rw} aria-label="Canvas width">
+          <input id="edRH" type="number" min="4" max="128" bind:value={rh} aria-label="Canvas height">
+          <button class="btn small" id="edResize" title="Change the canvas size, keeping the drawing from the top-left" onclick={() => resizeCanvas(rw, rh)}>Resize</button>
+        </div>
+      {/if}
     </div>
-    <div class="edCanvas"><SourceCanvas id="edSrc" /></div>
+    <div class="edCanvas">
+      {#if app.source}
+        <SourceCanvas id="edSrc" />
+      {:else}
+        <div id="edNew" class="newCanvas">
+          <h3>New canvas</h3>
+          <p>Draw from scratch. Pick a size in pixels, or open an image to edit instead.</p>
+          <div class="sizes">
+            {#each [16, 32, 48, 64] as n (n)}
+              <button class="btn" data-size={n} onclick={() => newCanvas(n, n)}>{n} × {n}</button>
+            {/each}
+          </div>
+          <div class="row">
+            <label for="edNewW">Width</label><input id="edNewW" type="number" min="4" max="128" bind:value={nw}>
+            <label for="edNewH">Height</label><input id="edNewH" type="number" min="4" max="128" bind:value={nh}>
+            <button class="btn primary" id="edCreate" onclick={() => newCanvas(nw, nh)}>Create</button>
+          </div>
+        </div>
+      {/if}
+    </div>
     <div class="edColors">
       <div class="lbl">Image colors</div>
       <div class="chips" id="edImage">

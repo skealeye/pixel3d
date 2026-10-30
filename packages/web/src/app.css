@@ -242,3 +242,12 @@ dialog.editor::backdrop { background: #0007; backdrop-filter: blur(6px); }
 #edBright::-moz-range-thumb { width: 12px; height: 18px; border-radius: 3px; background: #fff; border: 1px solid #000a; cursor: pointer; }
 .wheel .row { width: 100%; margin-top: 0; }
 .wheelSw { width: 28px; height: 28px; border-radius: 3px; border: 1px solid #0006; flex: none; }
+.newCanvas { max-width: 420px; display: grid; gap: 12px; }
+.newCanvas h3 { margin: 0; }
+.newCanvas p { margin: 0; color: var(--muted); }
+.newCanvas .sizes { display: flex; gap: 8px; flex-wrap: wrap; }
+.newCanvas .row { margin-top: 0; }
+.newCanvas .row > label:first-child { flex: none; }
+.newCanvas input[type=number], .resize input { width: 64px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; color: var(--text); }
+.resize { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.resize .btn { grid-column: 1 / -1; }
