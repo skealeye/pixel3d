@@ -300,6 +300,41 @@ test.describe('pixel editor', () => {
     expect(await hexes(page)).not.toContain('#4e2f9e');
   });
 
+  test('a brightness drag that ends where it began still ends the gesture', async ({ page }) => {
+    await loadPotion(page);
+    await openEditor(page);
+    await chip(page, 'Image', '#9c6b3e').click();
+    const slider = page.locator('#edBright');
+    const b = (await slider.boundingBox())!;
+    const v = Number(await slider.inputValue());
+    const x = b.x + 6 + (b.width - 12) * (v / 100), y = b.y + b.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 40, y, { steps: 3 });
+    await page.mouse.move(x, y, { steps: 3 });
+    await page.mouse.up();
+    // a later gesture on another color must recolor that color, not the first
+    await chip(page, 'Image', '#2b2135').click();
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 60, y, { steps: 3 });
+    await page.mouse.up();
+    const h = await hexes(page);
+    expect(h).toContain('#9c6b3e');
+    expect(h).not.toContain('#2b2135');
+  });
+
+  test('on a blank canvas the pixel height setting gives the drawn colors their height', async ({ page }) => {
+    await page.goto('/?test');
+    await page.locator('#editPixels').click();
+    await page.locator('#edNew [data-size="16"]').click();
+    await clickCell(page, 3, 3);
+    await page.locator('#edDone').click();
+    await page.locator('#defH').fill('2.5');
+    await page.locator('#defH').press('Enter');
+    await expect.poll(async () => (await snap(page)).grid!.palette.map((p) => p.height)).toEqual([2.5]);
+  });
+
   test('a common color that is new joins the image with its first pixel', async ({ page }) => {
     await loadPotion(page);
     await openEditor(page);

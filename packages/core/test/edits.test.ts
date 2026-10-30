@@ -75,6 +75,20 @@ describe('applyEdits', () => {
     expect(applyEdits(all, edits).grid.palette).toEqual([]);
   });
 
+  it('a replay of every edit matches applying them batch by batch, even when an erased color is the nearest', () => {
+    const g: Grid = { w: 3, h: 1, cells: Int16Array.from([0, 1, 2]), palette: [{ hex: '#ff0000', height: 1 }, { hex: '#0000fe', height: 2 }, { hex: '#0000ff', height: 3 }] };
+    const erase = { kind: 'paint', x: 2, y: 0, hex: null } as const, del = { kind: 'delete', hex: '#0000fe' } as const;
+    const stepwise = applyEdits(applyEdits(g, [erase]).grid, [del]).grid;
+    const replay = applyEdits(g, [erase, del]).grid;
+    expect(replay.palette).toEqual(stepwise.palette);
+    expect(Array.from(replay.cells)).toEqual(Array.from(stepwise.cells));
+  });
+
+  it('a color new to an empty palette takes the height given for it', () => {
+    const empty: Grid = { w: 2, h: 1, cells: Int16Array.from([-1, -1]), palette: [] };
+    expect(applyEdits(empty, [{ kind: 'paint', x: 0, y: 0, hex: '#123456' }], 2.5).grid.palette).toEqual([{ hex: '#123456', height: 2.5 }]);
+  });
+
   it('never mutates its input', () => {
     const g = base();
     const snap = JSON.stringify({ c: Array.from(g.cells), p: g.palette });

@@ -51,6 +51,11 @@
   function move(e: PointerEvent) { if (drag) disc(e); }
   function up() { if (drag) { drag = false; onend(); } }
 
+  /** A brightness drag that ends where it began fires no `change`, so the gesture also ends on release. */
+  function finish() {
+    if (sliding) { sliding = false; onend(); }
+  }
+
   function bright(e: Event & { currentTarget: HTMLInputElement }) {
     if (!sliding) { sliding = true; onstart(); }
     v = +e.currentTarget.value / 100;
@@ -76,7 +81,7 @@
   </div>
   <input type="range" id="edBright" min="0" max="100" value={Math.round(v * 100)} aria-label="Brightness"
     style:background="linear-gradient(90deg, #000, {hsvToHex(h, s, 1)})"
-    oninput={bright} onchange={() => { sliding = false; onend(); }}>
+    oninput={bright} onchange={finish} onpointerup={finish} onkeyup={finish} onblur={finish}>
   <div class="row">
     <span class="wheelSw" style:background={value}></span>
     <input type="text" id="edHex" value={value} spellcheck="false" aria-label="Color as #rrggbb" maxlength="7" onchange={typed}>

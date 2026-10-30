@@ -138,7 +138,7 @@ export function computeGrid(src: Source, s: Settings, edits: Edit[], showBg = fa
   if (!opaque(art) && !src.blank) return { error: `${src.name} is empty once the background is removed. Lower the tolerance.` };
   const exact = toGrid(art, EXACT_COLORS);
   const base = reducePalette(exact, s.colors.max);
-  const { grid, dropped } = applyEdits(applyHeightMode(base, heightModeOf(s)), edits);
+  const { grid, dropped } = applyEdits(applyHeightMode(base, heightModeOf(s)), edits, src.blank ? s.heights.h : undefined);
   const info = `${grid.w} × ${grid.h} px` + (pixelated ? ', pixelated' : src.blank ? '' : upscaleText(scale));
   return { grid, dropped, meta: { base, pixelated, showBg, info, bg: bg.bg, how: bg.how, region, colors: exact.palette.length } };
 }

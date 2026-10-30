@@ -8,8 +8,10 @@ export type Edit =
   | { kind: 'paint'; x: number; y: number; hex: string | null }
   | { kind: 'add'; hex: string };
 
-/** Apply edits in order to a copy of `g`; a color no pixel uses at the end is dropped from the palette. Edits that can no longer apply (missing color, out of bounds) are returned in `dropped`. */
-export function applyEdits(g: Grid, edits: Edit[]): { grid: Grid; dropped: Edit[] } {
+/**
+ * Apply edits in order to a copy of `g`; a color no pixel uses at the end is dropped from the palette. A color that
+ * `paint` brings in takes the first color's height, or `newHeight` when the palette is empty. Edits that can no longer apply (missing color, out of bounds) are returned in `dropped`. */
+export function applyEdits(g: Grid, edits: Edit[], newHeight?: number): { grid: Grid; dropped: Edit[] } {
   const grid = cloneGrid(g);
   const dropped: Edit[] = [];
   const find = (hex: string) => grid.palette.findIndex((p) => p.hex === hex);
@@ -17,6 +19,8 @@ export function applyEdits(g: Grid, edits: Edit[]): { grid: Grid; dropped: Edit[
   for (const e of edits) {
     switch (e.kind) {
       case 'recolor': {
+        // a color whose last pixel went earlier is gone, as it is after each batch applied on its own
+        pruneUnused(grid);
         const from = find(e.from);
         const to = e.to.toLowerCase();
         if (from < 0) { dropped.push(e); break; }
@@ -27,6 +31,7 @@ export function applyEdits(g: Grid, edits: Edit[]): { grid: Grid; dropped: Edit[
         break;
       }
       case 'delete': {
+        pruneUnused(grid);
         const i = find(e.hex);
         if (i < 0 || grid.palette.length < 2) { dropped.push(e); break; }
         mergeInto(grid, i, nearestIndex(grid.palette, e.hex, i));
@@ -44,7 +49,7 @@ export function applyEdits(g: Grid, edits: Edit[]): { grid: Grid; dropped: Edit[
         if (e.hex === null) { grid.cells[k] = -1; break; }
         const hex = e.hex.toLowerCase();
         let i = find(hex);
-        if (i < 0) { grid.palette.push({ hex, height: grid.palette[0]?.height ?? DEFAULT_HEIGHT }); i = grid.palette.length - 1; }
+        if (i < 0) { grid.palette.push({ hex, height: grid.palette[0]?.height ?? newHeight ?? DEFAULT_HEIGHT }); i = grid.palette.length - 1; }
         grid.cells[k] = i;
         break;
       }
