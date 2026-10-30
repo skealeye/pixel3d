@@ -2,6 +2,10 @@
   import { change, app, ui } from '../state.svelte';
   import { colorAt } from '../pipeline';
   import { cropTo, paintCells, pieceCount } from '../actions.svelte';
+  import { footprint } from '../brush';
+
+  /** `id` tells the viewer's canvas from the Pixel Editor's. */
+  let { id = 'src' }: { id?: string } = $props();
 
   const MAX_ZOOM = 16;
   let box: HTMLDivElement;
@@ -16,6 +20,8 @@
     | { kind: 'paint'; i: number; j: number; pushed: boolean }
     | null = null;
   let sel = $state<{ c0: number; r0: number; c1: number; r1: number } | null>(null);
+  /** The cell under the pointer, for the brush outline while Paint or Erase is on. */
+  let hover = $state<{ i: number; j: number } | null>(null);
   const parts = $derived(app.parts);
 
   /** Layout of the grid on the canvas: cell size and top-left, CSS px. */
@@ -77,6 +83,13 @@
         ctx.strokeRect(left + i * cell + 1, top + j * cell + 1, cell - 2, cell - 2);
       }
     }
+    if (hover && !ui.cropping && !ui.picking && ui.tool !== 'select') {
+      ctx.strokeStyle = '#d9a441';
+      ctx.lineWidth = 2;
+      const i0 = Math.max(0, hover.i), j0 = Math.max(0, hover.j);
+      const i1 = Math.min(g.w, hover.i + ui.brush), j1 = Math.min(g.h, hover.j + ui.brush);
+      if (i1 > i0 && j1 > j0) ctx.strokeRect(left + i0 * cell, top + j0 * cell, (i1 - i0) * cell, (j1 - j0) * cell);
+    }
     if (sel) {
       const x = left + Math.min(sel.c0, sel.c1) * cell, y = top + Math.min(sel.r0, sel.r1) * cell;
       const w = (Math.abs(sel.c1 - sel.c0) + 1) * cell, h = (Math.abs(sel.r1 - sel.r0) + 1) * cell;
@@ -91,7 +104,7 @@
 
   $effect(() => {
     // redraw when any of these change
-    void [app.grid, ui.zoom, pan.x, pan.y, size, sel, pieceCount()];
+    void [app.grid, ui.zoom, pan.x, pan.y, size, sel, pieceCount(), hover, ui.tool, ui.brush];
     draw();
   });
 
@@ -147,7 +160,12 @@
   /** Paint cells as part of the current stroke: the first cell that changes makes the stroke's one undo step. */
   function stroke(cells: { x: number; y: number }[]) {
     if (drag?.kind !== 'paint') return;
-    if (paintCells(cells, !drag.pushed)) drag.pushed = true;
+    const seen = new Set<number>(), all: { x: number; y: number }[] = [];
+    for (const c of cells) for (const f of footprint(c.x, c.y, ui.brush)) {
+      const k = f.y * 65536 + f.x;
+      if (!seen.has(k)) { seen.add(k); all.push(f); }
+    }
+    if (paintCells(all, !drag.pushed)) drag.pushed = true;
   }
 
   /** Cells on the line from (i0, j0) to (i1, j1), excluding the first, so a fast drag leaves no gaps. */
@@ -159,6 +177,10 @@
   }
 
   function move(e: PointerEvent) {
+    if (ui.tool !== 'select') {
+      const h = cellAt(e);
+      if (h?.i !== hover?.i || h?.j !== hover?.j) hover = h && { i: h.i, j: h.j };
+    }
     if (!drag) return;
     if (drag.kind === 'pan') { pan = { x: e.clientX - drag.x, y: e.clientY - drag.y }; return; }
     const at = cellAt(e);
@@ -203,8 +225,8 @@
 </script>
 
 <div class="source" id="sourceBox" bind:this={box}>
-  <canvas id="src" bind:this={canvas} class:pan={!ui.picking && !ui.cropping && ui.tool === 'select'} class:crop={ui.cropping}
+  <canvas {id} bind:this={canvas} class:pan={!ui.picking && !ui.cropping && ui.tool === 'select'} class:crop={ui.cropping}
     class:draw={!ui.picking && !ui.cropping && ui.tool !== 'select'}
     title="Scroll to zoom, drag to pan, double-click to fit"
-    onmousedown={(e) => e.preventDefault()} onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up} ondblclick={reset}></canvas>
+    onmousedown={(e) => e.preventDefault()} onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up} onpointerleave={() => (hover = null)} ondblclick={reset}></canvas>
 </div>

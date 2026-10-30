@@ -86,10 +86,10 @@
 - Consumes: `footprint`, `ui.brush`.
 - Produces: `SourceCanvas` accepts `let { id = 'src' }: { id?: string } = $props()` and puts it on the `<canvas>`. In `down` and `move`, the cells given to `stroke()` are each cell expanded with `footprint(x, y, ui.brush)` (deduplicated). A hover cell state is tracked on `pointermove` (and cleared on `pointerleave`); while `ui.tool` is `paint` or `erase` and the pointer is over the grid, `draw()` outlines the footprint in gold (`#d9a441`), clipped to the grid.
 
-- [ ] **Step 1:** Add a case to `palette.spec.ts` ("a 2×2 brush paints four cells in one undo step"): set `ui.brush` through the Playwright hook (`page.evaluate`) or, once Task 5 exists, the editor button; for now call it via the existing `window.__pixel3d` hook if it exposes `ui`, otherwise add a test-only `brush` setter to `hook.ts` (same style as the other fields). Click one empty cell near the potion; expect `opaque` up by 4 and `undo` up by 1. Run it. Expected: FAIL.
-- [ ] **Step 2:** Implement the expansion, the `id` prop and the hover outline.
-- [ ] **Step 3:** Run `npx playwright test -c packages/web palette`. Expected: PASS (existing brush-1 behavior unchanged).
-- [ ] **Step 4:** Commit `v0.2.59: canvas: brush sizes and hover outline`.
+- [x] **Step 1:** Add a case to `palette.spec.ts` ("a 2×2 brush paints four cells in one undo step"): set `ui.brush` through the Playwright hook (`page.evaluate`) or, once Task 5 exists, the editor button; for now call it via the existing `window.__pixel3d` hook if it exposes `ui`, otherwise add a test-only `brush` setter to `hook.ts` (same style as the other fields). Click one empty cell near the potion; expect `opaque` up by 4 and `undo` up by 1. Run it. Expected: FAIL.
+- [x] **Step 2:** Implement the expansion, the `id` prop and the hover outline.
+- [x] **Step 3:** Run `npx playwright test -c packages/web palette`. Expected: PASS (existing brush-1 behavior unchanged).
+- [x] **Step 4:** Commit `v0.2.59: canvas: brush sizes and hover outline`.
 
 ### Task 5: The Pixel Editor window and the viewer changes
 
