@@ -7,6 +7,11 @@ import { addEdits, app, change, stopPicking, toast, ui } from './state.svelte';
 
 const HEX = /^#[0-9a-f]{6}$/;
 
+/** The most colors the image may have: the Colors setting (Pixelate's own Colors while pixelating). */
+export function maxColors(): number {
+  return app.meta?.pixelated ? app.settings.pixelate.colors : app.settings.colors.max;
+}
+
 /** The color Paint uses: the brush color, which need not be in the image yet, or the first color when none is chosen. */
 function paintHex(): string | null {
   if (ui.sel && HEX.test(ui.sel)) return ui.sel;
@@ -42,10 +47,14 @@ export function setBrush(hex: string) {
 
 const side = (n: number) => Math.min(CANVAS_MAX, Math.max(CANVAS_MIN, Math.round(Number.isFinite(n) ? n : CANVAS_MIN)));
 
-/** Start a blank canvas to draw on, `w` × `h` pixels (4–128 each). The model's pixel size is set now, about 40 mm across. Undoable. */
-export function newCanvas(w: number, h: number) {
+/**
+ * Start a blank canvas to draw on, `w` × `h` pixels (4–128 each) with at most `colors` colors (2–16). The model's pixel
+ * size is set now, about 40 mm across. Undoable.
+ */
+export function newCanvas(w: number, h: number, colors: number = PALETTE_MAX) {
   w = side(w);
   h = side(h);
+  colors = Math.min(PALETTE_MAX, Math.max(2, Math.round(Number.isFinite(colors) ? colors : PALETTE_MAX)));
   const mm = app.settings.size.width / Math.max(w, h);
   ui.picking = ui.cropping = false;
   change(() => {
@@ -54,6 +63,7 @@ export function newCanvas(w: number, h: number) {
     app.settings.pixelMm = { x: mm, y: mm };
     app.settings.background.enabled = false;
     app.settings.pixelate.enabled = 'auto';
+    app.settings.colors.max = colors;
   });
 }
 
@@ -101,12 +111,13 @@ export function paintCells(cells: { x: number; y: number }[], push: boolean): nu
   const hex = ui.tool === 'erase' ? null : paintHex();
   const v = hex === null ? -1 : g.palette.findIndex((p) => p.hex === hex);
   const isNew = hex !== null && v < 0;
-  if (isNew && g.palette.length >= PALETTE_MAX) { toast(`An image holds at most ${PALETTE_MAX} colors.`); return 0; }
+  if (isNew && g.palette.length >= maxColors()) { toast(`An image holds at most ${maxColors()} colors.`); return 0; }
   const edits: Edit[] = cells
     .filter(({ x, y }) => x >= 0 && y >= 0 && x < g.w && y < g.h && (isNew || g.cells[y * g.w + x] !== v))
     .map(({ x, y }) => ({ kind: 'paint', x, y, hex }));
   // a color new to the image comes in at the current pixel height, in the same undo step as its first pixels
-  if (isNew && edits.length) edits.push({ kind: 'height', hex: hex!, h: app.settings.heights.h });
+  // (a drawn canvas takes the height mode's height instead)
+  if (isNew && edits.length && !app.source?.blank) edits.push({ kind: 'height', hex: hex!, h: app.settings.heights.h });
   if (isNew && edits.length) ui.newColor = false;
   return addEdits(edits, push);
 }

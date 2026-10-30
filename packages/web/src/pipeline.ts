@@ -138,9 +138,29 @@ export function computeGrid(src: Source, s: Settings, edits: Edit[], showBg = fa
   if (!opaque(art) && !src.blank) return { error: `${src.name} is empty once the background is removed. Lower the tolerance.` };
   const exact = toGrid(art, EXACT_COLORS);
   const base = reducePalette(exact, s.colors.max);
-  const { grid, dropped } = applyEdits(applyHeightMode(base, heightModeOf(s)), edits, src.blank ? s.heights.h : undefined);
+  const { grid, dropped } = src.blank ? blankGrid(base, s, edits) : applyEdits(applyHeightMode(base, heightModeOf(s)), edits);
   const info = `${grid.w} × ${grid.h} px` + (pixelated ? ', pixelated' : src.blank ? '' : upscaleText(scale));
   return { grid, dropped, meta: { base, pixelated, showBg, info, bg: bg.bg, how: bg.how, region, colors: exact.palette.length } };
+}
+
+/**
+ * A drawn canvas has no colors to start from, so its heights come from the height mode applied to the colors drawn,
+ * then the heights set one by one (a `height` edit follows its color through later recolors; one for a color that
+ * is gone is ignored).
+ */
+function blankGrid(base: Grid, s: Settings, edits: Edit[]): { grid: Grid; dropped: Edit[] } {
+  const r = applyEdits(base, edits.filter((e) => e.kind !== 'height'));
+  const explicit: Edit[] = [];
+  edits.forEach((e, i) => {
+    if (e.kind !== 'height') return;
+    let hex: string | null = e.hex;
+    for (const later of edits.slice(i + 1)) {
+      if (later.kind === 'recolor' && later.from === hex) hex = later.to.toLowerCase();
+      else if (later.kind === 'delete' && later.hex === hex) hex = null;
+    }
+    if (hex) explicit.push({ ...e, hex });
+  });
+  return { grid: applyEdits(applyHeightMode(r.grid, heightModeOf(s)), explicit).grid, dropped: r.dropped };
 }
 
 /** The grid size pixelating gives at `across` pixels wide (as core `pixelate`: never wider than the region, aspect kept). */

@@ -75,7 +75,7 @@
 
 <section>
   <h2>Image
-    <button class="btn small" id="reloadImg" title="Undo every edit and go back to the original image" onclick={reloadImage}>Reload image</button><button class="btn small" id="expand" onclick={toggleWide}>{ui.wide ? 'Shrink' : 'Expand'}</button>
+    <button class="btn small" id="reloadImg" disabled={!app.source || !!app.source.blank} title="Undo every edit and go back to the original image" onclick={reloadImage}>Reload image</button><button class="btn small" id="expand" onclick={toggleWide}>{ui.wide ? 'Shrink' : 'Expand'}</button>
   </h2>
   <SourceCanvas />
   <div class="tools">

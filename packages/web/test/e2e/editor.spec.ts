@@ -335,6 +335,88 @@ test.describe('pixel editor', () => {
     await expect.poll(async () => (await snap(page)).grid!.palette.map((p) => p.height)).toEqual([2.5]);
   });
 
+  test('the tools column has no horizontal scrollbar and the common colors sit in two rows', async ({ page }) => {
+    await loadPotion(page);
+    await openEditor(page);
+    const over = await page.locator('#editor .edTools').evaluate((e) => e.scrollWidth - e.clientWidth);
+    expect(over).toBeLessThanOrEqual(0);
+    const ys = await page.locator('#edCommon .chip').evaluateAll((els) => [...new Set(els.map((e) => Math.round(e.getBoundingClientRect().top)))]);
+    expect(ys).toHaveLength(2);
+    const colsOver = await page.locator('#editor .edColors').evaluate((e) => e.scrollWidth - e.clientWidth);
+    expect(colsOver).toBeLessThanOrEqual(0);
+  });
+
+  test('Image colors has one slot per allowed color, and the Colors setting is the limit', async ({ page }) => {
+    await loadPotion(page);
+    await page.locator('#colMax').fill('9');
+    await page.locator('#colMax').press('Enter');
+    await openEditor(page);
+    await expect(page.locator('#edImage .chip')).toHaveCount(9);
+    await expect(page.locator('#edImage .chip.empty')).toHaveCount(2);
+    // two more colors fit, the third is refused
+    for (const [hex, cell] of [['#d62828', [1, 8]], ['#1c6dd0', [1, 10]], ['#2f9e44', [1, 12]]] as const) {
+      await chip(page, 'Common', hex).click();
+      await clickCell(page, cell[0], cell[1]);
+    }
+    await expect(page.locator('.toast')).toHaveText('An image holds at most 9 colors.');
+    await expect(page.locator('#edImage .chip.empty')).toHaveCount(0);
+    expect(await hexes(page)).toHaveLength(9);
+  });
+
+  test('a new canvas sets the most colors it may use, and the limit holds', async ({ page }) => {
+    await page.goto('/?test');
+    await page.locator('#editPixels').click();
+    await page.locator('#edNewColors').fill('2');
+    await page.locator('#edNew [data-size="16"]').click();
+    await expect(page.locator('#edImage .chip')).toHaveCount(2);
+    await clickCell(page, 1, 1);
+    await chip(page, 'Common', '#d62828').click();
+    await clickCell(page, 3, 3);
+    await expect(page.locator('#edImage .chip.empty')).toHaveCount(0);
+    await chip(page, 'Common', '#1c6dd0').click();
+    await clickCell(page, 5, 5);
+    await expect(page.locator('.toast')).toHaveText('An image holds at most 2 colors.');
+    expect((await snap(page)).grid!.palette).toHaveLength(2);
+  });
+
+  test('on a blank canvas By brightness and Random set the heights of the drawn colors', async ({ page }) => {
+    await page.goto('/?test');
+    await page.locator('#editPixels').click();
+    await page.locator('#edNew [data-size="16"]').click();
+    await clickCell(page, 2, 2);
+    await chip(page, 'Common', '#fcd34d').click();
+    await clickCell(page, 4, 4);
+    const heights = async () => Object.fromEntries((await snap(page)).grid!.palette.map((p) => [p.hex, p.height]));
+    await page.locator('#edDone').click();
+    await page.locator('.seg[data-key=heightMode] button[data-v=brightness]').click();
+    // dark is high by default: black is taller than yellow, both inside the 1 to 4 mm range
+    await expect.poll(async () => (await heights())['#000000']! > (await heights())['#fcd34d']!).toBe(true);
+    const b = await heights();
+    expect(b['#000000']).toBe(4);
+    expect(b['#fcd34d']).toBeGreaterThanOrEqual(1);
+    await page.locator('.seg[data-key=heightMode] button[data-v=random]').click();
+    await expect.poll(async () => Object.values(await heights()).some((h) => h !== 1)).toBe(true);
+    for (const h of Object.values(await heights())) { expect(h).toBeGreaterThanOrEqual(1); expect(h).toBeLessThanOrEqual(4); }
+    // a color painted afterwards follows the mode too, and drawing keeps working
+    await page.locator('#editPixels').click();
+    await chip(page, 'Common', '#d62828').click();
+    await clickCell(page, 6, 6);
+    expect(Object.keys(await heights())).toHaveLength(3);
+    for (const h of Object.values(await heights())) { expect(h).toBeGreaterThanOrEqual(1); expect(h).toBeLessThanOrEqual(4); }
+  });
+
+  test('Reload image is off on a blank canvas and on with an image', async ({ page }) => {
+    await page.goto('/?test');
+    await expect(page.locator('#reloadImg')).toBeDisabled();
+    await page.locator('#editPixels').click();
+    await page.locator('#edNew [data-size="16"]').click();
+    await page.locator('#edDone').click();
+    await expect(page.locator('#reloadImg')).toBeDisabled();
+    await page.locator('#fileIn').setInputFiles({ name: 'potion.png', mimeType: 'image/png', buffer: fixture('potion.png') });
+    await expect(page.locator('#fileInfo')).toContainText('potion.png');
+    await expect(page.locator('#reloadImg')).toBeEnabled();
+  });
+
   test('a common color that is new joins the image with its first pixel', async ({ page }) => {
     await loadPotion(page);
     await openEditor(page);

@@ -218,12 +218,13 @@ dialog.editor::backdrop { background: #0007; backdrop-filter: blur(6px); }
 .edHead { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
 .edHead h3 { margin: 0 8px 0 0; }
 .edBody { flex: 1; min-height: 0; display: grid; grid-template-columns: 120px minmax(0, 1fr) 260px; }
-.edTools, .edColors { padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.edTools, .edColors { padding: 12px; overflow: hidden auto; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .edTools { border-right: 1px solid var(--line); }
 .edColors { border-left: 1px solid var(--line); }
 .edTools .lbl, .edColors .lbl { color: var(--muted); font-size: 12px; margin-top: 8px; }
 .edTools .lbl:first-child, .edColors .lbl:first-child { margin-top: 0; }
-.brushes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.brushes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
+.edTools .btn { padding-left: 6px; padding-right: 6px; min-width: 0; }
 .edCanvas { min-width: 0; min-height: 0; padding: 12px; display: grid; place-items: center; overflow: hidden; }
 .edCanvas .source { width: min(100%, calc(88vh - 110px)); box-sizing: border-box; }
 .chips { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -251,3 +252,7 @@ dialog.editor::backdrop { background: #0007; backdrop-filter: blur(6px); }
 .newCanvas input[type=number], .resize input { width: 64px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; color: var(--text); }
 .resize { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .resize .btn { grid-column: 1 / -1; }
+#edCommon { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px; }
+#edCommon .chip { width: 100%; height: auto; aspect-ratio: 1; }
+.chip.empty { background: none; border: 1px dashed var(--line); box-shadow: none; cursor: default; }
+#edCount { color: var(--muted); margin-left: 6px; }

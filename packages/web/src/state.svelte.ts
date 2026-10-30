@@ -232,6 +232,8 @@ export function addEdits(edits: Edit[], push = true): number {
   app.grid = r.grid;
   app.edits = [...app.edits, ...applied];
   if (!app.meta?.showBg) fitSize(r.grid);
+  // a drawn canvas has the height mode applied to the colors it has now
+  if (app.source?.blank) recompute(false);
   return applied.length;
 }
 
@@ -256,6 +258,7 @@ export function recolorLive(from: string) {
       app.grid = applyEdits(g0, [edit]).grid;
       app.edits = [...e0, edit];
       if (!app.meta?.showBg) fitSize(app.grid);
+      if (app.source?.blank) recompute(false);
     },
     end() {
       if (to !== from && g0?.palette.some((p) => p.hex === to)) toast('Merged into the matching color.');

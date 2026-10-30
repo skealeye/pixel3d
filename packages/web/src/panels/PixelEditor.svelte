@@ -1,6 +1,6 @@
 <script lang="ts">
   import { app, recolorLive, redo, ui, undo } from '../state.svelte';
-  import { closeEditor, newCanvas, resizeCanvas, setBrush } from '../actions.svelte';
+  import { closeEditor, maxColors, newCanvas, resizeCanvas, setBrush } from '../actions.svelte';
   import { BRUSHES, COMMON_COLORS } from '../brush';
   import ColorWheel from './ColorWheel.svelte';
   import Favorites from './Favorites.svelte';
@@ -27,7 +27,9 @@
   }
 
   // the size of a canvas to start, and of the blank canvas being drawn on
-  let nw = $state(32), nh = $state(32), rw = $state(32), rh = $state(32);
+  let nw = $state(32), nh = $state(32), nc = $state(16), rw = $state(32), rh = $state(32);
+  /** The most colors the image may have: one slot each in Image colors. */
+  const max = $derived(maxColors());
   $effect(() => {
     if (app.source?.blank && app.grid) { rw = app.grid.w; rh = app.grid.h; }
   });
@@ -86,22 +88,26 @@
           <p>Draw from scratch. Pick a size in pixels, or open an image to edit instead.</p>
           <div class="sizes">
             {#each [16, 32, 48, 64] as n (n)}
-              <button class="btn" data-size={n} onclick={() => newCanvas(n, n)}>{n} × {n}</button>
+              <button class="btn" data-size={n} onclick={() => newCanvas(n, n, nc)}>{n} × {n}</button>
             {/each}
           </div>
           <div class="row">
             <label for="edNewW">Width</label><input id="edNewW" type="number" min="4" max="128" bind:value={nw}>
             <label for="edNewH">Height</label><input id="edNewH" type="number" min="4" max="128" bind:value={nh}>
-            <button class="btn primary" id="edCreate" onclick={() => newCanvas(nw, nh)}>Create</button>
+            <label for="edNewColors">Colors</label><input id="edNewColors" type="number" min="2" max="16" bind:value={nc}>
+            <button class="btn primary" id="edCreate" onclick={() => newCanvas(nw, nh, nc)}>Create</button>
           </div>
         </div>
       {/if}
     </div>
     <div class="edColors">
-      <div class="lbl">Image colors</div>
+      <div class="lbl">Image colors <span id="edCount">{palette.length} of {max}</span></div>
       <div class="chips" id="edImage">
         {#each palette as p (p.hex)}
           <button class="chip" class:cur={p.hex === cur} style:background={p.hex} data-c={p.hex} title={p.hex} aria-label="Use {p.hex}" onclick={() => use(p.hex)}></button>
+        {/each}
+        {#each { length: Math.max(0, max - palette.length) } as _, i (i)}
+          <span class="chip empty" title="Free slot: painting a new color uses it"></span>
         {/each}
       </div>
       <div class="lbl">Common colors</div>
