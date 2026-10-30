@@ -21,7 +21,7 @@
     | { kind: 'crop'; c0: number; r0: number }
     | { kind: 'paint'; i: number; j: number; pushed: boolean }
     | null = null;
-  /** Fingers on the canvas (touch and pen; never the mouse), by pointer id, relative to the canvas centre. */
+  /** Fingers on the canvas (touch only), by pointer id, relative to the canvas centre. */
   const touches = new Map<number, Pt>();
   /** Two fingers pinch: zoom and pan from where they started. A finger left after a pinch does nothing (no paint, no
    * pan) until it lifts or another finger lands and starts a new pinch. */
@@ -29,7 +29,7 @@
   /** A touch stroke waits this long (ms) before painting its first cell, so the first finger of a pinch paints nothing. */
   const SETTLE = 100;
   let settle: { timer: ReturnType<typeof setTimeout>; cell: { x: number; y: number } } | null = null;
-  let sel =$state<{ c0: number; r0: number; c1: number; r1: number } | null>(null);
+  let sel = $state<{ c0: number; r0: number; c1: number; r1: number } | null>(null);
   /** The cell under the pointer, for the brush outline while Paint or Erase is on. */
   let hover = $state<{ i: number; j: number } | null>(null);
   const parts = $derived(app.parts);
@@ -139,6 +139,9 @@
 
   function reset() { ui.zoom = 1; pan = { x: 0, y: 0 }; }
 
+  // a touch stroke's first cell must not paint after the canvas is gone
+  $effect(() => () => { if (settle) clearTimeout(settle.timer); });
+
   // the editor opening or closing resets the zoom (actions.svelte.ts): the pan goes with it, on both canvases
   $effect(() => {
     void ui.editor;
@@ -166,7 +169,7 @@
     if (e.button !== 0 && e.button !== 1) return;
     // a drag here pans or paints: no text selection, and no middle-button autoscroll of the side panel
     e.preventDefault();
-    if (e.pointerType !== 'mouse') {
+    if (e.pointerType === 'touch') {
       touches.set(e.pointerId, rel(e));
       if (touches.size > 2) return;
       if (touches.size === 2) {
@@ -199,8 +202,8 @@
     if (ui.tool !== 'select' && e.button === 0 && at) {
       drag = { kind: 'paint', i: at.i, j: at.j, pushed: false };
       const cell = { x: at.i, y: at.j };
-      if (e.pointerType === 'mouse') stroke([cell]);
-      else settle = { timer: setTimeout(settled, SETTLE), cell };
+      if (e.pointerType === 'touch') settle = { timer: setTimeout(settled, SETTLE), cell };
+      else stroke([cell]);
       return;
     }
     drag = { kind: 'pan', x: e.clientX - pan.x, y: e.clientY - pan.y, at: { x: e.clientX, y: e.clientY } };
@@ -294,5 +297,5 @@
   <canvas {id} bind:this={canvas} class:pan={!ui.picking && !ui.cropping && ui.tool === 'select'} class:crop={ui.cropping}
     class:draw={!ui.picking && !ui.cropping && ui.tool !== 'select'}
     title="Scroll to zoom, drag to pan, double-click to fit"
-    onmousedown={(e) => e.preventDefault()} onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up} onpointerleave={() => (hover = null)} ondblclick={reset}></canvas>
+    onmousedown={(e) => e.preventDefault()} onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up} onlostpointercapture={(e) => touches.delete(e.pointerId)} onpointerleave={() => (hover = null)} ondblclick={reset}></canvas>
 </div>

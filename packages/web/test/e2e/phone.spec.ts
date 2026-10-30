@@ -405,8 +405,9 @@ test.describe('phone gestures', () => {
     expect((await snap(page)).zoom).toBe(1);
     expect(await red(page, 4, 10)).toBe(true);
     expect(await red(page, 7, 10)).toBe(false);
-    // the first finger keeps going: that is now a pinch, not paint
-    await slide(touch, [b, c], [await cell(page, 12, 10), c]);
+    // the first finger keeps going, away from the second: that is now a pinch (zoom in), not paint
+    await slide(touch, [b, c], [await cell(page, 1, 4), c]);
+    await expect.poll(async () => (await snap(page)).zoom).toBeGreaterThan(1);
     await touch('touchEnd');
     const s = await snap(page);
     expect(s.grid!.opaque).toBe(5);
@@ -446,8 +447,8 @@ test.describe('phone gestures', () => {
     const from = [await cell(page, 4, 24), await cell(page, 8, 24)], wide = [await cell(page, 0, 20), await cell(page, 14, 28)];
     await touch('touchStart', from);
     await slide(touch, from, wide);
-    expect((await snap(page)).zoom).toBeGreaterThan(1);
-    expect(await red(page, 5, 5)).toBe(false);
+    await expect.poll(async () => (await snap(page)).zoom).toBeGreaterThan(1);
+    await expect.poll(() => red(page, 5, 5)).toBe(false);
     const near = [await cell(page, 6, 24), await cell(page, 7, 24)];
     await slide(touch, wide, near);
     await touch('touchEnd');
