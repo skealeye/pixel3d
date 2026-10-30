@@ -101,11 +101,11 @@
 - Consumes: the existing `drag` and `pan` state, `ui.zoom`.
 - Produces: with two touch pointers down, the canvas pinch-zooms (`ui.zoom`, 1 to 16) and moves (`pan`); a one-finger touch with Paint or Erase draws and never pans; a touch-action that stops the browser scrolling or zooming the page.
 
-- [ ] **Step 1: E2E tests** (Playwright touch via CDP `Input.dispatchTouchEvent` or pointer events): one-finger drag paints a line of cells without changing `zoom`; a two-finger spread raises `zoom` above 1 and paints nothing; a second finger landing mid-stroke leaves the stroke's cells so far and the canvas unmoved until the stroke would end; pinch back to 1 returns pan to 0.
-- [ ] **Step 2:** Run, confirm fail.
-- [ ] **Step 3:** Track active pointers by id; a second pointer cancels the paint or pan drag and starts a pinch (distance for zoom, midpoint for pan, zoom about the midpoint as the wheel handler does). PC mouse behavior is unchanged: keep the existing wheel, pan and Select rules for `pointerType !== 'touch'`.
-- [ ] **Step 4:** Run, confirm pass; the full PC suite must still pass.
-- [ ] **Step 5:** Tick, commit `v0.2.61: phone touch gestures`.
+- [x] **Step 1: E2E tests** (Playwright touch via CDP `Input.dispatchTouchEvent` or pointer events): one-finger drag paints a line of cells without changing `zoom`; a two-finger spread raises `zoom` above 1 and paints nothing; a second finger landing mid-stroke leaves the stroke's cells so far and the canvas unmoved until the stroke would end; pinch back to 1 returns pan to 0.
+- [x] **Step 2:** Run, confirm fail.
+- [x] **Step 3:** Track active pointers by id; a second pointer cancels the paint or pan drag and starts a pinch (distance for zoom, midpoint for pan, zoom about the midpoint as the wheel handler does). PC mouse behavior is unchanged: keep the existing wheel, pan and Select rules for `pointerType !== 'touch'`.
+- [x] **Step 4:** Run, confirm pass; the full PC suite must still pass.
+- [x] **Step 5:** Tick, commit `v0.2.61: phone touch gestures`.
 
 ### Task 6: 3D tab
 

@@ -4,6 +4,7 @@
   import { colorAt } from '../pipeline';
   import { cropTo, paintCells, pieceCount } from '../actions.svelte';
   import { footprint } from '../brush';
+  import { pinchView, type PinchStart, type Pt } from '../pinch';
 
   /** `id` tells the viewer's canvas from the Pixel Editor's. `fit`: the box has a height of its own and the canvas must fit it too. */
   let { id = 'src', fit = false }: { id?: string; fit?: boolean } = $props();
@@ -20,7 +21,15 @@
     | { kind: 'crop'; c0: number; r0: number }
     | { kind: 'paint'; i: number; j: number; pushed: boolean }
     | null = null;
-  let sel = $state<{ c0: number; r0: number; c1: number; r1: number } | null>(null);
+  /** Fingers on the canvas (touch and pen; never the mouse), by pointer id, relative to the canvas centre. */
+  const touches = new Map<number, Pt>();
+  /** Two fingers pinch: zoom and pan from where they started. A finger left after a pinch does nothing (no paint, no
+   * pan) until it lifts or another finger lands and starts a new pinch. */
+  let pinch: (PinchStart & { ids: [number, number] }) | null = null;
+  /** A touch stroke waits this long (ms) before painting its first cell, so the first finger of a pinch paints nothing. */
+  const SETTLE = 100;
+  let settle: { timer: ReturnType<typeof setTimeout>; cell: { x: number; y: number } } | null = null;
+  let sel =$state<{ c0: number; r0: number; c1: number; r1: number } | null>(null);
   /** The cell under the pointer, for the brush outline while Paint or Erase is on. */
   let hover = $state<{ i: number; j: number } | null>(null);
   const parts = $derived(app.parts);
@@ -138,10 +147,40 @@
 
   const clampCell = (v: number, n: number) => Math.min(n - 1, Math.max(0, v));
 
+  /** Pointer position relative to the canvas centre, as `wheel` and `pinchView` use. */
+  function rel(e: PointerEvent): Pt {
+    const r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left - size / 2, y: e.clientY - r.top - size / 2 };
+  }
+
+  /** Paint a touch stroke's first cell now, if it is still waiting. */
+  function settled() {
+    if (!settle) return;
+    clearTimeout(settle.timer);
+    const c = settle.cell;
+    settle = null;
+    stroke([c]);
+  }
+
   function down(e: PointerEvent) {
     if (e.button !== 0 && e.button !== 1) return;
     // a drag here pans or paints: no text selection, and no middle-button autoscroll of the side panel
     e.preventDefault();
+    if (e.pointerType !== 'mouse') {
+      touches.set(e.pointerId, rel(e));
+      if (touches.size > 2) return;
+      if (touches.size === 2) {
+        // a second finger: the one-finger stroke or pan stops where it is (what it painted stays) and a pinch starts
+        if (settle) { clearTimeout(settle.timer); settle = null; }
+        drag = null;
+        sel = null;
+        hover = null;
+        const [ia, ib] = [...touches.keys()] as [number, number];
+        pinch = { ids: [ia, ib], a: touches.get(ia)!, b: touches.get(ib)!, zoom: ui.zoom, pan: { ...pan } };
+        canvas.setPointerCapture(e.pointerId);
+        return;
+      }
+    }
     const at = cellAt(e);
     if (ui.picking && e.button === 0) {
       if (!at?.inside || !app.source || !app.meta) return;
@@ -159,7 +198,9 @@
     }
     if (ui.tool !== 'select' && e.button === 0 && at) {
       drag = { kind: 'paint', i: at.i, j: at.j, pushed: false };
-      stroke([{ x: at.i, y: at.j }]);
+      const cell = { x: at.i, y: at.j };
+      if (e.pointerType === 'mouse') stroke([cell]);
+      else settle = { timer: setTimeout(settled, SETTLE), cell };
       return;
     }
     drag = { kind: 'pan', x: e.clientX - pan.x, y: e.clientY - pan.y, at: { x: e.clientX, y: e.clientY } };
@@ -185,6 +226,16 @@
   }
 
   function move(e: PointerEvent) {
+    if (touches.has(e.pointerId)) {
+      touches.set(e.pointerId, rel(e));
+      if (pinch) {
+        const a = touches.get(pinch.ids[0]), b = touches.get(pinch.ids[1]);
+        if (a && b) { const v = pinchView(pinch, a, b, MAX_ZOOM); pan = v.pan; ui.zoom = v.zoom; }
+        return;
+      }
+      // a finger left over from a pinch
+      if (!drag) return;
+    }
     if (ui.tool !== 'select') {
       const h = cellAt(e);
       if (h?.i !== hover?.i || h?.j !== hover?.j) hover = h && { i: h.i, j: h.j };
@@ -198,6 +249,7 @@
       const cells = line(drag.i, drag.j, at.i, at.j);
       drag.i = at.i;
       drag.j = at.j;
+      settled();
       stroke(cells);
       return;
     }
@@ -205,6 +257,12 @@
   }
 
   function up(e: PointerEvent) {
+    if (touches.delete(e.pointerId) && pinch) {
+      // the pinch ends when one of its fingers lifts; any finger left waits for the rest to lift
+      if (pinch.ids.includes(e.pointerId)) pinch = null;
+      return;
+    }
+    settled();
     const d = drag, s = sel;
     drag = null;
     sel = null;

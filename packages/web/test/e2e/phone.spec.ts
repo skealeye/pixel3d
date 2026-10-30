@@ -11,7 +11,7 @@ const test = base.extend({
   },
 });
 
-interface Snap { grid: { w: number; h: number; opaque: number; palette: { hex: string }[] } | null; settings: { colors: { max: number } }; undo: number }
+interface Snap { grid: { w: number; h: number; opaque: number; palette: { hex: string }[] } | null; settings: { colors: { max: number } }; undo: number; zoom: number }
 const snap = (page: Page) => page.evaluate(() => (window as unknown as { __pixel3d: { snapshot(): Snap } }).__pixel3d.snapshot());
 
 type Hook = { setTool(t: string, hex: string): void };
@@ -309,6 +309,152 @@ test.describe('phone colors', () => {
     expect(await palette(page)).toEqual(['#0000ff']);
     await expect(filled(page)).toHaveCount(1);
     await expect(page.locator('#phSlots .slot.empty')).toHaveCount(7);
+  });
+});
+
+test.describe('phone gestures', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  type Pt = { x: number; y: number };
+  /** Real multi-touch through the DevTools protocol: each call lists every finger still down, the touch id is its index
+   * unless given. */
+  async function fingers(page: Page) {
+    const cdp = await page.context().newCDPSession(page);
+    return (type: 'touchStart' | 'touchMove' | 'touchEnd', pts: (Pt & { id?: number })[] = []) =>
+      cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((p, k) => ({ x: p.x, y: p.y, id: p.id ?? k })) });
+  }
+  /** Move the fingers from `from` to `to` in a few steps. */
+  async function slide(touch: Awaited<ReturnType<typeof fingers>>, from: Pt[], to: Pt[], steps = 6) {
+    for (let s = 1; s <= steps; s++) await touch('touchMove', from.map((p, k) => ({ x: p.x + ((to[k]!.x - p.x) * s) / steps, y: p.y + ((to[k]!.y - p.y) * s) / steps })));
+  }
+  const red = async (page: Page, i: number, j: number) => (await pixelAt(page, i, j)).slice(0, 3).join() === '255,0,0';
+
+  test('one finger with Paint paints a line of cells and never zooms or pans', async ({ page }) => {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    const touch = await fingers(page);
+    const a = await cell(page, 2, 10), b = await cell(page, 12, 10);
+    await touch('touchStart', [a]);
+    await slide(touch, [a], [b]);
+    await touch('touchEnd');
+    expect(await opaque(page)).toBe(11);
+    expect((await snap(page)).zoom).toBe(1);
+    expect(await red(page, 2, 10)).toBe(true);
+    expect(await red(page, 12, 10)).toBe(true);
+    expect(await red(page, 13, 10)).toBe(false);
+  });
+
+  test('a one-finger tap paints one cell', async ({ page }) => {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    const touch = await fingers(page);
+    await touch('touchStart', [await cell(page, 5, 5)]);
+    await touch('touchEnd');
+    expect(await opaque(page)).toBe(1);
+  });
+
+  test('a one-finger tap with Pick takes the color', async ({ page }) => {
+    await page.goto('/?test');
+    const touch = await fingers(page);
+    const tapAt = async (i: number, j: number) => { await touch('touchStart', [await cell(page, i, j)]); await touch('touchEnd'); };
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    await tapAt(2, 2);
+    await color(page, '#0000ff');
+    await page.locator('#phTool-paint').click();
+    await tapAt(4, 2);
+    await page.locator('#phTool-pick').click();
+    await tapAt(2, 2);
+    await page.locator('#phTool-paint').click();
+    await tapAt(6, 2);
+    expect(await red(page, 6, 2)).toBe(true);
+  });
+
+  test('a two-finger spread zooms in and paints nothing', async ({ page }) => {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    const undo0 = (await snap(page)).undo;
+    const touch = await fingers(page);
+    const from = [await cell(page, 14, 16), await cell(page, 18, 16)], to = [await cell(page, 8, 16), await cell(page, 24, 16)];
+    await touch('touchStart', from);
+    await slide(touch, from, to);
+    await touch('touchEnd');
+    const s = await snap(page);
+    expect(s.zoom).toBeGreaterThan(1);
+    expect(s.grid!.opaque).toBe(0);
+    expect(s.undo).toBe(undo0);
+  });
+
+  test('a second finger mid-stroke keeps the cells so far, paints no more and only then moves the canvas', async ({ page }) => {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    const undo0 = (await snap(page)).undo;
+    const touch = await fingers(page);
+    const a = await cell(page, 2, 10), b = await cell(page, 6, 10), c = await cell(page, 20, 20);
+    await touch('touchStart', [a]);
+    await slide(touch, [a], [b]);
+    // pointer moves are delivered with the next frame
+    await expect.poll(() => opaque(page)).toBe(5);
+    await touch('touchStart', [b, c]);
+    // the second finger is down but has not moved: same cells, same place
+    expect(await opaque(page)).toBe(5);
+    expect((await snap(page)).zoom).toBe(1);
+    expect(await red(page, 4, 10)).toBe(true);
+    expect(await red(page, 7, 10)).toBe(false);
+    // the first finger keeps going: that is now a pinch, not paint
+    await slide(touch, [b, c], [await cell(page, 12, 10), c]);
+    await touch('touchEnd');
+    const s = await snap(page);
+    expect(s.grid!.opaque).toBe(5);
+    expect(s.undo).toBe(undo0 + 1);
+  });
+
+  test('the finger left after a pinch neither paints nor moves the canvas', async ({ page }) => {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    const touch = await fingers(page);
+    const from = [await cell(page, 14, 16), await cell(page, 18, 16)], to = [await cell(page, 10, 16), await cell(page, 22, 16)];
+    await touch('touchStart', from);
+    await slide(touch, from, to);
+    // the fingers went from 4 cells apart to 12
+    await expect.poll(async () => (await snap(page)).zoom).toBeCloseTo(3);
+    const zoom = (await snap(page)).zoom, before = await pixelAt(page, 4, 4);
+    // lift the second finger, then drag the first
+    await touch('touchEnd', [{ ...to[1]!, id: 1 }]);
+    await slide(touch, [to[0]!], [await cell(page, 4, 4)]);
+    await page.waitForTimeout(200);
+    expect(await opaque(page)).toBe(0);
+    expect((await snap(page)).zoom).toBe(zoom);
+    expect(await pixelAt(page, 4, 4)).toEqual(before);
+    await touch('touchEnd');
+    expect(await opaque(page)).toBe(0);
+  });
+
+  test('pinching back to zoom 1 puts the canvas back where it was', async ({ page }) => {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    const touch = await fingers(page);
+    await touch('touchStart', [await cell(page, 5, 5)]);
+    await touch('touchEnd');
+    // spread off-centre, so the zoom also pans
+    const from = [await cell(page, 4, 24), await cell(page, 8, 24)], wide = [await cell(page, 0, 20), await cell(page, 14, 28)];
+    await touch('touchStart', from);
+    await slide(touch, from, wide);
+    expect((await snap(page)).zoom).toBeGreaterThan(1);
+    expect(await red(page, 5, 5)).toBe(false);
+    const near = [await cell(page, 6, 24), await cell(page, 7, 24)];
+    await slide(touch, wide, near);
+    await touch('touchEnd');
+    expect((await snap(page)).zoom).toBe(1);
+    expect(await red(page, 5, 5)).toBe(true);
+    expect(await red(page, 6, 5)).toBe(false);
+    expect(await opaque(page)).toBe(1);
   });
 });
 
