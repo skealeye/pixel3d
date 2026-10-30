@@ -1,5 +1,6 @@
 import { decodeImage, ImageTooLargeError } from '@pixel3d/core';
 import { describe, type Source } from './pipeline';
+import { foundColors } from './actions.svelte';
 import { change, app, toast, ui } from './state.svelte';
 
 const NOT_IMAGE = 'That file is not an image. Use PNG, JPEG, GIF or WebP.';
@@ -15,6 +16,8 @@ export async function loadBytes(name: string, bytes: Uint8Array): Promise<boolea
   }
   const source: Source = { name, img, ...describe(img), pick: null, crop: null };
   ui.picking = ui.cropping = false;
+  // every new image starts with as many colors allowed as it has
+  const found = foundColors(source, true);
   const ok = change(() => {
     app.source = source;
     app.edits = [];
@@ -23,6 +26,7 @@ export async function loadBytes(name: string, bytes: Uint8Array): Promise<boolea
     // every new image starts from auto: pixel art stays as it is, anything else is pixelated
     app.settings.pixelate.enabled = 'auto';
     app.settings.background.enabled = true;
+    app.settings.colors.max = found;
   });
   if (ok) {
     ui.sel = null;

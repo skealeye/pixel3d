@@ -256,3 +256,6 @@ dialog.editor::backdrop { background: #0007; backdrop-filter: blur(6px); }
 #edCommon .chip { width: 100%; height: auto; aspect-ratio: 1; }
 .chip.empty { background: none; border: 1px dashed var(--line); box-shadow: none; cursor: default; }
 #edCount { color: var(--muted); margin-left: 6px; }
+.slotMore { width: 26px; height: 26px; border-radius: 3px; padding: 0; cursor: pointer; background: none; border: 1px solid var(--line); color: var(--muted); font-size: 16px; line-height: 1; display: grid; place-items: center; box-shadow: none; }
+.slotMore:hover { border-color: var(--gold); color: var(--gold); }
+.edNote { padding: 6px 14px; background: #2a2a24; border-bottom: 1px solid var(--gold); color: var(--text); font-size: 12px; }

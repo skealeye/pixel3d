@@ -208,6 +208,9 @@ test.describe('pixel editor', () => {
 
   test('a new color is in the image only while a pixel uses it', async ({ page }) => {
     await loadPotion(page);
+    // the potion has 7 colors and starts with 7 allowed: make room for more
+    await page.locator('#colMax').fill('16');
+    await page.locator('#colMax').press('Enter');
     await openEditor(page);
     const undo0 = (await snap(page)).undo;
     await page.locator('#edNewBtn').click();
@@ -273,6 +276,9 @@ test.describe('pixel editor', () => {
 
   test('New color: the wheel changes only the brush until a pixel is painted', async ({ page }) => {
     await loadPotion(page);
+    // the potion has 7 colors and starts with 7 allowed: make room for more
+    await page.locator('#colMax').fill('16');
+    await page.locator('#colMax').press('Enter');
     await openEditor(page);
     await chip(page, 'Image', '#9c6b3e').click();
     const before = await snap(page);
@@ -363,6 +369,26 @@ test.describe('pixel editor', () => {
     expect(await hexes(page)).toHaveLength(9);
   });
 
+  test('at the Colors limit the editor says so in its own window, and one more color can be allowed from there', async ({ page }) => {
+    await loadPotion(page);
+    await openEditor(page);
+    await expect(page.locator('#edImage .chip.empty')).toHaveCount(0);
+    await chip(page, 'Common', '#d62828').click();
+    await clickCell(page, 1, 8);
+    // the page's toast sits behind the window, so the editor shows the message itself
+    await expect(page.locator('#edNote')).toHaveText('An image holds at most 7 colors.');
+    expect(await hexes(page)).toHaveLength(7);
+    await page.locator('#edMoreColors').click();
+    await expect(page.locator('#edImage .chip.empty')).toHaveCount(1);
+    await expect(page.locator('#edCount')).toHaveText('7 of 8');
+    await clickCell(page, 1, 8);
+    expect(await hexes(page)).toHaveLength(8);
+    await expect(page.locator('#edImage .chip.empty')).toHaveCount(0);
+    await page.locator('#edUndo').click();
+    await page.locator('#edUndo').click();
+    await expect(page.locator('#edCount')).toHaveText('7 of 7');
+  });
+
   test('a new canvas sets the most colors it may use, and the limit holds', async ({ page }) => {
     await page.goto('/?test');
     await page.locator('#editPixels').click();
@@ -419,6 +445,9 @@ test.describe('pixel editor', () => {
 
   test('a common color that is new joins the image with its first pixel', async ({ page }) => {
     await loadPotion(page);
+    // the potion has 7 colors and starts with 7 allowed: make room for more
+    await page.locator('#colMax').fill('16');
+    await page.locator('#colMax').press('Enter');
     await openEditor(page);
     await chip(page, 'Common', '#d62828').click();
     expect(await hexes(page)).not.toContain('#d62828');

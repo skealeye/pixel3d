@@ -291,7 +291,8 @@ test.describe('colors and heights', () => {
 
   test('the color count merges the closest pair; deleted colors can be restored', async ({ page }) => {
     await loadPotion(page);
-    await expect(page.locator('#colMax')).toHaveValue('16');
+    // a loaded image starts with as many colors allowed as it has
+    await expect(page.locator('#colMax')).toHaveValue('7');
     await page.locator('#colMax').fill('6');
     await page.locator('#colMax').press('Enter');
     // #f4fbff (2 pixels) is closest to #bfd9e6 and merges into it
@@ -302,7 +303,7 @@ test.describe('colors and heights', () => {
     expect(await hexes(page)).toEqual(POTION.slice(0, 5));
     await page.locator('#restoreCols').click();
     expect(await hexes(page)).toEqual(POTION);
-    await expect(page.locator('#colMax')).toHaveValue('16');
+    await expect(page.locator('#colMax')).toHaveValue('7');
   });
 
   test('a height for a color that no longer exists is dropped with a notice', async ({ page }) => {
@@ -428,11 +429,9 @@ test.describe('colors and heights', () => {
     test(`dragging the ${label} slider keeps it under the pointer while the palette list shrinks and grows`, async ({ page }) => {
       await page.setViewportSize({ width: 1400, height: 600 });
       await loadPotion(page);
-      if (open) {
-        await page.locator('#pixelate').check();
-        await page.locator(`#${id}`).fill('16');
-        await page.locator(`#${id}`).press('Enter');
-      }
+      if (open) await page.locator('#pixelate').check();
+      await page.locator(`#${id}`).fill('16');
+      await page.locator(`#${id}`).press('Enter');
       const slider = page.locator(`#${id}R`);
       await expect(slider).toHaveValue('16');
       // scroll the left panel as far as it goes, then put the slider mid-screen if there is room

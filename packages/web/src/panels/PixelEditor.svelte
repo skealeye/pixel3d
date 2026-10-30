@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { app, recolorLive, redo, ui, undo } from '../state.svelte';
+  import { untrack } from 'svelte';
+  import { app, recolorLive, redo, setting, ui, undo } from '../state.svelte';
   import { closeEditor, maxColors, newCanvas, resizeCanvas, setBrush } from '../actions.svelte';
   import { BRUSHES, COMMON_COLORS } from '../brush';
   import ColorWheel from './ColorWheel.svelte';
@@ -28,6 +29,22 @@
 
   // the size of a canvas to start, and of the blank canvas being drawn on
   let nw = $state(32), nh = $state(32), nc = $state(16), rw = $state(32), rh = $state(32);
+  // the page's toasts sit behind this window, so what they say is shown here for a few seconds
+  let note = $state(''), noteTimer = 0, seen = ui.toast.n;
+  $effect(() => {
+    const n = ui.toast.n;
+    if (n === seen) return;
+    seen = n;
+    if (!untrack(() => ui.editor)) return;
+    note = ui.toast.text;
+    clearTimeout(noteTimer);
+    noteTimer = window.setTimeout(() => (note = ''), 4000);
+  });
+
+  /** Allow one more color (up to 16): the Colors setting of the Pixel Viewer, one step up. A pixelated photo has its own. */
+  function moreColors() {
+    if (max < 16) setting(() => { app.settings.colors.max = max + 1; });
+  }
   /** The most colors the image may have: one slot each in Image colors. */
   const max = $derived(maxColors());
   $effect(() => {
@@ -58,6 +75,7 @@
     <span class="hint" style="margin:0 0 0 auto">Scroll to zoom, drag to pan with Pick</span>
     <button class="btn primary" id="edDone" onclick={closeEditor}>Done</button>
   </header>
+  {#if note}<div class="edNote" id="edNote" role="status">{note}</div>{/if}
   <div class="edBody">
     <div class="edTools">
       <div class="lbl">Tool</div>
@@ -109,6 +127,9 @@
         {#each { length: Math.max(0, max - palette.length) } as _, i (i)}
           <span class="chip empty" title="Free slot: painting a new color uses it"></span>
         {/each}
+        {#if max < 16 && !app.meta?.pixelated}
+          <button class="slotMore" id="edMoreColors" title="Allow one more color (the Colors setting of the Pixel Viewer)" aria-label="Allow one more color" onclick={moreColors}>+</button>
+        {/if}
       </div>
       <div class="lbl">Common colors</div>
       <div class="chips" id="edCommon">

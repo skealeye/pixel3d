@@ -1,6 +1,6 @@
-import { DEFAULTS, type Edit } from '@pixel3d/core';
+import { type Edit, type Settings } from '@pixel3d/core';
 import { PALETTE_MAX } from './brush';
-import { CANVAS_MAX, CANVAS_MIN, blankSource, cellsToCrop, computeGrid } from './pipeline';
+import { CANVAS_MAX, CANVAS_MIN, blankSource, cellsToCrop, computeGrid, type Source } from './pipeline';
 import { addEdits, app, change, stopPicking, toast, ui } from './state.svelte';
 
 // Edits from the palette panel and the source preview. Each one is a core `Edit`, replayed on top of the image (spec §4.10).
@@ -131,24 +131,40 @@ export function removeStrays() {
   if (addEdits(edits)) toast('Stray pixels removed. Press Ctrl+Z to undo.');
 }
 
+/**
+ * The Colors limit a loaded image starts with: how many colors it has once its background is gone, at least 2 and at
+ * most 16 (the most an image holds, as the settings and the filament count allow). A pixelated photo has its own
+ * Colors setting, so it gets the full 16 here; a drawn canvas keeps the limit it was made with.
+ */
+export function foundColors(src: Source, removeBg = app.settings.background.enabled): number {
+  if (src.blank) return app.settings.colors.max;
+  const s = $state.snapshot(app.settings) as Settings;
+  s.colors.max = PALETTE_MAX;
+  s.background.enabled = removeBg;
+  const r = computeGrid(src, s, []);
+  return 'error' in r || r.meta.pixelated ? PALETTE_MAX : Math.min(PALETTE_MAX, Math.max(2, r.meta.colors));
+}
+
 /** Bring back deleted, recolored and merged colors; heights set for colors that still exist are kept. */
 export function restoreColors() {
   if (!app.source) return;
+  const found = foundColors(app.source);
   const ok = change(() => {
     app.edits = app.edits.filter((e) => e.kind !== 'recolor' && e.kind !== 'delete');
-    app.settings.colors.max = DEFAULTS.colors.max;
+    app.settings.colors.max = found;
   });
   if (ok) toast('Original colors restored. Your heights were kept.');
 }
 
-/** Back to the original image: no crop, no edits, the full color count. The height mode stays and is applied again. Undoable. */
+/** Back to the original image: no crop, no edits, all the colors it has. The height mode stays and is applied again. Undoable. */
 export function reloadImage() {
   if (!app.source) { toast('Open an image first.'); return; }
-  const src = app.source;
+  const src = { ...app.source, crop: null };
+  const found = foundColors(src);
   const ok = change(() => {
     app.edits = [];
-    app.source = { ...src, crop: null };
-    app.settings.colors.max = DEFAULTS.colors.max;
+    app.source = src;
+    app.settings.colors.max = found;
   });
   if (ok) toast('Image reloaded. Press Ctrl+Z to undo.');
 }
