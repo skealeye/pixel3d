@@ -116,11 +116,11 @@
 - Consumes: `ui.phone`, the existing viewport orbit and zoom.
 - Produces: with `ui.phone` the 3D tab shows only the model; no Reset view, Grid, X-ray, Cut view, strays or size readout.
 
-- [ ] **Step 1: E2E tests.** The 3D tab shows `#view` at the full phone size, none of `#resetView`, `#gridBtn`, `#xrayBtn`, `#cutBtn` is visible; after painting, the preview model exists (snapshot or `#view` not empty); returning to Draw keeps the drawing and its zoom.
-- [ ] **Step 2:** Run, confirm fail.
-- [ ] **Step 3:** Give the tab the viewport and hide the extras with `body.phone` rules (or the `ui.phone` flag). Orbit and zoom stay as the viewport already does them with touch.
-- [ ] **Step 4:** Run, confirm pass.
-- [ ] **Step 5:** Tick, commit `v0.2.61: phone 3D tab`.
+- [x] **Step 1: E2E tests.** The 3D tab shows `#view` at the full phone size, none of `#resetView`, `#gridBtn`, `#xrayBtn`, `#cutBtn` is visible; after painting, the preview model exists (snapshot or `#view` not empty); returning to Draw keeps the drawing and its zoom.
+- [x] **Step 2:** Run, confirm fail.
+- [x] **Step 3:** Give the tab the viewport and hide the extras with `body.phone` rules (or the `ui.phone` flag). Orbit and zoom stay as the viewport already does them with touch.
+- [x] **Step 4:** Run, confirm pass.
+- [x] **Step 5:** Tick, commit `v0.2.61: phone 3D tab`.
 
 ### Task 7: Rotation, resize across the breakpoint, README, version
 

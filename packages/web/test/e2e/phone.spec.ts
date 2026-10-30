@@ -457,6 +457,84 @@ test.describe('phone gestures', () => {
     expect(await red(page, 6, 5)).toBe(false);
     expect(await opaque(page)).toBe(1);
   });
+
+  type View = { shown: string; renders: number; camera: [number, number, number] };
+  const view = (page: Page) => page.evaluate(() => (window as unknown as { __pixel3d: { viewport(): View } }).__pixel3d.viewport());
+  const dist = (c: View['camera']) => Math.hypot(c[0], c[1], c[2]);
+  const orbitMoved = (a: View['camera'], b: View['camera']) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  /** Paint a few cells on Draw, then open the 3D tab. */
+  async function open3d(page: Page) {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    for (const i of [4, 5, 6, 7]) await tap(page, i, 8);
+    await page.locator('#tab3d').click();
+    await expect.poll(async () => (await view(page)).shown).toBe('model');
+  }
+
+  test('the 3D tab fills the screen and shows only the model', async ({ page }) => {
+    await open3d(page);
+    const b = (await page.locator('#view').boundingBox())!;
+    const m = (await page.locator('#phMain').boundingBox())!;
+    expect([b.x, b.y, b.width, b.height]).toEqual([m.x, m.y, m.width, m.height]);
+    expect(b.width).toBe(390);
+    for (const id of ['resetView', 'gridBtn', 'xrayBtn', 'cutBtn', 'gridPop', 'xrayPop', 'resizer', 'note', 'mode', 'dims', 'gridScale']) await expect(page.locator('#' + id)).toBeHidden();
+  });
+
+  test('3D tab: one finger orbits the model', async ({ page }) => {
+    await open3d(page);
+    const touch = await fingers(page);
+    const before = (await view(page)).camera;
+    const a = { x: 195, y: 400 }, b = { x: 125, y: 440 };
+    await touch('touchStart', [a]);
+    await slide(touch, [a], [b]);
+    await touch('touchEnd');
+    await expect.poll(async () => orbitMoved(before, (await view(page)).camera)).toBeGreaterThan(5);
+    // an orbit turns the camera around the model: the distance stays
+    expect(dist((await view(page)).camera)).toBeCloseTo(dist(before), 0);
+  });
+
+  test('3D tab: a two-finger pinch zooms', async ({ page }) => {
+    await open3d(page);
+    const touch = await fingers(page);
+    const d0 = dist((await view(page)).camera);
+    const from = [{ x: 175, y: 400 }, { x: 215, y: 400 }], to = [{ x: 75, y: 400 }, { x: 315, y: 400 }];
+    await touch('touchStart', from);
+    await slide(touch, from, to);
+    await touch('touchEnd');
+    await expect.poll(async () => dist((await view(page)).camera)).toBeLessThan(d0 * 0.8);
+  });
+
+  test('back on Draw the drawing and its zoom are kept and painting works', async ({ page }) => {
+    await open3d(page);
+    await page.locator('#tabDraw').click();
+    expect(await opaque(page)).toBe(4);
+    const touch = await fingers(page);
+    const from = [await cell(page, 14, 16), await cell(page, 18, 16)], to = [await cell(page, 8, 16), await cell(page, 24, 16)];
+    await touch('touchStart', from);
+    await slide(touch, from, to);
+    await touch('touchEnd');
+    const zoom = (await snap(page)).zoom;
+    expect(zoom).toBeGreaterThan(1);
+    await page.locator('#tab3d').click();
+    await page.locator('#tabDraw').click();
+    expect((await snap(page)).zoom).toBe(zoom);
+    await touch('touchStart', [await cell(page, 14, 16)]);
+    await touch('touchEnd');
+    expect(await opaque(page)).toBe(5);
+  });
+
+  test('the hidden 3D view stops rendering on Draw and catches up when shown', async ({ page }) => {
+    await open3d(page);
+    await page.locator('#tabDraw').click();
+    await page.waitForTimeout(300);
+    const r0 = (await view(page)).renders;
+    await tap(page, 10, 10);
+    await page.waitForTimeout(500);
+    expect((await view(page)).renders).toBe(r0);
+    await page.locator('#tab3d').click();
+    await expect.poll(async () => (await view(page)).renders).toBeGreaterThan(r0);
+  });
 });
 
 test.describe('phone landscape', () => {

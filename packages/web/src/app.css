@@ -270,6 +270,8 @@ body.phone { display: block; }
 .phTab { position: absolute; inset: 0; overflow: hidden; }
 .phTab[hidden] { display: none; }
 .phTab > main { position: absolute; inset: 0; }
+/* 3D tab: the model alone, the view's buttons, notes and readouts stay off (the note's display is set inline) */
+body.phone main :is(.vtools, .note, .mode, .dims, .gridscale, #resizer) { display: none !important; }
 #phTop .btn { min-height: 36px; }
 /* Draw tab: canvas on top, controls below; a wide screen puts the controls beside the canvas */
 #phDraw { position: absolute; inset: 0; display: flex; flex-direction: column; }

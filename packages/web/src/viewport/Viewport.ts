@@ -129,13 +129,14 @@ export class Viewport {
     this.fitView();
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(container);
-    r.setAnimationLoop((t: number) => {
-      const dt = Math.min(0.05, (t - (this.lastFrame || t)) / 1000);
-      this.lastFrame = t;
-      if (this.clk && this.clkView === 'assembled' && press.step(dt)) this.movePress();
-      if (this.controls.update() || this.dirty) this.render();
-    });
   }
+
+  private frame = (t: number) => {
+    const dt = Math.min(0.05, (t - (this.lastFrame || t)) / 1000);
+    this.lastFrame = t;
+    if (this.clk && this.clkView === 'assembled' && press.step(dt)) this.movePress();
+    if (this.controls.update() || this.dirty) this.render();
+  };
 
   /**
    * The core model: one mesh per part, one flat-shaded material per color. A clicker (`model.clicker`) is shown
@@ -352,6 +353,8 @@ export class Viewport {
 
   private resize() {
     const w = this.container.clientWidth, h = this.container.clientHeight;
+    // hidden (the phone's Draw tab): stop the loop until it has a size again
+    this.renderer.setAnimationLoop(w && h ? this.frame : null);
     if (!w || !h) return;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
