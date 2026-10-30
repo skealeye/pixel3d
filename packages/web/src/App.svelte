@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { VERSION } from '@pixel3d/core';
   import { redo, app, ui, undo, stopPicking } from './state.svelte';
   import { BRUSHES } from './brush';
@@ -20,6 +21,9 @@
   import PixelEditor from './panels/PixelEditor.svelte';
   import ViewportPane from './viewport/ViewportPane.svelte';
   import Footer from './Footer.svelte';
+  import PhoneApp from './phone/PhoneApp.svelte';
+  import { PHONE_QUERY } from './phone';
+  import { newCanvas } from './actions.svelte';
   import Toast from './Toast.svelte';
   import UpdatePrompt from './UpdatePrompt.svelte';
 
@@ -28,6 +32,19 @@
   $effect(() => listen(window, (on) => (dragging = on)));
 
   $effect(() => { document.body.style.setProperty('--left', ui.left + 'px'); });
+
+  // a phone-sized screen gets the sketchpad (phone/PhoneApp.svelte); crossing the breakpoint keeps the drawing
+  $effect(() => {
+    const q = matchMedia(PHONE_QUERY);
+    const set = () => (ui.phone = q.matches);
+    set();
+    q.addEventListener('change', set);
+    return () => q.removeEventListener('change', set);
+  });
+  $effect(() => {
+    document.body.classList.toggle('phone', ui.phone);
+    if (ui.phone && !untrack(() => app.source)) newCanvas(32, 32, 8);
+  });
 
   $effect(() => register({
     snapshot: () => ({
@@ -77,6 +94,9 @@
 
 <svelte:window onkeydown={keydown} />
 
+{#if ui.phone}
+  <PhoneApp />
+{:else}
 <Header />
 
 <aside class="left">
@@ -104,6 +124,7 @@
 </aside>
 
 <Footer />
+{/if}
 
 <PixelEditor />
 <Toast />

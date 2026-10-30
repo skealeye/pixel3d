@@ -260,3 +260,15 @@ dialog.editor::backdrop { background: #0007; backdrop-filter: blur(6px); }
 .slotMore { width: 26px; height: 26px; border-radius: 3px; padding: 0; cursor: pointer; background: none; border: 1px solid var(--line); color: var(--muted); font-size: 16px; line-height: 1; display: grid; place-items: center; box-shadow: none; }
 .slotMore:hover { border-color: var(--gold); color: var(--gold); }
 .edNote { padding: 6px 14px; background: #2a2a24; border-bottom: 1px solid var(--gold); color: var(--text); font-size: 12px; }
+
+/* phone sketchpad (phone/PhoneApp.svelte): it fills the screen instead of the PC grid */
+body.phone { display: block; }
+#phone { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); }
+#phTop { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 8px; min-height: 48px; border-bottom: 1px solid var(--line); background: var(--panel); }
+#phMain { flex: 1; min-height: 0; position: relative; }
+.phTab { position: absolute; inset: 0; overflow: hidden; }
+.phTab[hidden] { display: none; }
+.phTab > main { position: absolute; inset: 0; }
+#phTabs { flex: none; display: flex; border-top: 1px solid var(--line); background: var(--panel); }
+#phTabs button { flex: 1; min-height: 48px; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 15px; }
+#phTabs button.on { color: var(--gold); box-shadow: inset 0 3px 0 var(--gold); }

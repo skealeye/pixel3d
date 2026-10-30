@@ -67,6 +67,10 @@ export const ui = $state({
   newColor: false,
   /** The editor's square brush size. */
   brush: 1 as Brush,
+  /** A phone-sized screen: the sketchpad layout replaces the PC panels (phone.ts). */
+  phone: false,
+  /** The phone's active tab. */
+  tab: 'draw' as 'draw' | '3d',
   toast: { text: '', n: 0 },
 });
 

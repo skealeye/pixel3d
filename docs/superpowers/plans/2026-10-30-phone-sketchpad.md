@@ -41,11 +41,11 @@
 **Interfaces:**
 - Produces: `isPhone(width: number, height: number): boolean`; `PHONE_QUERY` string; `ui.phone`, `ui.tab`; `PhoneApp.svelte` with element ids `#phone`, `#tabDraw`, `#tab3d`.
 
-- [ ] **Step 1: Tests.** Unit: `isPhone(390, 844)` true, `isPhone(844, 390)` true, `isPhone(701, 501)` false, `isPhone(700, 900)` true. E2E (`test.use({ viewport: { width: 390, height: 844 }, hasTouch: true })`): `/?test` shows `#phone`, hides `.left` and `.right`, snapshot grid is 32 × 32 with 8 colors allowed, `#tab3d` click shows `#view` filling the screen and `#tabDraw` goes back. A second test at 1400 × 900 has no `#phone`.
-- [ ] **Step 2:** Run both, confirm they fail.
-- [ ] **Step 3:** `isPhone` and the effect in `App.svelte` setting `ui.phone` from `matchMedia(PHONE_QUERY)` (the parked branch's effect is the model: `git show phone-layout:packages/web/src/App.svelte`). When it turns on and there is no source, call `newCanvas(32, 32, 8)`. `PhoneApp` renders the top bar, the two tab buttons and the active tab; the PC `Header`, panels and `Footer` are not rendered while `ui.phone`.
-- [ ] **Step 4:** Run tests, confirm pass, plus the full suite.
-- [ ] **Step 5:** Tick this task's boxes, commit `v0.2.61: phone shell`.
+- [x] **Step 1: Tests.** Unit: `isPhone(390, 844)` true, `isPhone(844, 390)` true, `isPhone(701, 501)` false, `isPhone(700, 900)` true. E2E (`test.use({ viewport: { width: 390, height: 844 }, hasTouch: true })`): `/?test` shows `#phone`, hides `.left` and `.right`, snapshot grid is 32 × 32 with 8 colors allowed, `#tab3d` click shows `#view` filling the screen and `#tabDraw` goes back. A second test at 1400 × 900 has no `#phone`.
+- [x] **Step 2:** Run both, confirm they fail.
+- [x] **Step 3:** `isPhone` and the effect in `App.svelte` setting `ui.phone` from `matchMedia(PHONE_QUERY)` (the parked branch's effect is the model: `git show phone-layout:packages/web/src/App.svelte`). When it turns on and there is no source, call `newCanvas(32, 32, 8)`. `PhoneApp` renders the top bar, the two tab buttons and the active tab; the PC `Header`, panels and `Footer` are not rendered while `ui.phone`.
+- [x] **Step 4:** Run tests, confirm pass, plus the full suite.
+- [x] **Step 5:** Tick this task's boxes, commit `v0.2.61: phone shell`.
 
 ### Task 2: Save PNG
 
