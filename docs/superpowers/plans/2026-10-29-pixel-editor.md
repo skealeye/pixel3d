@@ -59,9 +59,9 @@
 - Consumes: `PALETTE_MAX` from Task 1.
 - Produces: `export function addCustomColor(hex: string): boolean` (lowercases; if already in the palette: sets `ui.sel`, returns true, no edit; if palette is at `PALETTE_MAX`: toast, returns false; else one undo step with `{kind:'add', hex}` plus a `height` edit when `heights.h !== 1`, sets `ui.sel`, returns true). `export function useColor(hex: string): boolean` (same as `addCustomColor`; the name used by palette chips). Existing `addColor()` now calls `addCustomColor('#e0715c')` and keeps setting `ui.tool = 'paint'` only when it did not come from the editor (it keeps its current behavior; Task 5 changes the viewer button).
 
-- [ ] **Step 1:** Implement the two functions; refactor `addColor` to use `addCustomColor`.
-- [ ] **Step 2:** Run `npm run typecheck` and `npx playwright test -c packages/web palette` (existing tests; nothing may change yet). Expected: PASS.
-- [ ] **Step 3:** Commit `v0.2.59: pixel editor: add and use custom colors`.
+- [x] **Step 1:** Implement the two functions; refactor `addColor` to use `addCustomColor`.
+- [x] **Step 2:** Run `npm run typecheck` and `npx playwright test -c packages/web palette` (existing tests; nothing may change yet). Expected: PASS.
+- [x] **Step 3:** Commit `v0.2.59: pixel editor: add and use custom colors`.
 
 ### Task 3: Favorites with 12 slots
 

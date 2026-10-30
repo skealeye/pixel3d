@@ -1,4 +1,5 @@
 import { DEFAULTS, type Edit } from '@pixel3d/core';
+import { PALETTE_MAX } from './brush';
 import { cellsToCrop, computeGrid } from './pipeline';
 import { addEdits, app, change, toast, ui } from './state.svelte';
 
@@ -32,16 +33,31 @@ export function deleteColor(hex: string) {
   if (addEdits([{ kind: 'delete', hex }])) toast('Color deleted. Its pixels now use the nearest color.');
 }
 
-/** The mockup's new color, at the current pixel height; then paint with it. */
-export function addColor() {
-  const hex = '#e0715c', h = app.settings.heights.h;
-  if (!app.grid?.palette.some((p) => p.hex === hex)) {
+/**
+ * Add a color to the image at the current pixel height and select it. A color already in the image is just selected;
+ * at the color cap nothing is added. Returns whether the color is now selected.
+ */
+export function addCustomColor(hex: string): boolean {
+  hex = hex.toLowerCase();
+  const g = app.grid;
+  if (!g) return false;
+  if (!g.palette.some((p) => p.hex === hex)) {
+    if (g.palette.length >= PALETTE_MAX) { toast(`An image holds at most ${PALETTE_MAX} colors.`); return false; }
+    const h = app.settings.heights.h;
     const edits: Edit[] = [{ kind: 'add', hex }];
     if (h !== 1) edits.push({ kind: 'height', hex, h });
-    if (!addEdits(edits)) return;
+    if (!addEdits(edits)) return false;
   }
   ui.sel = hex;
-  ui.tool = 'paint';
+  return true;
+}
+
+/** A palette chip was chosen: its color becomes the brush, joining the image if it is new. */
+export const useColor = addCustomColor;
+
+/** The mockup's new color, at the current pixel height; then paint with it. */
+export function addColor() {
+  if (addCustomColor('#e0715c')) ui.tool = 'paint';
 }
 
 /**
