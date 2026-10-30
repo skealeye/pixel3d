@@ -443,6 +443,18 @@ test.describe('pixel editor', () => {
     await expect(page.locator('#reloadImg')).toBeEnabled();
   });
 
+  test('on a blank canvas the tools column fits the Canvas size boxes', async ({ page }) => {
+    await page.goto('/?test');
+    await page.locator('#editPixels').click();
+    await page.locator('#edNew [data-size="16"]').click();
+    const col = (await page.locator('#editor .edTools').boundingBox())!;
+    for (const id of ['#edRW', '#edRH', '#edResize']) {
+      const b = (await page.locator(id).boundingBox())!;
+      expect(b.x).toBeGreaterThanOrEqual(col.x);
+      expect(b.x + b.width).toBeLessThanOrEqual(col.x + col.width);
+    }
+  });
+
   test('a common color that is new joins the image with its first pixel', async ({ page }) => {
     await loadPotion(page);
     // the potion has 7 colors and starts with 7 allowed: make room for more

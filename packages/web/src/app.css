@@ -217,7 +217,7 @@ dialog.editor[open] { display: flex; flex-direction: column; }
 dialog.editor::backdrop { background: #0007; backdrop-filter: blur(6px); }
 .edHead { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
 .edHead h3 { margin: 0 8px 0 0; }
-.edBody { flex: 1; min-height: 0; display: grid; grid-template-columns: 120px minmax(0, 1fr) 260px; }
+.edBody { flex: 1; min-height: 0; display: grid; grid-template-columns: 132px minmax(0, 1fr) 260px; }
 .edTools, .edColors { padding: 12px; overflow: hidden auto; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .edTools { border-right: 1px solid var(--line); }
 .edColors { border-left: 1px solid var(--line); }
@@ -251,6 +251,7 @@ dialog.editor::backdrop { background: #0007; backdrop-filter: blur(6px); }
 .newCanvas .row > label:first-child { flex: none; }
 .newCanvas input[type=number], .resize input { width: 64px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; color: var(--text); }
 .resize { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.resize input { width: 100%; min-width: 0; box-sizing: border-box; }
 .resize .btn { grid-column: 1 / -1; }
 #edCommon { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px; }
 #edCommon .chip { width: 100%; height: auto; aspect-ratio: 1; }

@@ -28,7 +28,7 @@
   }
 
   // the size of a canvas to start, and of the blank canvas being drawn on
-  let nw = $state(32), nh = $state(32), nc = $state(16), rw = $state(32), rh = $state(32);
+  let nw = $state(32), nh = $state(32), nc = $state(8), rw = $state(32), rh = $state(32);
   // the page's toasts sit behind this window, so what they say is shown here for a few seconds
   let note = $state(''), noteTimer = 0, seen = ui.toast.n;
   $effect(() => {

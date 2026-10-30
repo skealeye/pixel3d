@@ -51,7 +51,7 @@ const side = (n: number) => Math.min(CANVAS_MAX, Math.max(CANVAS_MIN, Math.round
  * Start a blank canvas to draw on, `w` × `h` pixels (4–128 each) with at most `colors` colors (2–16). The model's pixel
  * size is set now, about 40 mm across. Undoable.
  */
-export function newCanvas(w: number, h: number, colors: number = PALETTE_MAX) {
+export function newCanvas(w: number, h: number, colors: number = 8) {
   w = side(w);
   h = side(h);
   colors = Math.min(PALETTE_MAX, Math.max(2, Math.round(Number.isFinite(colors) ? colors : PALETTE_MAX)));
