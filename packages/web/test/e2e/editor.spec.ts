@@ -107,13 +107,39 @@ test.describe('pixel editor', () => {
     await openEditor(page);
     await chip(page, 'Image', '#2b2135').click();
     await page.locator('#editor [data-brush="3"]').click();
-    await clickCell(page, 0, 0);
+    // centred on the cell: (2, 2) covers 1–3 in both directions
+    await clickCell(page, 2, 2);
     expect(await opaque(page)).toBe(POTION_CELLS + 9);
+    // in the corner only the four cells inside the grid are painted
+    await clickCell(page, 0, 0);
+    expect(await opaque(page)).toBe(POTION_CELLS + 9 + 4 - 1);
     await page.locator('#editor [data-brush="5"]').click();
     const before = (await snap(page)).undo;
     await clickCell(page, 15, 15);
     expect((await snap(page)).undo).toBe(before + 1);
     expect((await snap(page)).grid!.w).toBe(16);
+  });
+
+  test('opening and closing the editor leaves the viewer picture centred, and clears the highlighted color', async ({ page }) => {
+    await loadPotion(page);
+    const b = (await page.locator('#src').boundingBox())!;
+    const mid = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    await page.mouse.move(mid.x, mid.y);
+    await page.mouse.wheel(0, -1000);
+    await page.mouse.move(mid.x, mid.y);
+    await page.mouse.down();
+    await page.mouse.move(mid.x + 150, mid.y + 100, { steps: 4 });
+    await page.mouse.up();
+    await openEditor(page);
+    await chip(page, 'Common', '#d62828').click();
+    await page.locator('#edDone').click();
+    await expect(page.locator('#pal li.sel')).toHaveCount(0);
+    // a quarter cell inside cell (8, 8), clear of the grid line at the centre
+    const rgb = await page.locator('#src').evaluate((c: HTMLCanvasElement) => {
+      const k = c.width / c.getBoundingClientRect().width;
+      return [...c.getContext('2d')!.getImageData(Math.round((c.getBoundingClientRect().width / 2 + c.getBoundingClientRect().width / 64) * k), Math.round((c.getBoundingClientRect().height / 2 + c.getBoundingClientRect().height / 64) * k), 1, 1).data.slice(0, 3)];
+    });
+    expect(rgb).toEqual([0x7a, 0x4f, 0xd6]);
   });
 
   test('Add color adds it at the pixel height, selects it, and adding it again does nothing', async ({ page }) => {

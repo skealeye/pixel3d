@@ -11,6 +11,10 @@ describe('footprint', () => {
     expect(f.map((c) => c.x).sort()).toEqual([3, 3, 4, 4]);
     expect(f.map((c) => c.y).sort()).toEqual([4, 4, 5, 5]);
   });
+  it('odd sizes are centred on the cell', () => {
+    expect(footprint(5, 5, 3).map((c) => c.x).sort()).toEqual([4, 4, 4, 5, 5, 5, 6, 6, 6]);
+    expect(Math.min(...footprint(5, 5, 5).map((c) => c.y))).toBe(3);
+  });
   it('size 5 covers 25 distinct cells', () => {
     expect(new Set(footprint(0, 0, 5).map((c) => `${c.x},${c.y}`)).size).toBe(25);
   });

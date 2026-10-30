@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { change, app, ui } from '../state.svelte';
   import { colorAt } from '../pipeline';
   import { cropTo, paintCells, pieceCount } from '../actions.svelte';
@@ -86,8 +87,9 @@
     if (hover && !ui.cropping && !ui.picking && ui.tool !== 'select') {
       ctx.strokeStyle = '#d9a441';
       ctx.lineWidth = 2;
-      const i0 = Math.max(0, hover.i), j0 = Math.max(0, hover.j);
-      const i1 = Math.min(g.w, hover.i + ui.brush), j1 = Math.min(g.h, hover.j + ui.brush);
+      const o = ui.brush % 2 ? (ui.brush - 1) / 2 : 0;
+      const i0 = Math.max(0, hover.i - o), j0 = Math.max(0, hover.j - o);
+      const i1 = Math.min(g.w, hover.i - o + ui.brush), j1 = Math.min(g.h, hover.j - o + ui.brush);
       if (i1 > i0 && j1 > j0) ctx.strokeRect(left + i0 * cell, top + j0 * cell, (i1 - i0) * cell, (j1 - j0) * cell);
     }
     if (sel) {
@@ -127,6 +129,12 @@
   });
 
   function reset() { ui.zoom = 1; pan = { x: 0, y: 0 }; }
+
+  // the editor opening or closing resets the zoom (actions.svelte.ts): the pan goes with it, on both canvases
+  $effect(() => {
+    void ui.editor;
+    untrack(reset);
+  });
 
   const clampCell = (v: number, n: number) => Math.min(n - 1, Math.max(0, v));
 

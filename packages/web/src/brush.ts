@@ -5,10 +5,10 @@ export type Brush = (typeof BRUSHES)[number];
 /** The most colors an image holds. */
 export const PALETTE_MAX = 16;
 
-/** Cells a brush of `size` covers when the pointer is on cell (x, y): the cell is the footprint's top-left. */
+/** Cells a brush of `size` covers when the pointer is on cell (x, y): an odd size is centred on it, an even one extends right and down. */
 export function footprint(x: number, y: number, size: Brush): { x: number; y: number }[] {
-  const out: { x: number; y: number }[] = [];
-  for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) out.push({ x: x + i, y: y + j });
+  const out: { x: number; y: number }[] = [], o = size % 2 ? (size - 1) / 2 : 0;
+  for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) out.push({ x: x - o + i, y: y - o + j });
   return out;
 }
 

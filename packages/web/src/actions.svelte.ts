@@ -68,6 +68,8 @@ export function openEditor() {
 /** Back to the viewer, whose tool is always Select (drag pans, a click picks a color). */
 export function closeEditor() {
   ui.editor = false;
+  // the brush color is not a highlight: the viewer starts with nothing selected
+  ui.sel = null;
   ui.tool = 'select';
   ui.zoom = 1;
 }
