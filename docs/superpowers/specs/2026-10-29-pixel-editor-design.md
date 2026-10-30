@@ -69,3 +69,28 @@ A new mode that makes the common job slower, or that needs the user to switch mo
 
 ## Left to the builder
 Exact layout and styling, the common-color list, the color-picker control (native `<input type="color">` is acceptable), tests (existing e2e plus new ones for the picker, brush sizes, add color and favorites), version bump and README update.
+
+## Addendum, 2026-10-29: color wheel, unused colors, drawing from scratch
+
+Requested after trying v0.2.59. The user chose the options marked (user); the rest are my calls.
+
+### Color wheel
+- The bottom right of the editor is a **color wheel**: hue/saturation disc, a brightness slider and a hex box, replacing the native color input. (user)
+- The wheel always shows the **brush color**. Picking a pixel with Pick, or choosing any chip, puts that color in the wheel. (user)
+- Moving the wheel while the brush color is **in the image recolors every pixel of it**, as one undo step per drag. (user)
+- A **New color** button replaces Add: the wheel then changes only the brush (a color not yet in the image) until it is painted with, or another color is chosen. (my call)
+
+### Colors exist only while a pixel uses them
+- A color with no pixels is not in the image: it is not in the editor's Image colors, the viewer's colors list, the color count or the export. (user)
+- Selecting or adding a color only sets the brush. The color joins the image with the first pixel painted in it, in the same undo step as that stroke, at the current default pixel height. Painting a 17th color is refused with the existing toast.
+- Erasing or painting over the last pixel of a color removes it. Enforced in core's `applyEdits` (prune at the end of the batch).
+
+### Drawing with no photo
+- **Edit pixels** with no image opens the editor on a size choice: 16, 32, 48 or 64 square, or a custom width × height (4–128 each). It then shows a blank canvas. (user: size picker)
+- The model's pixel size is fixed at creation as `Width ÷ the larger side`, so the model starts about 40 mm across (my call).
+- The editor has **Resize canvas** (width × height, drawing kept, anchored top-left, anything cut off is dropped), as one undo step. (user: resizable later) Only for a canvas started blank; a loaded photo is shrunk with Crop as before.
+- An empty canvas shows an empty 3D view, 0 filaments, and Export is disabled until a pixel is painted.
+- The image line reads `New canvas 32 × 32 px`. Pixels across / Pixelate stay for photos only.
+
+### Left to the builder
+Wheel rendering (canvas, HSV), keyboard behaviour of the wheel, the size choice layout.
