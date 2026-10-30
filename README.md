@@ -14,6 +14,10 @@ A sample sprite to load into the app: [`examples/potion.png`](examples/potion.pn
 
 <p><img src="examples/potion.png" alt="Sample potion sprite" width="128" style="image-rendering: pixelated"></p>
 
+## Pixel editor
+
+Click **Edit pixels** to open the Pixel Editor over the app. It paints, erases and picks colors with square brushes (1×1, 2×2, 3×3, 5×5), adds any color you type or choose, and keeps three palettes to hand: the image's own colors, 16 common colors and up to 12 favorites that stay in your browser. Shortcuts: **B** paint, **E** erase, **I** pick, **[** and **]** change the brush. In the image view beside it, a click on a pixel picks its color.
+
 ## Mechanical clickers
 
 Switch Make to **Clicker** and your art becomes a working fidget clicker: a key cap that clicks on a mechanical keyboard switch (MX-compatible). It prints as two parts, the cap with your pixel art on top and a body that holds the switch. Pick the body shape (outline, circle or square), border, cap height and fit gap, use 1 to 3 switches (each with X and Y sliders to move it off the automatic spot, so the click lands where people press), and preview it apart as printed or assembled, with a Press button to push the cap down. You supply the switch (an MX-style one); the sockets are carved for you.

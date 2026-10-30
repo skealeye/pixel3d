@@ -131,7 +131,7 @@ Layout of the window: tools and brush sizes in a left column; `#edSrc` in the mi
 - Modify: `package.json`, `package-lock.json` (0.2.59), `README.md` (a short Pixel Editor paragraph; refresh `docs/images/example.png` only if the viewer's look changed enough to matter)
 - Modify: this plan and the spec (tick boxes)
 
-- [ ] **Step 1:** Bump the version; add the README paragraph.
-- [ ] **Step 2:** Run `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build:web`. Expected: all PASS.
-- [ ] **Step 3:** Visual check with the app running: open the editor on `examples/potion.png` and look at the blur, the layout at 1400×900, and a stroke with brush 3.
-- [ ] **Step 4:** Commit `v0.2.59: pixel editor release`; then `git branch -f master pixel-editor`, `git switch master`, re-run the suites, `git push origin master`, delete `pixel-editor`.
+- [x] **Step 1:** Bump the version; add the README paragraph.
+- [x] **Step 2:** Run `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build:web`. Expected: all PASS.
+- [x] **Step 3:** Visual check with the app running: open the editor on `examples/potion.png` and look at the blur, the layout at 1400×900, and a stroke with brush 3.
+- [x] **Step 4:** Commit `v0.2.59: pixel editor release`; then `git branch -f master pixel-editor`, `git switch master`, re-run the suites, `git push origin master`, delete `pixel-editor`.
