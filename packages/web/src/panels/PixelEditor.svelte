@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { app, redo, toast, ui, undo } from '../state.svelte';
+  import { app, recolorLive, redo, ui, undo } from '../state.svelte';
   import { closeEditor, setBrush } from '../actions.svelte';
   import { BRUSHES, COMMON_COLORS } from '../brush';
+  import ColorWheel from './ColorWheel.svelte';
   import Favorites from './Favorites.svelte';
   import SourceCanvas from './SourceCanvas.svelte';
 
   /** The Pixel Editor: a window over the app (backdrop blurred) with the big picture, brushes and every color source. */
   let dialog: HTMLDialogElement;
-  let hex = $state('#e0715c');
 
   $effect(() => {
     if (ui.editor && !dialog.open) dialog.showModal();
@@ -17,7 +17,6 @@
   const palette = $derived(app.grid?.palette ?? []);
   /** The brush color: it need not be in the image until a pixel is painted with it. */
   const cur = $derived(ui.sel && /^#[0-9a-f]{6}$/.test(ui.sel) ? ui.sel : (palette[0]?.hex ?? ''));
-  const valid = $derived(/^#[0-9a-f]{6}$/i.test(hex));
   // the tool buttons: Pick is the viewer's Select tool (drag pans, a click picks the color)
   const tools = [['paint', 'paint', 'Paint', 'B'], ['erase', 'erase', 'Erase', 'E'], ['pick', 'select', 'Pick', 'I']] as const;
 
@@ -27,9 +26,19 @@
     ui.tool = 'paint';
   }
 
-  function add() {
-    if (!valid) { toast('Enter a color like #e0715c.'); return; }
-    use(hex);
+  // the wheel: a color in the image is recolored everywhere as one undo step; a new color only changes the brush
+  let live: ReturnType<typeof recolorLive> | null = null;
+  function wheelStart() {
+    live = !ui.newColor && palette.some((p) => p.hex === cur) ? recolorLive(cur) : null;
+  }
+  function wheelInput(hex: string) {
+    if (live) live.set(hex);
+    else ui.sel = hex;
+    ui.tool = 'paint';
+  }
+  function wheelEnd() {
+    live?.end();
+    live = null;
   }
 </script>
 
@@ -62,12 +71,6 @@
           <button class="chip" class:cur={p.hex === cur} style:background={p.hex} data-c={p.hex} title={p.hex} aria-label="Use {p.hex}" onclick={() => use(p.hex)}></button>
         {/each}
       </div>
-      <div class="lbl">Add a color</div>
-      <div class="row" id="edAdd">
-        <input type="color" id="edColor" value={valid ? hex : '#000000'} oninput={(e) => (hex = e.currentTarget.value)} aria-label="Pick a color">
-        <input type="text" id="edHex" bind:value={hex} spellcheck="false" aria-label="Color as #rrggbb" maxlength="7">
-        <button class="btn" id="edAddBtn" onclick={add}>Add</button>
-      </div>
       <div class="lbl">Common colors</div>
       <div class="chips" id="edCommon">
         {#each COMMON_COLORS as c (c)}
@@ -75,6 +78,10 @@
         {/each}
       </div>
       <Favorites id="edFavs" value={cur} pick={use} slots={12} />
+      <div class="lbl wheelHead">Color
+        <button class="btn small" class:on={ui.newColor} id="edNewBtn" title="The wheel then makes a new color instead of changing this one" onclick={() => (ui.newColor = true)}>New color</button>
+      </div>
+      <ColorWheel value={cur} oninput={wheelInput} onstart={wheelStart} onend={wheelEnd} />
     </div>
   </div>
 </dialog>

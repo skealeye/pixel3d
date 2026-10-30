@@ -73,11 +73,11 @@
 - `ColorWheel.svelte` props: `{ value: string; oninput: (hex: string) => void; onstart?: () => void; onend?: () => void }`. A canvas hue/saturation disc (`#edWheel`), a brightness slider (`#edBright`), and the hex box `#edHex`; pointer drag on the disc and slider calls `onstart` then `oninput` per move then `onend`.
 - Editor behavior: the wheel shows `ui.sel`. On drag: if `ui.newColor` is false and `ui.sel` is a palette color, drive `recolorLive`; otherwise only `ui.sel = hex`. `#edAddBtn` is replaced by `#edNewBtn` ("New color") which sets `ui.newColor = true`; `ui.newColor` is cleared when a chip is chosen, Pick selects a color, or a stroke paints with the brush.
 
-- [ ] **Step 1: Tests.** `color.test.ts`: round trip for `#000000`, `#ffffff`, `#e0715c`, `#12ab34`; `hsvToHex(0,1,1) === '#ff0000'`; `hexToHsv('#00ff00').h === 120`. `editor.spec.ts`: picking a pixel with Pick puts its color in `#edHex` (value) and highlights its chip; typing `#123456` in `#edHex` + Enter on a color in the image recolors it everywhere (palette contains it, old hex gone) in one undo step, and Ctrl+Z restores; dragging `#edWheel` (mouse down, three moves, up) is one undo step; with `#edNewBtn` clicked the wheel does not change the palette; entering an existing image color's hex merges and toasts once at the end.
-- [ ] **Step 2:** Run both test files. Expected: FAIL.
-- [ ] **Step 3:** Implement `color.ts`, `recolorLive`, `ColorWheel.svelte`, wire into `PixelEditor.svelte` (wheel at the bottom of the right column; remove the native `#edColor`), CSS.
-- [ ] **Step 4:** Run `npm run typecheck`, `npm test`, `npm run test:e2e`. Expected: PASS.
-- [ ] **Step 5:** Commit `v0.2.60: Pixel Editor color wheel, live recolor`.
+- [x] **Step 1: Tests.** `color.test.ts`: round trip for `#000000`, `#ffffff`, `#e0715c`, `#12ab34`; `hsvToHex(0,1,1) === '#ff0000'`; `hexToHsv('#00ff00').h === 120`. `editor.spec.ts`: picking a pixel with Pick puts its color in `#edHex` (value) and highlights its chip; typing `#123456` in `#edHex` + Enter on a color in the image recolors it everywhere (palette contains it, old hex gone) in one undo step, and Ctrl+Z restores; dragging `#edWheel` (mouse down, three moves, up) is one undo step; with `#edNewBtn` clicked the wheel does not change the palette; entering an existing image color's hex merges and toasts once at the end.
+- [x] **Step 2:** Run both test files. Expected: FAIL.
+- [x] **Step 3:** Implement `color.ts`, `recolorLive`, `ColorWheel.svelte`, wire into `PixelEditor.svelte` (wheel at the bottom of the right column; remove the native `#edColor`), CSS.
+- [x] **Step 4:** Run `npm run typecheck`, `npm test`, `npm run test:e2e`. Expected: PASS.
+- [x] **Step 5:** Commit `v0.2.60: Pixel Editor color wheel, live recolor`.
 
 ### Task 4: Blank canvas and Resize canvas
 

@@ -329,7 +329,7 @@ test.describe('export', () => {
     await expect(page.locator('#fcount')).toHaveText('8 filaments');
     // Add color opens the Pixel Editor, where the color is added
     await page.locator('#addColor').click();
-    await page.locator('#edAddBtn').click();
+    await page.locator('#edNewBtn').click();
     await page.locator('#edDone').click();
     // a color nothing paints is not in the image
     await expect.poll(async () => (await snap(page)).grid!.palette.length).toBe(7);

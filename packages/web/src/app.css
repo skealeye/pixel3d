@@ -231,5 +231,14 @@ dialog.editor::backdrop { background: #0007; backdrop-filter: blur(6px); }
 .chip.cur { outline: 2px solid var(--gold); outline-offset: 1px; }
 .edColors .favs { flex-wrap: wrap; margin-top: 0; }
 .edColors .favs .lbl { flex-basis: 100%; font-size: 12px; }
-#edHex { width: 0; flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; }
-#edColor { width: 34px; height: 28px; padding: 0; border: 1px solid var(--line); background: none; }
+#edHex { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); padding: 4px 6px; }
+.wheelHead { display: flex; align-items: center; justify-content: space-between; }
+.wheel { display: grid; gap: 8px; justify-items: center; }
+.wheelDisc { position: relative; width: 150px; height: 150px; }
+#edWheel { display: block; width: 150px; height: 150px; border-radius: 50%; cursor: crosshair; touch-action: none; }
+.wheelDot { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #000a; pointer-events: none; }
+#edBright { width: 100%; height: 10px; border-radius: 5px; -webkit-appearance: none; appearance: none; border: 1px solid var(--line); }
+#edBright::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 18px; border-radius: 3px; background: #fff; border: 1px solid #000a; cursor: pointer; }
+#edBright::-moz-range-thumb { width: 12px; height: 18px; border-radius: 3px; background: #fff; border: 1px solid #000a; cursor: pointer; }
+.wheel .row { width: 100%; margin-top: 0; }
+.wheelSw { width: 28px; height: 28px; border-radius: 3px; border: 1px solid #0006; flex: none; }

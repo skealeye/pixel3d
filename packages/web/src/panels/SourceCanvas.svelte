@@ -211,7 +211,7 @@
     // Select: a click without a drag picks the color under the pointer
     if (d?.kind === 'pan' && ui.tool === 'select' && Math.hypot(e.clientX - d.at.x, e.clientY - d.at.y) < 4) {
       const at = cellAt(e), v = at?.inside ? at.g.cells[at.j * at.g.w + at.i]! : -1;
-      if (at && v >= 0) ui.sel = at.g.palette[v]!.hex;
+      if (at && v >= 0) { ui.sel = at.g.palette[v]!.hex; ui.newColor = false; }
       return;
     }
     if (d?.kind !== 'crop' || !s) return;

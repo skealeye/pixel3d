@@ -63,6 +63,8 @@ export const ui = $state({
   sel: null as string | null,
   /** The Pixel Editor window is open. */
   editor: false,
+  /** New color mode: the editor's color wheel changes only the brush, not the image color it was on. */
+  newColor: false,
   /** The editor's square brush size. */
   brush: 1 as Brush,
   toast: { text: '', n: 0 },
@@ -231,6 +233,34 @@ export function addEdits(edits: Edit[], push = true): number {
   app.edits = [...app.edits, ...applied];
   if (!app.meta?.showBg) fitSize(r.grid);
   return applied.length;
+}
+
+/**
+ * Recolor one image color while a gesture (a color wheel drag) runs, as one undo step. Every step re-applies the
+ * recolor to the grid as the gesture found it, so going back onto the first color restores it and landing on another
+ * color of the image merges into it only for as long as it stays there.
+ */
+export function recolorLive(from: string) {
+  const g0 = app.grid, e0 = app.edits;
+  let to = from, pushed = false;
+  return {
+    set(next: string) {
+      next = next.toLowerCase();
+      ui.sel = next;
+      if (!g0 || next === to) return;
+      if (!pushed) { pushUndo(); pushed = true; }
+      to = next;
+      anchorBase = null;
+      if (next === from) { app.grid = g0; app.edits = e0; return; }
+      const edit: Edit = { kind: 'recolor', from, to: next };
+      app.grid = applyEdits(g0, [edit]).grid;
+      app.edits = [...e0, edit];
+      if (!app.meta?.showBg) fitSize(app.grid);
+    },
+    end() {
+      if (to !== from && g0?.palette.some((p) => p.hex === to)) toast('Merged into the matching color.');
+    },
+  };
 }
 
 /**

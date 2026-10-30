@@ -37,6 +37,7 @@ export function deleteColor(hex: string) {
 /** Choose the brush color. It joins the image with the first pixel painted in it, not before. */
 export function setBrush(hex: string) {
   ui.sel = hex.toLowerCase();
+  ui.newColor = false;
 }
 
 /** Open the Pixel Editor: Paint is on and the picture starts unzoomed. */
@@ -56,6 +57,7 @@ export function closeEditor() {
   ui.editor = false;
   // the brush color is not a highlight: the viewer starts with nothing selected
   ui.sel = null;
+  ui.newColor = false;
   ui.tool = 'select';
   ui.zoom = 1;
 }
@@ -76,6 +78,7 @@ export function paintCells(cells: { x: number; y: number }[], push: boolean): nu
     .map(({ x, y }) => ({ kind: 'paint', x, y, hex }));
   // a color new to the image comes in at the current pixel height, in the same undo step as its first pixels
   if (isNew && edits.length) edits.push({ kind: 'height', hex: hex!, h: app.settings.heights.h });
+  if (isNew && edits.length) ui.newColor = false;
   return addEdits(edits, push);
 }
 

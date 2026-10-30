@@ -145,8 +145,10 @@ test.describe('colors and heights', () => {
     expect(await opaque(page)).toBe(CELLS);
     // Add color opens the Pixel Editor; adding there selects the new color for painting
     await page.locator('#addColor').click();
+    await page.locator('#edNewBtn').click();
     await page.locator('#edHex').fill('#e0715c');
-    await page.locator('#edAddBtn').click();
+    await page.locator('#edHex').press('Enter');
+
     // the color is only in the image once a pixel uses it
     expect(await hexes(page)).not.toContain('#e0715c');
     await clickCell(page, 7, 0, '#edSrc');

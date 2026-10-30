@@ -146,8 +146,9 @@ test.describe('pixel editor', () => {
     await loadPotion(page);
     await openEditor(page);
     const undo0 = (await snap(page)).undo;
+    await page.locator('#edNewBtn').click();
     await page.locator('#edHex').fill('#12ab34');
-    await page.locator('#edAddBtn').click();
+    await page.locator('#edHex').press('Enter');
     // chosen, not yet in the image
     expect(await hexes(page)).not.toContain('#12ab34');
     await expect(page.locator('#edImage [data-c="#12ab34"]')).toHaveCount(0);
@@ -166,6 +167,73 @@ test.describe('pixel editor', () => {
     await page.locator('#editor [data-tool=paint]').click();
     await clickCell(page, 1, 8);
     expect(await hexes(page)).toContain('#12ab34');
+  });
+
+  test('Pick puts the color of the pixel in the wheel, and changing it recolors that color in the image', async ({ page }) => {
+    await loadPotion(page);
+    await openEditor(page);
+    await page.keyboard.press('i');
+    await clickCell(page, 7, 9);
+    await expect(page.locator('#edHex')).toHaveValue('#7a4fd6');
+    await expect(chip(page, 'Image', '#7a4fd6')).toHaveClass(/\bcur\b/);
+    const undo0 = (await snap(page)).undo;
+    await page.locator('#edHex').fill('#123456');
+    await page.locator('#edHex').press('Enter');
+    expect(await hexes(page)).toContain('#123456');
+    expect(await hexes(page)).not.toContain('#7a4fd6');
+    expect((await snap(page)).undo).toBe(undo0 + 1);
+    await expect(chip(page, 'Image', '#123456')).toHaveClass(/\bcur\b/);
+    await page.locator('#edUndo').click();
+    expect(await hexes(page)).toContain('#7a4fd6');
+    expect(await hexes(page)).not.toContain('#123456');
+  });
+
+  test('dragging the wheel is one undo step', async ({ page }) => {
+    await loadPotion(page);
+    await openEditor(page);
+    await chip(page, 'Image', '#9c6b3e').click();
+    const before = await snap(page);
+    const b = (await page.locator('#edWheel').boundingBox())!;
+    await page.mouse.move(b.x + b.width * 0.75, b.y + b.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width * 0.5, b.y + b.height * 0.2, { steps: 3 });
+    await page.mouse.move(b.x + b.width * 0.25, b.y + b.height * 0.5, { steps: 3 });
+    await page.mouse.up();
+    const after = await snap(page);
+    expect(after.undo).toBe(before.undo + 1);
+    expect(after.grid!.palette).toHaveLength(before.grid!.palette.length);
+    expect(after.grid!.palette.map((p) => p.hex)).not.toContain('#9c6b3e');
+    expect(after.edits.filter((e) => e.kind === 'recolor')).toHaveLength(1);
+    expect(after.grid!.opaque).toBe(before.grid!.opaque);
+  });
+
+  test('New color: the wheel changes only the brush until a pixel is painted', async ({ page }) => {
+    await loadPotion(page);
+    await openEditor(page);
+    await chip(page, 'Image', '#9c6b3e').click();
+    const before = await snap(page);
+    await page.locator('#edNewBtn').click();
+    const b = (await page.locator('#edWheel').boundingBox())!;
+    await page.mouse.move(b.x + b.width * 0.75, b.y + b.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width * 0.3, b.y + b.height * 0.3, { steps: 3 });
+    await page.mouse.up();
+    const after = await snap(page);
+    expect(after.undo).toBe(before.undo);
+    expect(after.grid!.palette).toEqual(before.grid!.palette);
+    await clickCell(page, 1, 8);
+    expect((await snap(page)).grid!.palette).toHaveLength(before.grid!.palette.length + 1);
+  });
+
+  test('entering the hex of another image color merges into it, with one notice', async ({ page }) => {
+    await loadPotion(page);
+    await openEditor(page);
+    await chip(page, 'Image', '#4e2f9e').click();
+    await page.locator('#edHex').fill('#7a4fd6');
+    await page.locator('#edHex').press('Enter');
+    await expect(page.locator('.toast')).toHaveText('Merged into the matching color.');
+    expect(await hexes(page)).toHaveLength(6);
+    expect(await hexes(page)).not.toContain('#4e2f9e');
   });
 
   test('a common color that is new joins the image with its first pixel', async ({ page }) => {
