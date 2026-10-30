@@ -56,11 +56,11 @@
 **Interfaces:**
 - Produces: `gridRgba(g: Grid): Uint8ClampedArray` (w·h·4, opaque cells in their palette color, empty cells alpha 0); `savePng(): Promise<void>` downloading `pixel-art.png`.
 
-- [ ] **Step 1: Tests.** Unit: a 2 × 1 grid with one `#ff0000` cell and one empty gives `[255,0,0,255, 0,0,0,0]`; an all-empty grid gives all zeros. E2E: paint two cells, click `#savePng`, wait for the download, decode its bytes: width/height equal the canvas, the painted cell is opaque with the right color.
-- [ ] **Step 2:** Run, confirm fail.
-- [ ] **Step 3:** `gridRgba` plus `savePng` (draw into a `canvas`, `toBlob('image/png')`, download through an `<a download>` link).
-- [ ] **Step 4:** Run, confirm pass.
-- [ ] **Step 5:** Tick, commit `v0.2.61: phone Save PNG`.
+- [x] **Step 1: Tests.** Unit: a 2 × 1 grid with one `#ff0000` cell and one empty gives `[255,0,0,255, 0,0,0,0]`; an all-empty grid gives all zeros. E2E: paint two cells, click `#savePng`, wait for the download, decode its bytes: width/height equal the canvas, the painted cell is opaque with the right color.
+- [x] **Step 2:** Run, confirm fail.
+- [x] **Step 3:** `gridRgba` plus `savePng` (draw into a `canvas`, `toBlob('image/png')`, download through an `<a download>` link).
+- [x] **Step 4:** Run, confirm pass.
+- [x] **Step 5:** Tick, commit `v0.2.61: phone Save PNG`.
 
 ### Task 3: Draw tab tools, brush popup and settings popup
 

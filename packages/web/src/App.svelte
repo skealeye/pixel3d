@@ -23,7 +23,7 @@
   import Footer from './Footer.svelte';
   import PhoneApp from './phone/PhoneApp.svelte';
   import { PHONE_QUERY } from './phone';
-  import { newCanvas } from './actions.svelte';
+  import { newCanvas, setBrush } from './actions.svelte';
   import Toast from './Toast.svelte';
   import UpdatePrompt from './UpdatePrompt.svelte';
 
@@ -59,6 +59,8 @@
     }),
     /** Input-to-preview times, ms (perf.ts). */
     latency: () => [...latencies],
+    /** Picks the source tool and brush color (the phone has no tool buttons yet). */
+    setTool: (t: typeof ui.tool, hex = '#000000') => { ui.tool = t; setBrush(hex); },
   }));
 
   const typing = (t: EventTarget | null) =>

@@ -2,10 +2,11 @@
   import { ui } from '../state.svelte';
   import SourceCanvas from '../panels/SourceCanvas.svelte';
   import ViewportPane from '../viewport/ViewportPane.svelte';
+  import { savePng } from '../png';
 </script>
 
 <div id="phone">
-  <div id="phTop"></div>
+  <div id="phTop"><button id="savePng" onclick={savePng}>Save PNG</button></div>
   <!-- both tabs stay mounted so the 3D view keeps its model and camera -->
   <div id="phMain">
     <div class="phTab" hidden={ui.tab !== 'draw'}><SourceCanvas id="phSrc" /></div>

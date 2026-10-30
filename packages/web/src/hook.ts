@@ -1,7 +1,7 @@
 /**
  * `window.__pixel3d`: read-only state for the e2e tests. Only installed in dev builds or with `?test` in the URL.
  */
-type Part = Record<string, () => unknown>;
+type Part = Record<string, (...a: never[]) => unknown>;
 
 export const hookEnabled = import.meta.env.DEV || new URLSearchParams(location.search).has('test');
 
