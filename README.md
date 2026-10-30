@@ -16,7 +16,7 @@ A sample sprite to load into the app: [`examples/potion.png`](examples/potion.pn
 
 ## Pixel editor
 
-Click **Edit pixels** to open the Pixel Editor over the app. It paints, erases and picks colors with square brushes (1×1, 2×2, 3×3, 5×5), adds any color you type or choose, and keeps three palettes to hand: the image's own colors, 16 common colors and up to 12 favorites that stay in your browser. Shortcuts: **B** paint, **E** erase, **I** pick, **[** and **]** change the brush. In the image view beside it, a click on a pixel picks its color.
+Click **Edit pixels** to open the Pixel Editor over the app. It paints, erases and picks colors with square brushes (1×1, 2×2, 3×3, 5×5) and has a color wheel: Pick a pixel and the wheel shows its color, and moving the wheel recolors every pixel of it; press **New color** to make a different one instead. A color joins the image with the first pixel you paint in it and leaves when its last pixel is gone. Beside the wheel are the image's own colors, 16 common colors and up to 12 favorites that stay in your browser. With no image open, Edit pixels starts a **blank canvas** (16×16 up to 128×128, resizable later) so you can draw from scratch. Shortcuts: **B** paint, **E** erase, **I** pick, **[** and **]** change the brush. In the image view beside it, a click on a pixel picks its color.
 
 ## Mechanical clickers
 

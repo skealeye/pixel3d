@@ -103,7 +103,7 @@
 **Files:**
 - Modify: `package.json`, `package-lock.json` (0.2.60), `README.md` (Pixel editor paragraph: wheel, New color, start from a blank canvas), this plan and the spec addendum (ticks)
 
-- [ ] **Step 1:** Bump the version; update the README paragraph.
-- [ ] **Step 2:** Run `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build:web`. Expected: all PASS (the parallel-load flakes on `load.spec` "failed build" and `export.spec` "two STL files" may need a rerun in isolation).
-- [ ] **Step 3:** Screenshot the editor with the wheel and the blank-canvas chooser and look at them at 1400×900.
-- [ ] **Step 4:** Commit `v0.2.60: editor wheel and blank canvas`. **Do not merge and do not push.**
+- [x] **Step 1:** Bump the version; update the README paragraph.
+- [x] **Step 2:** Run `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build:web`. Expected: all PASS (the parallel-load flakes on `load.spec` "failed build" and `export.spec` "two STL files" may need a rerun in isolation).
+- [x] **Step 3:** Screenshot the editor with the wheel and the blank-canvas chooser and look at them at 1400×900.
+- [x] **Step 4:** Commit `v0.2.60: editor wheel and blank canvas`. **Do not merge and do not push.**
