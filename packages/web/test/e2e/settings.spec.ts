@@ -114,10 +114,24 @@ test.describe('model settings', () => {
     expect((await settings(page)).base.color).toBe('#f2efe6');
     await expect(page.locator('#baseColor')).toHaveValue('#f2efe6');
     await page.locator('#baseFavs [data-c="#111111"]').click({ button: 'right' });
-    expect(await favs()).toEqual(['#123456', '#2a2d33', '#f2efe6', '#d9a441']);
-    await expect(page.locator('#baseFavs .fav.empty')).toHaveCount(1);
+    expect(await favs()).toEqual(['#123456', '#2a2d33', '#f2efe6', '#d9a441', '#3d6fb6']);
+    await expect(page.locator('#baseFavs .fav.empty')).toHaveCount(0);
     await page.reload();
-    expect(await favs()).toEqual(['#123456', '#2a2d33', '#f2efe6', '#d9a441']);
+    expect(await favs()).toEqual(['#123456', '#2a2d33', '#f2efe6', '#d9a441', '#3d6fb6']);
+  });
+
+  test('favorites keep twelve colors; the panels show the first five', async ({ page }) => {
+    await page.goto('/?test');
+    const shown = () => page.locator('#baseFavs [data-c]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.c));
+    for (let i = 1; i <= 8; i++) {
+      await page.locator('#baseColor').fill(`#1000${i}0`);
+      await page.locator('#baseFavs .star').click();
+    }
+    // the newest eight lead the list, the panel shows the first five of the twelve kept
+    expect(await shown()).toEqual(['#100080', '#100070', '#100060', '#100050', '#100040']);
+    await page.reload();
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('px3d.favs')!))).toHaveLength(12);
+    expect(await shown()).toEqual(['#100080', '#100070', '#100060', '#100050', '#100040']);
   });
 
   test('Shell turns Cut view on and shows the wall', async ({ page }) => {

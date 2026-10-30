@@ -72,10 +72,10 @@
 **Interfaces:**
 - Produces: `Favorites` gains an optional prop `slots?: number` (default 5) controlling how many boxes render; storage keeps up to 12 (`slice(0, 12)`, load accepts up to 12; a saved list of 5 simply has empty tail). Existing id/`data-c`/`.star`/`.cur` hooks unchanged.
 
-- [ ] **Step 1:** In `settings.spec.ts`, extend the favorites test: after saving six more distinct colors via `#baseFavs .star` the Base panel still shows only the first 5 (`#baseFavs [data-c]` count 5). Run it. Expected: FAIL (list is capped at 5 and the sixth save drops one).
-- [ ] **Step 2:** Implement the 12-slot storage and the `slots` prop.
-- [ ] **Step 3:** Run `npx playwright test -c packages/web settings options`. Expected: PASS.
-- [ ] **Step 4:** Commit `v0.2.59: favorites hold 12, panels show 5`.
+- [x] **Step 1:** In `settings.spec.ts`, extend the favorites test: after saving six more distinct colors via `#baseFavs .star` the Base panel still shows only the first 5 (`#baseFavs [data-c]` count 5). Run it. Expected: FAIL (list is capped at 5 and the sixth save drops one).
+- [x] **Step 2:** Implement the 12-slot storage and the `slots` prop.
+- [x] **Step 3:** Run `npx playwright test -c packages/web settings options`. Expected: PASS.
+- [x] **Step 4:** Commit `v0.2.59: favorites hold 12, panels show 5`.
 
 ### Task 4: Canvas brush support
 
