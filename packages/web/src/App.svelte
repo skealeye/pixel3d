@@ -23,7 +23,7 @@
   import Footer from './Footer.svelte';
   import PhoneApp from './phone/PhoneApp.svelte';
   import { PHONE_QUERY } from './phone';
-  import { newCanvas, setBrush } from './actions.svelte';
+  import { closeEditor, newCanvas, setBrush } from './actions.svelte';
   import Toast from './Toast.svelte';
   import UpdatePrompt from './UpdatePrompt.svelte';
 
@@ -33,7 +33,8 @@
 
   $effect(() => { document.body.style.setProperty('--left', ui.left + 'px'); });
 
-  // a phone-sized screen gets the sketchpad (phone/PhoneApp.svelte); crossing the breakpoint keeps the drawing
+  // a phone-sized screen gets the sketchpad (phone/PhoneApp.svelte); crossing the breakpoint keeps the drawing.
+  // ui.phone starts right (state.svelte.ts), so a phone never builds the PC layout first; this follows changes
   $effect(() => {
     const q = matchMedia(PHONE_QUERY);
     const set = () => (ui.phone = q.matches);
@@ -42,8 +43,21 @@
     return () => q.removeEventListener('change', set);
   });
   $effect(() => {
-    document.body.classList.toggle('phone', ui.phone);
-    if (ui.phone && !untrack(() => app.source)) newCanvas(32, 32, 8);
+    const phone = ui.phone;
+    document.body.classList.toggle('phone', phone);
+    untrack(() => {
+      // the tools of one layout mean nothing in the other: the viewer is always Select, the sketchpad starts in Paint
+      closeEditor();
+      if (!phone) return;
+      if (!app.source) {
+        newCanvas(32, 32, 8);
+        // the blank canvas is where the phone starts, not a step to undo (undoing it would leave nothing to draw on)
+        app.undo = [];
+        app.redo = [];
+      }
+      ui.tool = 'paint';
+      ui.sel = app.grid?.palette[0]?.hex ?? '#000000';
+    });
   });
 
   $effect(() => register({
@@ -55,11 +69,12 @@
       undo: app.undo.length,
       redo: app.redo.length,
       zoom: ui.zoom,
+      tool: ui.tool,
       version: VERSION,
     }),
     /** Input-to-preview times, ms (perf.ts). */
     latency: () => [...latencies],
-    /** Picks the source tool and brush color (the phone has no tool buttons yet). */
+    /** Picks the source tool and brush color in one call (tests choose a brush color without the color picker). */
     setTool: (t: typeof ui.tool, hex = '#000000') => { ui.tool = t; setBrush(hex); },
   }));
 

@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { test as base, expect, type Page } from '@playwright/test';
+
+const fixture = (name: string) => readFileSync(new URL(`../../../core/test/fixtures/${name}`, import.meta.url));
 
 /** Every test fails on an uncaught page error or a console error. */
 const test = base.extend({
@@ -11,16 +14,16 @@ const test = base.extend({
   },
 });
 
-interface Snap { name: string | null; edits: number; grid: { w: number; h: number; opaque: number; palette: { hex: string }[] } | null; settings: { colors: { max: number } }; undo: number; zoom: number }
+interface Snap { name: string | null; edits: number; grid: { w: number; h: number; opaque: number; palette: { hex: string }[] } | null; settings: { colors: { max: number } }; undo: number; redo: number; zoom: number; tool: string }
 const snap = (page: Page) => page.evaluate(() => (window as unknown as { __pixel3d: { snapshot(): Snap } }).__pixel3d.snapshot());
 
 type Hook = { setTool(t: string, hex: string): void };
 /** Choose the brush color (the color slots come later); the tool buttons then pick the tool. */
 const color = (page: Page, hex: string) => page.evaluate((h) => (window as unknown as { __pixel3d: Hook }).__pixel3d.setTool('select', h), hex);
 
-/** Page position of the middle of grid cell (i, j) on #phSrc, unzoomed. */
-async function cell(page: Page, i: number, j: number) {
-  const b = (await page.locator('#phSrc').boundingBox())!;
+/** Page position of the middle of grid cell (i, j) on #phSrc (or another source canvas), unzoomed. */
+async function cell(page: Page, i: number, j: number, canvas = '#phSrc') {
+  const b = (await page.locator(canvas).boundingBox())!;
   const g = (await snap(page)).grid!;
   const c = b.width / Math.max(g.w, g.h);
   return { x: b.x + (b.width - g.w * c) / 2 + (i + 0.5) * c, y: b.y + (b.height - g.h * c) / 2 + (j + 0.5) * c };
@@ -39,6 +42,19 @@ async function pixelAt(page: Page, i: number, j: number) {
   }, { x: p.x - b.x, y: p.y - b.y });
 }
 const opaque = async (page: Page) => (await snap(page)).grid!.opaque;
+
+type Pt = { x: number; y: number };
+/** Real multi-touch through the DevTools protocol: each call lists every finger still down, the touch id is its index
+ * unless given. */
+async function fingers(page: Page) {
+  const cdp = await page.context().newCDPSession(page);
+  return (type: 'touchStart' | 'touchMove' | 'touchEnd' | 'touchCancel', pts: (Pt & { id?: number })[] = []) =>
+    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((p, k) => ({ x: p.x, y: p.y, id: p.id ?? k })) });
+}
+/** Move the fingers from `from` to `to` in a few steps. */
+async function slide(touch: Awaited<ReturnType<typeof fingers>>, from: Pt[], to: Pt[], steps = 6) {
+  for (let s = 1; s <= steps; s++) await touch('touchMove', from.map((p, k) => ({ x: p.x + ((to[k]!.x - p.x) * s) / steps, y: p.y + ((to[k]!.y - p.y) * s) / steps })));
+}
 
 test.describe('phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
@@ -79,6 +95,16 @@ test.describe('phone', () => {
     expect(await opaque(page)).toBe(0);
     while ((await snap(page)).undo > 0) await page.locator('#phUndo').click();
     await expect(page.locator('#phUndo')).toBeDisabled();
+    // undoing everything never undoes the canvas itself
+    expect((await snap(page)).grid).toMatchObject({ w: 32, h: 32 });
+  });
+
+  test('a fresh canvas has nothing to undo', async ({ page }) => {
+    await page.goto('/?test');
+    await expect(page.locator('#phSrc')).toBeVisible();
+    const s = await snap(page);
+    expect([s.undo, s.redo]).toEqual([0, 0]);
+    await expect(page.locator('#phUndo')).toBeDisabled();
   });
 
   test('the brush popup paints 3 x 3 and closes after choosing', async ({ page }) => {
@@ -117,6 +143,8 @@ test.describe('phone', () => {
     await page.locator('#phSize [data-size="16"]').click();
     let g = (await snap(page)).grid!;
     expect([g.w, g.h, g.opaque]).toEqual([16, 16, 1]);
+    // the cell inside the new size stays where it was; the one outside is gone
+    expect((await pixelAt(page, 3, 3)).slice(0, 3)).toEqual([255, 0, 0]);
     await page.locator('#phW').fill('24');
     await page.locator('#phH').fill('8');
     await page.locator('#phResize').click();
@@ -315,18 +343,6 @@ test.describe('phone colors', () => {
 test.describe('phone gestures', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
-  type Pt = { x: number; y: number };
-  /** Real multi-touch through the DevTools protocol: each call lists every finger still down, the touch id is its index
-   * unless given. */
-  async function fingers(page: Page) {
-    const cdp = await page.context().newCDPSession(page);
-    return (type: 'touchStart' | 'touchMove' | 'touchEnd', pts: (Pt & { id?: number })[] = []) =>
-      cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((p, k) => ({ x: p.x, y: p.y, id: p.id ?? k })) });
-  }
-  /** Move the fingers from `from` to `to` in a few steps. */
-  async function slide(touch: Awaited<ReturnType<typeof fingers>>, from: Pt[], to: Pt[], steps = 6) {
-    for (let s = 1; s <= steps; s++) await touch('touchMove', from.map((p, k) => ({ x: p.x + ((to[k]!.x - p.x) * s) / steps, y: p.y + ((to[k]!.y - p.y) * s) / steps })));
-  }
   const red = async (page: Page, i: number, j: number) => (await pixelAt(page, i, j)).slice(0, 3).join() === '255,0,0';
 
   test('one finger with Paint paints a line of cells and never zooms or pans', async ({ page }) => {
@@ -625,6 +641,205 @@ test.describe('phone resize', () => {
     expect(n.max[1]).toBeLessThanOrEqual(1);
     // fills a reasonable part of the screen's width
     expect(n.max[0]! - n.min[0]!).toBeGreaterThan(0.3);
+  });
+});
+
+test.describe('phone state', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  /** Drop or paste the fixture image on the page. */
+  async function give(page: Page, how: 'drop' | 'paste') {
+    await page.evaluate(({ bytes, how }) => {
+      const dt = new DataTransfer();
+      dt.items.add(new File([new Uint8Array(bytes)], 'potion.png', { type: 'image/png' }));
+      if (how === 'paste') document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+      else for (const t of ['dragenter', 'dragover', 'drop']) document.body.dispatchEvent(new DragEvent(t, { dataTransfer: dt, bubbles: true, cancelable: true }));
+    }, { bytes: [...fixture('potion.png')], how });
+  }
+
+  test('the phone starts in Paint: a first one-finger drag draws and does not move the canvas', async ({ page }) => {
+    await page.goto('/?test');
+    await expect(page.locator('#phSrc')).toBeVisible();
+    expect((await snap(page)).tool).toBe('paint');
+    const touch = await fingers(page);
+    const a = await cell(page, 2, 10), b = await cell(page, 12, 10);
+    await touch('touchStart', [a]);
+    await slide(touch, [a], [b]);
+    await touch('touchEnd');
+    expect(await opaque(page)).toBe(11);
+    expect((await snap(page)).zoom).toBe(1);
+    // unpanned: the painted cells are drawn where the unzoomed layout puts them
+    expect((await pixelAt(page, 2, 10))[3]).toBe(255);
+    expect((await pixelAt(page, 12, 10))[3]).toBe(255);
+    expect((await pixelAt(page, 13, 10))[3]).not.toBe(255);
+  });
+
+  test('a phone never builds the PC layout first', async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as { sawPc: boolean };
+      w.sawPc = false;
+      new MutationObserver(() => { if (document.querySelector('aside.left, aside.right')) w.sawPc = true; })
+        .observe(document, { childList: true, subtree: true });
+    });
+    await page.goto('/?test');
+    await expect(page.locator('#phSrc')).toBeVisible();
+    expect(await page.evaluate(() => (window as unknown as { sawPc: boolean }).sawPc)).toBe(false);
+  });
+
+  test('phone to PC goes back to the viewer: Select, and a click on the viewer canvas paints nothing', async ({ page }) => {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    await tap(page, 3, 3);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await expect(page.locator('.left')).toBeVisible();
+    expect((await snap(page)).tool).toBe('select');
+    const p = await cell(page, 10, 10, '#src');
+    await page.mouse.click(p.x, p.y);
+    expect(await opaque(page)).toBe(1);
+  });
+
+  test('PC with the Pixel Editor open, then a phone: the editor closes and Paint is on', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto('/?test');
+    await page.locator('#editPixels').click();
+    await expect(page.locator('#editor')).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.locator('#phone')).toBeVisible();
+    await expect(page.locator('#editor')).toBeHidden();
+    expect(await page.locator('#editor').evaluate((d: HTMLDialogElement) => d.open)).toBe(false);
+    expect((await snap(page)).tool).toBe('paint');
+  });
+
+  for (const how of ['drop', 'paste'] as const) {
+    test(`a ${how === 'drop' ? 'dropped' : 'pasted'} image on a phone leaves the drawing alone`, async ({ page }) => {
+      await page.goto('/?test');
+      await color(page, '#ff0000');
+      await page.locator('#phTool-paint').click();
+      await tap(page, 3, 3);
+      const before = await snap(page);
+      await give(page, how);
+      await page.waitForTimeout(800);
+      const after = await snap(page);
+      expect(after.name).toBe(before.name);
+      expect(after.grid).toEqual(before.grid);
+      await expect(page.locator('.dropzone')).toBeHidden();
+    });
+  }
+
+  test('a photo loaded on a PC: the phone Settings offer no canvas size', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto('/?test');
+    await page.locator('#fileIn').setInputFiles({ name: 'potion.png', mimeType: 'image/png', buffer: fixture('potion.png') });
+    await expect(page.locator('#fileInfo')).toContainText('potion.png');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('#phGear').click();
+    for (const n of [16, 32, 48, 64]) await expect(page.locator(`#phSize [data-size="${n}"]`)).toBeDisabled();
+    for (const id of ['#phW', '#phH', '#phResize']) await expect(page.locator(id)).toBeDisabled();
+  });
+
+  test('after Pick on Draw, the 3D tab shows every color normally', async ({ page }) => {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    await tap(page, 3, 3);
+    await color(page, '#0000ff');
+    await page.locator('#phTool-paint').click();
+    await tap(page, 4, 3);
+    await page.locator('#phTool-pick').click();
+    await tap(page, 3, 3);
+    await page.locator('#tab3d').click();
+    type V = { shown: string; highlight: { hex: string | null; dim: number } };
+    const view = () => page.evaluate(() => (window as unknown as { __pixel3d: { viewport(): V } }).__pixel3d.viewport());
+    await expect.poll(async () => (await view()).shown).toBe('model');
+    const h = (await view()).highlight;
+    expect(h.hex).toBeNull();
+    expect(h.dim).toBe(0);
+  });
+
+  test('a cancelled touch paints nothing', async ({ page }) => {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    const touch = await fingers(page);
+    await touch('touchStart', [await cell(page, 5, 5)]);
+    await touch('touchCancel');
+    await page.waitForTimeout(300);
+    expect(await opaque(page)).toBe(0);
+    expect((await snap(page)).undo).toBe(0);
+  });
+
+  test('two quick taps while zoomed in paint two cells and keep the zoom', async ({ page }) => {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    const b = (await page.locator('#phSrc').boundingBox())!;
+    // zoom about the canvas centre, which keeps the pan at 0
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await page.mouse.wheel(0, -400);
+    await expect.poll(async () => (await snap(page)).zoom).toBeGreaterThan(1.5);
+    const z = (await snap(page)).zoom, c = (b.width / 32) * z;
+    // either side of the line between cells 16 and 17 of row 16: close enough for the browser to see a double tap
+    const edge = b.x + b.width / 2 + c, y = b.y + b.height / 2 + c / 2;
+    const touch = await fingers(page);
+    await touch('touchStart', [{ x: edge - 2, y }]);
+    await touch('touchEnd');
+    await touch('touchStart', [{ x: edge + 2, y }]);
+    await touch('touchEnd');
+    await page.waitForTimeout(300);
+    expect(await opaque(page)).toBe(2);
+    expect((await snap(page)).zoom).toBe(z);
+  });
+
+  test('Resize ignores an empty size box and shows the real size afterwards', async ({ page }) => {
+    await page.goto('/?test');
+    await page.locator('#phGear').click();
+    await page.locator('#phW').fill('');
+    await page.locator('#phResize').click();
+    expect((await snap(page)).grid).toMatchObject({ w: 32, h: 32 });
+    await expect(page.locator('#phW')).toHaveValue('32');
+    await page.locator('#phW').fill('500');
+    await page.locator('#phResize').click();
+    expect((await snap(page)).grid).toMatchObject({ w: 128, h: 32 });
+    await expect(page.locator('#phW')).toHaveValue('128');
+  });
+
+  test('growing the canvas keeps the drawing at the same cells', async ({ page }) => {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    await page.locator('#phGear').click();
+    await page.locator('#phSize [data-size="16"]').click();
+    await page.locator('#phDone').click();
+    await tap(page, 3, 3);
+    await tap(page, 15, 15);
+    await page.locator('#phGear').click();
+    await page.locator('#phW').fill('24');
+    await page.locator('#phH').fill('24');
+    await page.locator('#phResize').click();
+    await page.locator('#phDone').click();
+    const g = (await snap(page)).grid!;
+    expect([g.w, g.h, g.opaque]).toEqual([24, 24, 2]);
+    for (const [i, j] of [[3, 3], [15, 15]] as const) expect((await pixelAt(page, i, j)).slice(0, 3)).toEqual([255, 0, 0]);
+    expect((await pixelAt(page, 20, 20))[3]).not.toBe(255);
+  });
+
+  test('a second finger on the color square mid-drag adds no second undo step', async ({ page }) => {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    await tap(page, 3, 3);
+    const undo0 = (await snap(page)).undo;
+    const sq = (await page.locator('#phSquare').boundingBox())!;
+    const p = (fx: number, fy: number) => ({ x: sq.x + sq.width * fx, y: sq.y + sq.height * fy });
+    const touch = await fingers(page);
+    await touch('touchStart', [p(0.5, 0.5)]);
+    await slide(touch, [p(0.5, 0.5)], [p(0.3, 0.3)]);
+    await touch('touchStart', [p(0.3, 0.3), p(0.8, 0.8)]);
+    await slide(touch, [p(0.3, 0.3), p(0.8, 0.8)], [p(0.2, 0.2), p(0.9, 0.6)]);
+    await touch('touchEnd');
+    await page.waitForTimeout(100);
+    expect((await snap(page)).undo).toBe(undo0 + 1);
   });
 });
 

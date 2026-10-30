@@ -67,7 +67,8 @@
   }
 </script>
 
-<dialog class="editor" id="editor" bind:this={dialog} onclose={closeEditor}>
+<!-- the close event comes later: when the app closed the editor itself (e.g. for the phone layout), it has nothing to do -->
+<dialog class="editor" id="editor" bind:this={dialog} onclose={() => { if (ui.editor) closeEditor(); }}>
   <header class="edHead">
     <h3>Pixel Editor</h3>
     <button class="btn icon" id="edUndo" title="Undo (Ctrl+Z)" disabled={!app.undo.length} onclick={undo}>↶</button>

@@ -10,6 +10,8 @@
 
   let h = $state(0), s = $state(0), v = $state(1);
   let drag: 'sv' | 'hue' | null = null;
+  /** The finger or mouse doing the drag: another one landing mid-drag is ignored (it would start a second change). */
+  let pointer = -1;
   const valid = (x: string) => /^#[0-9a-f]{6}$/i.test(x);
 
   // follow the color from outside (a slot, Pick): keep the hue and saturation we hold while it is the same color
@@ -30,13 +32,15 @@
 
   const down = (kind: 'sv' | 'hue') => (e: PointerEvent) => {
     e.preventDefault();
+    if (drag) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     drag = kind;
+    pointer = e.pointerId;
     onstart();
     at(e);
   };
-  function move(e: PointerEvent) { if (drag) at(e); }
-  function up() { if (drag) { drag = null; onend(); } }
+  function move(e: PointerEvent) { if (drag && e.pointerId === pointer) at(e); }
+  function up(e: PointerEvent) { if (drag && e.pointerId === pointer) { drag = null; onend(); } }
 </script>
 
 <div class="csq">

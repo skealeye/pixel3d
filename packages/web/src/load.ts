@@ -73,19 +73,21 @@ export async function loadUrl(url: string): Promise<boolean> {
 export function listen(target: Window, onDragging: (on: boolean) => void): () => void {
   let depth = 0;
   const hasFiles = (e: DragEvent) => [...(e.dataTransfer?.types ?? [])].includes('Files');
-  const enter = (e: DragEvent) => { if (!hasFiles(e)) return; e.preventDefault(); depth++; onDragging(true); };
+  const enter = (e: DragEvent) => { if (!hasFiles(e)) return; e.preventDefault(); depth++; if (!ui.phone) onDragging(true); };
   const over = (e: DragEvent) => { if (hasFiles(e)) e.preventDefault(); };
   const leave = (e: DragEvent) => { if (!hasFiles(e)) return; if (--depth <= 0) { depth = 0; onDragging(false); } };
   const drop = (e: DragEvent) => {
     if (!hasFiles(e)) return;
+    // still prevented on a phone, or the browser would open the file in place of the app
     e.preventDefault();
     depth = 0;
     onDragging(false);
-    void loadFile(e.dataTransfer?.files[0]);
+    // the phone sketchpad draws on a blank canvas only: it does not load photos (spec)
+    if (!ui.phone) void loadFile(e.dataTransfer?.files[0]);
   };
   const paste = (e: ClipboardEvent) => {
     const f = [...(e.clipboardData?.files ?? [])].find((x) => x.type.startsWith('image/'));
-    if (f) { e.preventDefault(); void loadFile(f); }
+    if (f && !ui.phone) { e.preventDefault(); void loadFile(f); }
   };
   target.addEventListener('dragenter', enter);
   target.addEventListener('dragover', over);

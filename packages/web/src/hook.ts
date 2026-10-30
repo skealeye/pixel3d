@@ -1,5 +1,6 @@
 /**
- * `window.__pixel3d`: read-only state for the e2e tests. Only installed in dev builds or with `?test` in the URL.
+ * `window.__pixel3d`: state readouts and a few controls (such as `setTool`) for the e2e tests. Only installed in dev
+ * builds or with `?test` in the URL.
  */
 type Part = Record<string, (...a: never[]) => unknown>;
 

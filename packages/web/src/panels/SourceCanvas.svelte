@@ -139,6 +139,10 @@
 
   function reset() { ui.zoom = 1; pan = { x: 0, y: 0 }; }
 
+  /** What the last press was: a double tap paints two cells, so only a mouse double-click fits the picture. */
+  let lastType = '';
+  function dblclick() { if (lastType !== 'touch') reset(); }
+
   // a touch stroke's first cell must not paint after the canvas is gone
   $effect(() => () => { if (settle) clearTimeout(settle.timer); });
 
@@ -166,6 +170,7 @@
   }
 
   function down(e: PointerEvent) {
+    lastType = e.pointerType;
     if (e.button !== 0 && e.button !== 1) return;
     // a drag here pans or paints: no text selection, and no middle-button autoscroll of the side panel
     e.preventDefault();
@@ -265,12 +270,14 @@
       if (pinch.ids.includes(e.pointerId)) pinch = null;
       return;
     }
+    // a cancelled touch (the browser took it, e.g. for a system gesture) was never a tap: its waiting cell is dropped
+    if (e.type === 'pointercancel' && settle) { clearTimeout(settle.timer); settle = null; }
     settled();
     const d = drag, s = sel;
     drag = null;
     sel = null;
     // Select: a click without a drag picks the color under the pointer
-    if (d?.kind === 'pan' && ui.tool === 'select' && Math.hypot(e.clientX - d.at.x, e.clientY - d.at.y) < 4) {
+    if (d?.kind === 'pan' && ui.tool === 'select' && e.type !== 'pointercancel' && Math.hypot(e.clientX - d.at.x, e.clientY - d.at.y) < 4) {
       const at = cellAt(e), v = at?.inside ? at.g.cells[at.j * at.g.w + at.i]! : -1;
       if (at && v >= 0) { ui.sel = at.g.palette[v]!.hex; ui.newColor = false; }
       return;
@@ -297,5 +304,5 @@
   <canvas {id} bind:this={canvas} class:pan={!ui.picking && !ui.cropping && ui.tool === 'select'} class:crop={ui.cropping}
     class:draw={!ui.picking && !ui.cropping && ui.tool !== 'select'}
     title="Scroll to zoom, drag to pan, double-click to fit"
-    onmousedown={(e) => e.preventDefault()} onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up} onlostpointercapture={(e) => touches.delete(e.pointerId)} onpointerleave={() => (hover = null)} ondblclick={reset}></canvas>
+    onmousedown={(e) => e.preventDefault()} onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up} onlostpointercapture={(e) => touches.delete(e.pointerId)} onpointerleave={() => (hover = null)} ondblclick={dblclick}></canvas>
 </div>

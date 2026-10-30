@@ -1,6 +1,7 @@
 import { DEFAULTS, applyEdits, opaqueBox, pieces, placeRelative, type Anchor, type Edit, type Grid, type Settings } from '@pixel3d/core';
 import type { Brush } from './brush';
 import { computeGrid, type Meta, type Source } from './pipeline';
+import { PHONE_QUERY } from './phone';
 
 /** One undo step: everything a load or an edit can change. Grids and sources are never mutated, so they are shared. */
 export interface Snapshot { source: Source | null; grid: Grid | null; meta: Meta | null; settings: Settings; edits: Edit[] }
@@ -67,8 +68,9 @@ export const ui = $state({
   newColor: false,
   /** The editor's square brush size. */
   brush: 1 as Brush,
-  /** A phone-sized screen: the sketchpad layout replaces the PC panels (phone.ts). */
-  phone: false,
+  /** A phone-sized screen: the sketchpad layout replaces the PC panels (phone.ts). Right from the start, so a phone
+   * never builds the PC layout first; App.svelte follows changes. */
+  phone: typeof matchMedia === 'function' && matchMedia(PHONE_QUERY).matches,
   /** The phone's active tab. */
   tab: 'draw' as 'draw' | '3d',
   toast: { text: '', n: 0 },

@@ -13,6 +13,14 @@
   /** Never fewer than the drawing uses. */
   const least = $derived(Math.max(2, app.grid?.palette.length ?? 0));
   const setMax = (n: number) => setting(() => { app.settings.colors.max = n; });
+  /** Only a drawn canvas has a size to change (a photo loaded on a PC keeps its own). */
+  const fixed = $derived(!app.source?.blank);
+
+  /** An empty or unreadable box changes nothing; the boxes then show the size the canvas really has (limits applied). */
+  function resize() {
+    if (Number.isFinite(rw) && Number.isFinite(rh)) resizeCanvas(rw, rh);
+    if (app.grid) { rw = app.grid.w; rh = app.grid.h; }
+  }
 </script>
 
 <div class="phScrim" role="presentation" onpointerdown={(e) => { if (e.target === e.currentTarget) close(); }}>
@@ -20,14 +28,14 @@
     <div class="lbl">Canvas size</div>
     <div class="phRow" id="phSize">
       {#each [16, 32, 48, 64] as n (n)}
-        <button class="btn" class:on={app.grid?.w === n && app.grid?.h === n} data-size={n} onclick={() => resizeCanvas(n, n)}>{n}</button>
+        <button class="btn" class:on={app.grid?.w === n && app.grid?.h === n} data-size={n} disabled={fixed} onclick={() => resizeCanvas(n, n)}>{n}</button>
       {/each}
     </div>
     <div class="phRow">
-      <input id="phW" type="number" min="4" max="128" bind:value={rw} aria-label="Canvas width">
+      <input id="phW" type="number" min="4" max="128" bind:value={rw} disabled={fixed} aria-label="Canvas width">
       <span>×</span>
-      <input id="phH" type="number" min="4" max="128" bind:value={rh} aria-label="Canvas height">
-      <button class="btn" id="phResize" title="Change the canvas size, keeping the drawing from the top-left" onclick={() => resizeCanvas(rw, rh)}>Resize</button>
+      <input id="phH" type="number" min="4" max="128" bind:value={rh} disabled={fixed} aria-label="Canvas height">
+      <button class="btn" id="phResize" disabled={fixed} title="Change the canvas size, keeping the drawing from the top-left" onclick={resize}>Resize</button>
     </div>
     <div class="lbl">Most colors</div>
     <div class="phRow">

@@ -169,9 +169,10 @@
 
   $effect(() => { vp?.setCut(ui.cut); });
   $effect(() => { const ex = app.settings.export; vp?.setMono(ex.mono ? ex.monoColor : null); });
-  // R26: in Select mode the selected color shows on the model, the rest dimmed
+  // R26: in Select mode the selected color shows on the model, the rest dimmed (not on the phone, whose Pick is a
+  // painting tool: its picked color is the brush, not a highlight)
   $effect(() => {
-    const sel = ui.sel, on = ui.tool === 'select' && !!sel && !!app.grid?.palette.some((p) => p.hex === sel);
+    const sel = ui.sel, on = !ui.phone && ui.tool === 'select' && !!sel && !!app.grid?.palette.some((p) => p.hex === sel);
     vp?.setHighlight(on ? sel : null);
   });
   $effect(() => { vp?.setXray(ui.xray.on ? ui.xray.opacity : null); });
