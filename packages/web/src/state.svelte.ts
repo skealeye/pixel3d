@@ -42,6 +42,8 @@ export const ui = $state({
   dims: '',
   /** Pick mode: the background shows and the next click in the preview picks its color. */
   picking: false,
+  /** Bumped by the phone's Reset view: the source canvas goes back to unzoomed and centred. */
+  viewReset: 0,
   cropping: false,
   /** Magnet placement mode: the next click on the model drops a magnet. Esc cancels. */
   placing: false,

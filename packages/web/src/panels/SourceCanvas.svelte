@@ -152,6 +152,12 @@
     untrack(reset);
   });
 
+  // the phone's Reset view
+  $effect(() => {
+    void ui.viewReset;
+    untrack(reset);
+  });
+
   const clampCell = (v: number, n: number) => Math.min(n - 1, Math.max(0, v));
 
   /** Pointer position relative to the canvas centre, as `wheel` and `pinchView` use. */

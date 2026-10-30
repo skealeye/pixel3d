@@ -843,6 +843,67 @@ test.describe('phone state', () => {
   });
 });
 
+test.describe('phone top bar', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  test('Save PNG is a styled button you can read', async ({ page }) => {
+    await page.goto('/?test');
+    const css = await page.locator('#savePng').evaluate((e) => { const c = getComputedStyle(e); return { bg: c.backgroundColor, fg: c.color }; });
+    const lum = (c: string) => { const [r, g, b] = c.match(/\d+/g)!.map((v) => { const x = +v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!; };
+    const [hi, lo] = [lum(css.bg), lum(css.fg)].sort((x, y) => y - x);
+    expect((hi! + 0.05) / (lo! + 0.05)).toBeGreaterThan(4.5);
+  });
+
+  test('tapping an empty color slot leaves no other slot outlined', async ({ page }) => {
+    await page.goto('/?test');
+    await page.locator('#phTool-paint').click();
+    await tap(page, 3, 3);
+    await expect(page.locator('#phSlots .slot.cur')).toHaveCount(1);
+    await page.locator('#phSlots .slot.empty').first().click();
+    await expect(page.locator('#phSlots .slot.cur')).toHaveCount(1);
+    await expect(page.locator('#phSlots .slot.empty.cur')).toHaveCount(1);
+  });
+
+  test('the Draw / 3D switch is in the top bar, so the canvas has the screen below it', async ({ page }) => {
+    await page.goto('/?test');
+    const bar = (await page.locator('#phTop').boundingBox())!;
+    for (const id of ['#tabDraw', '#tab3d', '#phReset', '#savePng', '#phUndo', '#phGear']) {
+      const b = (await page.locator(id).boundingBox())!;
+      expect(b.y).toBeGreaterThanOrEqual(bar.y);
+      expect(b.y + b.height).toBeLessThanOrEqual(bar.y + bar.height);
+      expect(b.x).toBeGreaterThanOrEqual(0);
+      expect(b.x + b.width).toBeLessThanOrEqual(390);
+    }
+    await expect(page.locator('#phMain ~ #phTabs, #phone > #phTabs')).toHaveCount(0);
+    const main = (await page.locator('#phMain').boundingBox())!;
+    expect(main.y + main.height).toBeGreaterThan(844 - 2);
+    await page.locator('#tab3d').click();
+    await expect(page.locator('#phReset')).toBeDisabled();
+    await page.locator('#tabDraw').click();
+    await expect(page.locator('#phReset')).toBeEnabled();
+  });
+
+  test('Reset view puts the canvas back to unzoomed and centred', async ({ page }) => {
+    await page.goto('/?test');
+    await page.locator('#phTool-paint').click();
+    const touch = await fingers(page);
+    const from = [await cell(page, 14, 16), await cell(page, 18, 16)], to = [await cell(page, 4, 12), await cell(page, 28, 12)];
+    await touch('touchStart', from);
+    await slide(touch, from, to);
+    await touch('touchEnd');
+    await expect.poll(async () => (await snap(page)).zoom).toBeGreaterThan(1);
+    await page.locator('#phReset').click();
+    expect((await snap(page)).zoom).toBe(1);
+    // centred again: the whole 32 x 32 grid fits inside the canvas box
+    const box = (await page.locator('#phSrc').boundingBox())!;
+    const first = await cell(page, 0, 0), last = await cell(page, 31, 31);
+    expect(first.x).toBeGreaterThanOrEqual(box.x);
+    expect(last.x).toBeLessThanOrEqual(box.x + box.width);
+    expect(first.y).toBeGreaterThanOrEqual(box.y);
+    expect(last.y).toBeLessThanOrEqual(box.y + box.height);
+  });
+});
+
 test.describe('desktop', () => {
   test.use({ viewport: { width: 1400, height: 900 } });
 

@@ -50,7 +50,7 @@
     <div id="phColorArea">
       <div id="phSlots">
         {#each palette as p (p.hex)}
-          <button class="slot" class:cur={p.hex === cur} style:background={p.hex} data-c={p.hex} aria-label="Use {p.hex}" onclick={() => use(p.hex)}></button>
+          <button class="slot" class:cur={!ui.newColor && p.hex === cur} style:background={p.hex} data-c={p.hex} aria-label="Use {p.hex}" onclick={() => use(p.hex)}></button>
         {/each}
         {#each { length: Math.max(0, max - palette.length) } as _, i (i)}
           <button class="slot empty" class:cur={ui.newColor && i === 0} aria-label="New color" onclick={() => (ui.newColor = true)}></button>
