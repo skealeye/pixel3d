@@ -81,9 +81,9 @@
       for (let j = 0; j <= g.h; j++) { const y = px(top + j * cell) + 0.5 / dpr; ctx.moveTo(left, y); ctx.lineTo(left + g.w * cell, y); }
       ctx.stroke();
     }
-    // everything but the largest piece gets a red outline, while what is printed is in pieces (a clicker's backing,
+    // everything but the largest piece gets a red outline (not while drawing: half-drawn shapes are pieces too), while what is printed is in pieces (a clicker's backing,
     // an outline ring or a smoothed base can join them)
-    if (parts.length > 1 && pieceCount() > 1) {
+    if (parts.length > 1 && pieceCount() > 1 && !ui.editor && !ui.phone) {
       ctx.strokeStyle = '#e0715c';
       ctx.lineWidth = 2;
       for (const piece of parts.slice(1)) for (const k of piece) {
