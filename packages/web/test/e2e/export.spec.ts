@@ -66,6 +66,17 @@ async function customize(page: Page) {
 }
 
 test.describe('export', () => {
+  test('Save PNG in the header downloads the picture, 1 pixel per cell', async ({ page }) => {
+    await page.goto('/?test');
+    await expect(page.locator('#savePng')).toBeDisabled();
+    await loadPotion(page);
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#savePng').click()]);
+    expect(dl.suggestedFilename()).toBe('pixel-art.png');
+    const b = await bytesOf(dl);
+    expect(Buffer.from(b.slice(1, 4)).toString()).toBe('PNG');
+    expect(new DataView(b.buffer, b.byteOffset).getUint32(16)).toBe(16);
+  });
+
   test('Export file gives the bytes convert() gives with the saved preset (3MF, Bambu)', async ({ page }) => {
     await loadPotion(page);
     await customize(page);

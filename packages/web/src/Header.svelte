@@ -1,6 +1,7 @@
 <script lang="ts">
   import { app, ui, undo, redo } from './state.svelte';
   import { loadFile } from './load';
+  import { savePng } from './png';
   import ExportPopover from './panels/ExportPopover.svelte';
   import BatchDialog from './panels/BatchDialog.svelte';
 
@@ -19,6 +20,7 @@
   <button class="btn" id="openImg" title="Open an image, or drop one anywhere on the window" onclick={() => fileIn.click()}>Open image</button>
   <input type="file" id="fileIn" accept="image/png,image/gif,image/webp,image/jpeg" hidden bind:this={fileIn}
     onchange={(e) => { const t = e.currentTarget; void loadFile(t.files?.[0]); t.value = ''; }}>
+  <button class="btn" id="savePng" title="Save the picture as a PNG, one pixel per cell" disabled={!app.grid} onclick={savePng}>Save PNG</button>
   <ExportPopover />
   <a class="btn kofi" id="kofi" href="https://ko-fi.com/seankealey" target="_blank" rel="noopener noreferrer"
     title="Support pixel3d on Ko-fi"><img src="kofi.png" alt="" width="20" height="16">Support me on Ko-fi</a>
