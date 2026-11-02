@@ -30,8 +30,6 @@
   const SETTLE = 100;
   let settle: { timer: ReturnType<typeof setTimeout>; cell: { x: number; y: number } } | null = null;
   let sel = $state<{ c0: number; r0: number; c1: number; r1: number } | null>(null);
-  /** The cell under the pointer, for the brush outline while Paint or Erase is on. */
-  let hover = $state<{ i: number; j: number } | null>(null);
   const parts = $derived(app.parts);
 
   /** Layout of the grid on the canvas: cell size and top-left, CSS px. */
@@ -93,14 +91,6 @@
         ctx.strokeRect(left + i * cell + 1, top + j * cell + 1, cell - 2, cell - 2);
       }
     }
-    if (hover && !ui.cropping && !ui.picking && ui.tool !== 'select' && ui.tool !== 'fill') {
-      ctx.strokeStyle = '#d9a441';
-      ctx.lineWidth = 2;
-      const o = ui.brush % 2 ? (ui.brush - 1) / 2 : 0;
-      const i0 = Math.max(0, hover.i - o), j0 = Math.max(0, hover.j - o);
-      const i1 = Math.min(g.w, hover.i - o + ui.brush), j1 = Math.min(g.h, hover.j - o + ui.brush);
-      if (i1 > i0 && j1 > j0) ctx.strokeRect(left + i0 * cell, top + j0 * cell, (i1 - i0) * cell, (j1 - j0) * cell);
-    }
     if (sel) {
       const x = left + Math.min(sel.c0, sel.c1) * cell, y = top + Math.min(sel.r0, sel.r1) * cell;
       const w = (Math.abs(sel.c1 - sel.c0) + 1) * cell, h = (Math.abs(sel.r1 - sel.r0) + 1) * cell;
@@ -115,7 +105,7 @@
 
   $effect(() => {
     // redraw when any of these change
-    void [app.grid, ui.zoom, pan.x, pan.y, size, sel, pieceCount(), hover, ui.tool, ui.brush];
+    void [app.grid, ui.zoom, pan.x, pan.y, size, sel, pieceCount(), ui.tool, ui.brush];
     draw();
   });
 
@@ -188,7 +178,6 @@
         if (settle) { clearTimeout(settle.timer); settle = null; }
         drag = null;
         sel = null;
-        hover = null;
         const [ia, ib] = [...touches.keys()] as [number, number];
         pinch = { ids: [ia, ib], a: touches.get(ia)!, b: touches.get(ib)!, zoom: ui.zoom, pan: { ...pan } };
         canvas.setPointerCapture(e.pointerId);
@@ -255,10 +244,6 @@
       // a finger left over from a pinch
       if (!drag) return;
     }
-    if (ui.tool !== 'select') {
-      const h = cellAt(e);
-      if (h?.i !== hover?.i || h?.j !== hover?.j) hover = h && { i: h.i, j: h.j };
-    }
     if (!drag) return;
     if (drag.kind === 'pan') { pan = { x: e.clientX - drag.x, y: e.clientY - drag.y }; return; }
     const at = cellAt(e);
@@ -314,6 +299,8 @@
 <div class="source" id="sourceBox" bind:this={box}>
   <canvas {id} bind:this={canvas} class:pan={!ui.picking && !ui.cropping && ui.tool === 'select'} class:crop={ui.cropping}
     class:draw={!ui.picking && !ui.cropping && ui.tool !== 'select'}
+    class:t-paint={!ui.picking && !ui.cropping && ui.tool === 'paint'} class:t-erase={!ui.picking && !ui.cropping && ui.tool === 'erase'} class:t-fill={!ui.picking && !ui.cropping && ui.tool === 'fill'}
+    class:t-pick={!ui.picking && !ui.cropping && ui.tool === 'select' && (ui.editor || ui.phone)}
     title="Scroll to zoom, drag to pan, double-click to fit"
-    onmousedown={(e) => e.preventDefault()} onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up} onlostpointercapture={(e) => touches.delete(e.pointerId)} onpointerleave={() => (hover = null)} ondblclick={dblclick}></canvas>
+    onmousedown={(e) => e.preventDefault()} onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up} onlostpointercapture={(e) => touches.delete(e.pointerId)} ondblclick={dblclick}></canvas>
 </div>
