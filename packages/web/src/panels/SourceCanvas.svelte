@@ -3,7 +3,7 @@
   import { change, app, ui } from '../state.svelte';
   import { colorAt } from '../pipeline';
   import { cropTo, paintCells, pieceCount } from '../actions.svelte';
-  import { footprint } from '../brush';
+  import { floodCells, footprint } from '../brush';
   import { pinchView, type PinchStart, type Pt } from '../pinch';
 
   /** `id` tells the viewer's canvas from the Pixel Editor's. `fit`: the box has a height of its own and the canvas must fit it too. */
@@ -93,7 +93,7 @@
         ctx.strokeRect(left + i * cell + 1, top + j * cell + 1, cell - 2, cell - 2);
       }
     }
-    if (hover && !ui.cropping && !ui.picking && ui.tool !== 'select') {
+    if (hover && !ui.cropping && !ui.picking && ui.tool !== 'select' && ui.tool !== 'fill') {
       ctx.strokeStyle = '#d9a441';
       ctx.lineWidth = 2;
       const o = ui.brush % 2 ? (ui.brush - 1) / 2 : 0;
@@ -208,6 +208,11 @@
       const c = clampCell(at.i, at.g.w), r = clampCell(at.j, at.g.h);
       drag = { kind: 'crop', c0: c, r0: r };
       sel = { c0: c, r0: r, c1: c, r1: r };
+      return;
+    }
+    if (ui.tool === 'fill' && e.button === 0 && at) {
+      // one click floods the joined region with the brush color: a single undo step, no drag
+      if (at.inside) paintCells(floodCells(at.g.cells, at.g.w, at.g.h, at.i, at.j), true);
       return;
     }
     if (ui.tool !== 'select' && e.button === 0 && at) {

@@ -14,10 +14,10 @@
   // paint with the color the picker shows from the start (a blank canvas has no first color)
   if (!ui.sel) ui.sel = app.grid?.palette[0]?.hex ?? '#000000';
 
-  /** Choosing a color means painting with it: Erase and Pick go back to Paint. */
+  /** Choosing a color means painting with it: Erase and Pick go back to Paint; Fill stays. */
   function use(c: string) {
     setBrush(c);
-    ui.tool = 'paint';
+    if (ui.tool !== 'fill') ui.tool = 'paint';
   }
 
   // the picker: a color in the image is recolored everywhere as one undo step; a new color only changes the brush
@@ -28,14 +28,14 @@
   function pickInput(hex: string) {
     if (live) live.set(hex);
     else ui.sel = hex;
-    ui.tool = 'paint';
+    if (ui.tool !== 'fill') ui.tool = 'paint';
   }
   function pickEnd() {
     live?.end();
     live = null;
   }
   // Pick is the viewer's Select tool (a tap picks the color under it), as in the PC editor
-  const tools = [['paint', 'paint', 'Paint'], ['erase', 'erase', 'Erase'], ['pick', 'select', 'Pick']] as const;
+  const tools = [['paint', 'paint', 'Paint'], ['erase', 'erase', 'Erase'], ['fill', 'fill', 'Fill'], ['pick', 'select', 'Pick']] as const;
 </script>
 
 <div id="phDraw">

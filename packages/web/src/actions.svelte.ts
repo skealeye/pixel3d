@@ -1,7 +1,8 @@
 import { type Edit, type Settings } from '@pixel3d/core';
 import { PALETTE_MAX } from './brush';
 import { CANVAS_MAX, CANVAS_MIN, blankSource, cellsToCrop, computeGrid, type Source } from './pipeline';
-import { addEdits, app, change, stopPicking, toast, ui } from './state.svelte';
+import { type Sketch } from './sketch';
+import { addEdits, app, change, recompute, stopPicking, toast, ui } from './state.svelte';
 
 // Edits from the palette panel and the source preview. Each one is a core `Edit`, replayed on top of the image (spec §4.10).
 
@@ -65,6 +66,15 @@ export function newCanvas(w: number, h: number, colors: number = 8) {
     app.settings.pixelate.enabled = 'auto';
     app.settings.colors.max = colors;
   });
+}
+
+/** Bring back the sketch saved on this phone: a blank canvas of its size with its edits replayed. Not an undo step. */
+export function restoreSketch(s: Sketch) {
+  newCanvas(s.w, s.h, s.colors);
+  app.edits = s.edits;
+  recompute(false);
+  app.undo = [];
+  app.redo = [];
 }
 
 /** Make a blank canvas `w` × `h` pixels, keeping the drawing from the top-left; what no longer fits is dropped. Undoable. */

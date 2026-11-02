@@ -60,8 +60,8 @@ export const ui = $state({
   wide: false,
   /** Source preview zoom, 1–16. */
   zoom: 1,
-  /** Source preview tool: Select pans and picks a color, Paint and Erase draw. */
-  tool: 'select' as 'select' | 'paint' | 'erase',
+  /** Source preview tool: Select pans and picks a color, Paint and Erase draw, Fill floods a region. */
+  tool: 'select' as 'select' | 'paint' | 'erase' | 'fill',
   /** The color Paint uses (falls back to the first color when it is gone). */
   sel: null as string | null,
   /** The Pixel Editor window is open. */

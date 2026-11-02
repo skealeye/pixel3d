@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { VERSION } from '@pixel3d/core';
+  import { VERSION, type Edit } from '@pixel3d/core';
   import { redo, app, ui, undo, stopPicking } from './state.svelte';
   import { BRUSHES } from './brush';
   import { listen } from './load';
@@ -23,7 +23,8 @@
   import Footer from './Footer.svelte';
   import PhoneApp from './phone/PhoneApp.svelte';
   import { PHONE_QUERY } from './phone';
-  import { closeEditor, newCanvas, setBrush } from './actions.svelte';
+  import { closeEditor, newCanvas, restoreSketch, setBrush } from './actions.svelte';
+  import { loadSketch, saveSketch } from './sketch';
   import Toast from './Toast.svelte';
   import UpdatePrompt from './UpdatePrompt.svelte';
 
@@ -50,7 +51,9 @@
       closeEditor();
       if (!phone) return;
       if (!app.source) {
-        newCanvas(32, 32, 8);
+        const saved = loadSketch();
+        if (saved) restoreSketch(saved);
+        else newCanvas(32, 32, 8);
         // the blank canvas is where the phone starts, not a step to undo (undoing it would leave nothing to draw on)
         app.undo = [];
         app.redo = [];
@@ -58,6 +61,17 @@
       ui.tool = 'paint';
       ui.sel = app.grid?.palette[0]?.hex ?? '#000000';
     });
+  });
+
+  // the phone's drawing is kept in the browser's storage: saved a moment after each change, and when the page is hidden
+  $effect(() => {
+    const src = app.source, edits = app.edits, colors = app.settings.colors.max;
+    if (!ui.phone || !src?.blank) return;
+    const save = () => saveSketch({ v: 1, w: src.img.width, h: src.img.height, colors, edits: $state.snapshot(edits) as Edit[] });
+    const timer = setTimeout(save, 400);
+    const hide = () => { if (document.visibilityState === 'hidden') { clearTimeout(timer); save(); } };
+    document.addEventListener('visibilitychange', hide);
+    return () => { clearTimeout(timer); document.removeEventListener('visibilitychange', hide); };
   });
 
   $effect(() => register({
@@ -97,6 +111,7 @@
       const k = e.key.toLowerCase(), i = BRUSHES.indexOf(ui.brush);
       if (k === 'b') ui.tool = 'paint';
       else if (k === 'e') ui.tool = 'erase';
+      else if (k === 'f') ui.tool = 'fill';
       else if (k === 'i') ui.tool = 'select';
       else if (k === '[') ui.brush = BRUSHES[Math.max(0, i - 1)]!;
       else if (k === ']') ui.brush = BRUSHES[Math.min(BRUSHES.length - 1, i + 1)]!;

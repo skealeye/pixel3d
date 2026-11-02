@@ -19,12 +19,12 @@
   /** The brush color: it need not be in the image until a pixel is painted with it. */
   const cur = $derived(ui.sel && /^#[0-9a-f]{6}$/.test(ui.sel) ? ui.sel : (palette[0]?.hex ?? ''));
   // the tool buttons: Pick is the viewer's Select tool (drag pans, a click picks the color)
-  const tools = [['paint', 'paint', 'Paint', 'B'], ['erase', 'erase', 'Erase', 'E'], ['pick', 'select', 'Pick', 'I']] as const;
+  const tools = [['paint', 'paint', 'Paint', 'B'], ['erase', 'erase', 'Erase', 'E'], ['fill', 'fill', 'Fill', 'F'], ['pick', 'select', 'Pick', 'I']] as const;
 
-  /** Choosing a color means painting with it: Erase and Pick go back to Paint. */
+  /** Choosing a color means painting with it: Erase and Pick go back to Paint; Fill stays. */
   function use(c: string) {
     setBrush(c);
-    ui.tool = 'paint';
+    if (ui.tool !== 'fill') ui.tool = 'paint';
   }
 
   // the size of a canvas to start, and of the blank canvas being drawn on
@@ -59,7 +59,7 @@
   function wheelInput(hex: string) {
     if (live) live.set(hex);
     else ui.sel = hex;
-    ui.tool = 'paint';
+    if (ui.tool !== 'fill') ui.tool = 'paint';
   }
   function wheelEnd() {
     live?.end();

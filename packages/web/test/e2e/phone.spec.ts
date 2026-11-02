@@ -913,3 +913,37 @@ test.describe('desktop', () => {
     await expect(page.locator('.left')).toBeVisible();
   });
 });
+
+test.describe('phone fill and autosave', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  test('Fill floods the joined empty region in one undo step, and stops at a wall', async ({ page }) => {
+    await page.goto('/?test');
+    await color(page, '#ff0000');
+    await page.locator('#phTool-paint').click();
+    const g = (await snap(page)).grid!;
+    for (let j = 0; j < g.h; j++) await tap(page, 5, j); // a wall splitting the canvas
+    const walled = await opaque(page);
+    const before = (await snap(page)).undo;
+    await color(page, '#0000ff');
+    await page.locator('#phTool-fill').click();
+    await tap(page, 2, 2);
+    expect(await opaque(page)).toBe(walled + 5 * g.h); // columns 0-4 only
+    expect((await snap(page)).undo).toBe(before + 1);
+    await page.locator('#phUndo').click();
+    expect(await opaque(page)).toBe(walled);
+  });
+
+  test('the drawing and its settings come back after a reload', async ({ page }) => {
+    await page.goto('/?test');
+    await color(page, '#00aa00');
+    await page.locator('#phTool-paint').click();
+    await tap(page, 3, 4);
+    await tap(page, 6, 7);
+    await expect.poll(async () => (await snap(page)).grid!.opaque).toBe(2);
+    await page.waitForTimeout(600);
+    await page.reload();
+    await expect.poll(async () => (await snap(page)).grid?.opaque).toBe(2);
+    expect((await snap(page)).undo).toBe(0);
+  });
+});
